@@ -1,45 +1,52 @@
 # pkuharness-website
 
-This is a Next.js application generated with
-[Create Fumadocs](https://github.com/fuma-nama/fumadocs).
+The official website of [PKU Harness](https://github.com/pkuinfo/pku-harness): download page, developer
+documentation and the plugin marketplace.
 
-Run development server:
+Built with [Next.js](https://nextjs.org) and [Fumadocs](https://fumadocs.dev). Managed with **bun**.
+
+| Route                                            | What                                                                            |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `/`                                              | Landing page and project showcase                                               |
+| `/download`                                      | Latest app release (read from GitHub Releases of `pkuinfo/pku-harness`)         |
+| `/docs`                                          | Developer docs: ecosystem, plugin SDK, marketplace, PKU Harness Cloud (OpenAPI) |
+| `/marketplace`                                   | Plugin marketplace: official registry + community repos, submit your own        |
+| `/llms.txt`, `/llms-full.txt`, `/docs/<page>.md` | Docs for AI agents (markdown; `Accept: text/markdown` also works)               |
+
+## Develop
 
 ```bash
-npm run dev
-# or
-pnpm dev
-# or
-yarn dev
+bun install
+bun run dev          # http://localhost:3000
+bun run build        # production build
+bun run lint         # biome
+bun run types:check  # next typegen + tsc
 ```
 
-Open http://localhost:3000 with your browser to see the result.
+Optional environment (`.env.local`):
 
-## Explore
+| Variable               | Use                                                                                          |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL` | Canonical URL (OG images, sitemap)                                                           |
+| `GITHUB_TOKEN`         | Raises GitHub API limits for releases and marketplace scanning (read-only, no scopes needed) |
 
-In the project, you can see:
+## Layout
 
-- `lib/source.ts`: Code for content source adapter, [`loader()`](https://fumadocs.dev/docs/headless/source-api) provides the interface to access your content.
-- `lib/layout.shared.tsx`: Shared options for layouts, optional but preferred to keep.
+```
+content/docs/        MDX documentation (English; model-facing, kept in sync with the SDK)
+openapi/             OpenAPI spec of the PKU Harness Cloud wire protocol
+data/sources.json    Community plugin repos indexed by the marketplace
+src/app/(home)/      Landing, download, marketplace pages
+src/app/docs/        Docs pages
+src/lib/marketplace/ Repo scanner, manifest schema, index builder
+scripts/             Marketplace CLI (scan / check) used by CI
+```
 
-| Route                     | Description                                            |
-| ------------------------- | ------------------------------------------------------ |
-| `app/(home)`              | The route group for your landing page and other pages. |
-| `app/docs`                | The documentation layout and pages.                    |
-| `app/api/search/route.ts` | The Route Handler for search.                          |
+## Contributing
 
-### Fumadocs MDX
+See [CONTRIBUTING.md](CONTRIBUTING.md). To list a plugin, use the **Submit** page of the marketplace —
+you don't need to edit this repo by hand.
 
-Collections are defined with the [Macro API](https://fumadocs.dev/docs/mdx/macro) in `lib/source.ts`.
+## License
 
-Read the [Introduction](https://fumadocs.dev/docs/mdx) for further details.
-
-## Learn More
-
-To learn more about Next.js and Fumadocs, take a look at the following
-resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js
-  features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [Fumadocs](https://fumadocs.dev) - learn about Fumadocs
+MIT

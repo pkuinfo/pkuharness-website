@@ -1,6 +1,42 @@
-@import 'tailwindcss';
-@import 'fumadocs-ui/css/neutral.css';
-@import 'fumadocs-ui/css/preset.css';
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "fumadocs-openapi/css/preset.css";
+
+/*
+ * Brand tokens. Mirrors pku-harness docs/DESIGN.md: dark-first "campus terminal", one accent
+ * (北大红 #8B0012 for fills, a lifted red for text), PKU auxiliary colours only as light.
+ */
+@theme {
+  --color-brand: #8b0012;
+  --color-brand-bright: #c42236;
+  --color-brand-deep: #52000a;
+  --color-pku-gold: #895e43;
+  --color-pku-sand: #ba9570;
+  --color-pku-navy: #0e3463;
+  --color-pku-slate: #475c87;
+  --color-pku-amber: #efaa3c;
+  --color-pku-pine: #44472c;
+  --color-up: #22c55e;
+  --color-down: #f97350;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+:root {
+  --color-fd-primary: #8b0012;
+  --color-fd-primary-foreground: #fff;
+  --color-fd-ring: #c42236;
+}
+
+.dark {
+  --color-fd-background: hsl(0, 0%, 4%);
+  --color-fd-card: hsl(0, 0%, 6.5%);
+  --color-fd-popover: hsl(0, 0%, 7%);
+  --color-fd-primary: #ff5a6a;
+  --color-fd-primary-foreground: #1a0003;
+  --color-fd-ring: #ff5a6a;
+}
 
 html {
   scrollbar-gutter: stable;
@@ -9,4 +45,14 @@ html {
 html > body[data-scroll-locked] {
   margin-right: 0px !important;
   --removed-body-scroll-bar-size: 0px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
