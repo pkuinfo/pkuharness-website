@@ -30,3 +30,14 @@ jobs:
             ghcr.io/pkuinfo/pkuharness-website:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # One registry version per publish (no attestation manifests), so cleanup below can
+          # never delete a piece the current image still references.
+          provenance: false
+          sbom: false
+      # Keep only the image just published; older versions are deleted to save space.
+      # Roll back by rebuilding an older commit (workflow_dispatch on that ref).
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: pkuharness-website
+          package-type: container
+          min-versions-to-keep: 1
