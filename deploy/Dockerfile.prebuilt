@@ -1,0 +1,15 @@
+# Runtime-only image from a local `bun run build` (Next standalone output). Fallback when the CI
+# image can't be pulled; same runtime as the main Dockerfile's final stage.
+#   NEXT_PUBLIC_SITE_URL=https://harness.novadiffusion.com bun run build
+#   docker build -f deploy/Dockerfile.prebuilt -t ghcr.io/pkuinfo/pkuharness-website:latest .
+FROM node:24-alpine
+WORKDIR /app
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+RUN addgroup -S app && adduser -S app -G app
+COPY --chown=app:app .next/standalone ./
+COPY --chown=app:app .next/static ./.next/static
+COPY --chown=app:app public ./public
+USER app
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget -qO- http://127.0.0.1:3000/ >/dev/null || exit 1
+CMD ["node", "server.js"]

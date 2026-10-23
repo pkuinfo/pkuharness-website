@@ -1,0 +1,5 @@
+# Only the prebuilt output (BuildKit reads <Dockerfile>.dockerignore first).
+*
+!.next/standalone
+!.next/static
+!public
