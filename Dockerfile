@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # PKU Harness website: build with bun, run the Next.js standalone server on Node.
 
-FROM oven/bun:1.3 AS build
+FROM oven/bun:1.4 AS build
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
