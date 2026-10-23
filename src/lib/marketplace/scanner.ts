@@ -4,7 +4,7 @@
  * I/O so tests can run on fixtures. No Next.js imports: the CLI and CI use this file.
  */
 
-import type { z } from 'zod';
+import { endpointIssues, folderUrl, HOST, isOfficialRepo, pluginSlug, type ScanIssue, zodIssues } from './common';
 import {
   type FetchOptions,
   GitHubError,
@@ -17,6 +17,8 @@ import {
   refCandidates,
   type TreeEntry,
 } from './github';
+import { namedToolFiles, parsePluginMd, validatePluginMd } from './lang';
+import { PLUGIN_MD } from './lang-schema';
 import {
   cloudIssues,
   MANIFEST_FILE,
@@ -29,18 +31,16 @@ import {
 } from './schema';
 import type { MarketplacePlugin } from './types';
 
-export const OFFICIAL_REPO = 'pkuinfo/pku-harness-plugins';
-export const LIMITS = { maxPlugins: 100, maxPackageJson: 300, concurrency: 8 } as const;
+export const LIMITS = {
+  maxPlugins: 100,
+  maxPackageJson: 300,
+  concurrency: 8,
+  maxToolFiles: 40,
+  maxToolFilesTotal: 400,
+} as const;
 
-export type IssueLevel = 'error' | 'warning' | 'info';
-export interface ScanIssue {
-  level: IssueLevel;
-  message: string;
-  /** How to fix it, in one line. */
-  hint?: string;
-  /** Manifest field the issue is about (dot path). */
-  field?: string;
-}
+export type { IssueLevel, ScanIssue } from './common';
+export { folderUrl, isOfficialRepo, OFFICIAL_REPO, pluginSlug } from './common';
 
 export type ScannedStatus = 'ok' | 'error' | 'skipped' | 'official';
 
@@ -48,7 +48,7 @@ export interface ScannedPlugin {
   /** Folder of the plugin, relative to the repo root ('' = root). */
   dir: string;
   manifestPath: string;
-  from: 'manifest' | 'package.json';
+  from: CandidateFrom;
   status: ScannedStatus;
   id?: string;
   plugin?: MarketplacePlugin;
@@ -92,10 +92,13 @@ export interface ScanOptions extends FetchOptions {
 /* Discovery                                                                                   */
 /* ------------------------------------------------------------------------------------------ */
 
+/** Where a plugin was found: PLUGIN.md (primary), pku-harness.plugin.json, or package.json. */
+export type CandidateFrom = 'plugin-md' | 'manifest' | 'package.json';
+
 export interface Candidate {
   dir: string;
   file: string;
-  from: 'manifest' | 'package.json';
+  from: CandidateFrom;
 }
 
 const dirOf = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
@@ -117,9 +120,9 @@ const within = (dir: string, root: string) => !root || dir === root || dir.start
 
 /**
  * Pick candidate files from a repo tree. With a `pku-harness.json` config, only (and in the order
- * of) its folders; otherwise every `pku-harness.plugin.json` and every `package.json` (which
- * still has to contain a `pkuHarness` object with an `id`). A manifest beats a package.json in
- * the same folder.
+ * of) its folders; otherwise every `PLUGIN.md`, every `pku-harness.plugin.json` and every
+ * `package.json` (which still has to contain a `pkuHarness` object with an `id`). One plugin per
+ * folder: PLUGIN.md beats pku-harness.plugin.json beats package.json.
  */
 export function findCandidates(
   entries: TreeEntry[],
@@ -130,6 +133,7 @@ export function findCandidates(
   const blobs = new Set(entries.filter((e) => e.type === 'blob').map((e) => e.path));
   const pick = (dir: string): Candidate | null => {
     const prefix = dir ? `${dir}/` : '';
+    if (blobs.has(`${prefix}${PLUGIN_MD}`)) return { dir, file: `${prefix}${PLUGIN_MD}`, from: 'plugin-md' };
     if (blobs.has(`${prefix}${MANIFEST_FILE}`)) return { dir, file: `${prefix}${MANIFEST_FILE}`, from: 'manifest' };
     if (blobs.has(`${prefix}package.json`)) return { dir, file: `${prefix}package.json`, from: 'package.json' };
     return null;
@@ -158,14 +162,16 @@ export function findCandidates(
       else
         notes.push({
           level: 'error',
-          message: `${REPO_CONFIG_FILE} lists "${dir || '.'}", but that folder has no ${MANIFEST_FILE} or package.json.`,
-          hint: `Add ${dir ? `${dir}/` : ''}${MANIFEST_FILE}, or remove the folder from ${REPO_CONFIG_FILE}.`,
+          message: `${REPO_CONFIG_FILE} lists "${dir || '.'}", but that folder has no ${PLUGIN_MD}, ${MANIFEST_FILE} or package.json.`,
+          hint: `Add ${dir ? `${dir}/` : ''}${PLUGIN_MD}, or remove the folder from ${REPO_CONFIG_FILE}.`,
         });
     }
     return { candidates, notes };
   }
 
+  const pluginMdDirs = new Set<string>();
   const manifestDirs = new Set<string>();
+  const pluginMds: Candidate[] = [];
   const manifests: Candidate[] = [];
   const packages: Candidate[] = [];
   for (const path of [...blobs].sort()) {
@@ -173,12 +179,16 @@ export function findCandidates(
     const dir = dirOf(path);
     if (!within(dir, root)) continue;
     const base = baseOf(path);
-    if (base === MANIFEST_FILE) {
+    if (base === PLUGIN_MD) {
+      pluginMdDirs.add(dir);
+      pluginMds.push({ dir, file: path, from: 'plugin-md' });
+    } else if (base === MANIFEST_FILE) {
       manifestDirs.add(dir);
       manifests.push({ dir, file: path, from: 'manifest' });
     } else if (base === 'package.json') packages.push({ dir, file: path, from: 'package.json' });
   }
-  let pkgs = packages.filter((p) => !manifestDirs.has(p.dir));
+  const jsonManifests = manifests.filter((m) => !pluginMdDirs.has(m.dir));
+  let pkgs = packages.filter((p) => !manifestDirs.has(p.dir) && !pluginMdDirs.has(p.dir));
   const maxPkg = opts.maxPackageJson ?? LIMITS.maxPackageJson;
   if (pkgs.length > maxPkg) {
     notes.push({
@@ -188,7 +198,7 @@ export function findCandidates(
     });
     pkgs = pkgs.slice(0, maxPkg);
   }
-  const candidates = [...manifests, ...pkgs].sort((a, b) => a.dir.localeCompare(b.dir));
+  const candidates = [...pluginMds, ...jsonManifests, ...pkgs].sort((a, b) => a.dir.localeCompare(b.dir));
   return { candidates, notes };
 }
 
@@ -208,10 +218,6 @@ const FIELD_HINTS: Record<string, string> = {
   homepage: 'A full https:// URL.',
 };
 
-const HOST = /^(\*\.)?([a-z0-9-]+\.)+[a-z]{2,}$/i;
-const PRIVATE_HOST =
-  /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0|\[?::1\]?$|169\.254\.)|\.(local|localhost|internal|lan)$/i;
-
 export interface ValidateContext {
   owner: string;
   repo: string;
@@ -224,31 +230,6 @@ export interface ValidateContext {
   verified?: string[];
   repoInfo?: Pick<RepoInfo, 'stars' | 'pushedAt'>;
   addedAt?: string;
-}
-
-export function isOfficialRepo(owner: string, repo: string) {
-  return `${owner}/${repo}`.toLowerCase() === OFFICIAL_REPO;
-}
-
-export function pluginSlug(owner: string, repo: string, id: string) {
-  return `${owner}/${repo}/${id}`.toLowerCase();
-}
-
-export function folderUrl(owner: string, repo: string, branch: string, dir: string) {
-  return dir ? `https://github.com/${owner}/${repo}/tree/${branch}/${dir}` : `https://github.com/${owner}/${repo}`;
-}
-
-function zodIssues(error: z.ZodError): ScanIssue[] {
-  return error.issues.map((i) => {
-    const field = i.path.join('.');
-    const top = String(i.path[0] ?? '');
-    return {
-      level: 'error' as const,
-      field: field || undefined,
-      message: field ? `${field}: ${i.message}` : i.message,
-      hint: FIELD_HINTS[top],
-    };
-  });
 }
 
 /** Turn file text into the manifest object (package.json: merge package fields under `pkuHarness`). */
@@ -319,7 +300,7 @@ export function validateManifest(
       });
 
   const parsed = manifestV1.safeParse(raw);
-  if (!parsed.success) return { issues: [...issues, ...zodIssues(parsed.error)], status: 'error' };
+  if (!parsed.success) return { issues: [...issues, ...zodIssues(parsed.error, FIELD_HINTS)], status: 'error' };
   const m = parsed.data;
   const official = isOfficialRepo(ctx.owner, ctx.repo);
 
@@ -359,30 +340,7 @@ export function validateManifest(
         message: 'No public endpoint: listed as self-hosted (users deploy it from source and paste their own URL).',
         hint: 'Add "endpoint" once you run a public instance.',
       });
-    else {
-      const u = new URL(m.endpoint);
-      if (u.protocol !== 'https:')
-        issues.push({
-          level: 'error',
-          field: 'endpoint',
-          message: 'endpoint must use https://.',
-          hint: FIELD_HINTS.endpoint,
-        });
-      if (PRIVATE_HOST.test(u.hostname) || /^\d+\.\d+\.\d+\.\d+$/.test(u.hostname))
-        issues.push({
-          level: 'error',
-          field: 'endpoint',
-          message: `endpoint host "${u.hostname}" is not reachable from students' phones.`,
-          hint: 'Use a public domain name with a TLS certificate.',
-        });
-      if (u.username || u.password || u.search)
-        issues.push({
-          level: 'error',
-          field: 'endpoint',
-          message: 'endpoint must not embed credentials or query parameters.',
-          hint: 'Use "auth": "bearer"; users paste the token in the app.',
-        });
-    }
+    else issues.push(...endpointIssues(m.endpoint, 'endpoint', FIELD_HINTS.endpoint));
   } else if (m.endpoint)
     issues.push({ level: 'warning', field: 'endpoint', message: 'Builtin plugins have no endpoint; ignored.' });
 
@@ -490,6 +448,7 @@ export function validateManifest(
     addedAt: ctx.addedAt,
     manifestPath: ctx.manifestPath,
     warnings: issues.filter((i) => i.level === 'warning').map((i) => i.message),
+    format: 'json',
   };
   return { plugin: hasError ? undefined : plugin, manifest: m, issues, status: hasError ? 'error' : 'ok' };
 }
@@ -602,13 +561,28 @@ export async function scanRepo(input: string, opts: ScanOptions = {}): Promise<S
       }
     });
 
+    // PLUGIN.md: fetch the tool files it names (to read their effects), then validate.
+    const files = new Map(tree.entries.filter((e) => e.type === 'blob').map((e) => [e.path, e.size] as const));
+    const toolPaths = new Set<string>();
+    for (const { c, text } of fetchedAll) {
+      if (c.from !== 'plugin-md' || !text) continue;
+      const raw = parsePluginMd(text).raw;
+      if (raw)
+        for (const p of namedToolFiles(raw, c.dir).slice(0, LIMITS.maxToolFiles))
+          if (files.has(p) && toolPaths.size < LIMITS.maxToolFilesTotal) toolPaths.add(p);
+    }
+    const toolFiles: Record<string, string | null> = {};
+    await mapLimit([...toolPaths], LIMITS.concurrency, async (p) => {
+      toolFiles[p] = await getRaw(owner, repo, branch, p, opts).catch(() => null);
+    });
+
     const plugins: ScannedPlugin[] = [];
     const seen = new Map<string, string>();
     const maxPlugins = opts.maxPlugins ?? LIMITS.maxPlugins;
     let listed = 0;
     for (const { c, text, err } of fetchedAll) {
       if (err || text === null) {
-        if (c.from === 'manifest' || err)
+        if (c.from !== 'package.json' || err)
           plugins.push({
             dir: c.dir,
             manifestPath: c.file,
@@ -616,6 +590,52 @@ export async function scanRepo(input: string, opts: ScanOptions = {}): Promise<S
             status: 'error',
             issues: [{ level: 'error', message: err ?? `Could not download ${c.file}.` }],
           });
+        continue;
+      }
+      if (c.from === 'plugin-md') {
+        if (listed >= maxPlugins) {
+          notes.push({ level: 'error', message: `More than ${maxPlugins} plugins found; the rest were not scanned.` });
+          break;
+        }
+        const v = validatePluginMd(text, {
+          owner,
+          repo,
+          branch,
+          dir: c.dir,
+          manifestPath: c.file,
+          files,
+          toolFiles,
+          officialIds: opts.officialIds,
+          takenIds: opts.takenIds,
+          verified: opts.verified,
+          repoInfo: info,
+          addedAt: opts.addedAt,
+        });
+        const entry: ScannedPlugin = {
+          dir: c.dir,
+          manifestPath: c.file,
+          from: c.from,
+          status: v.status,
+          id: v.id,
+          plugin: v.plugin,
+          manifest: v.raw,
+          issues: v.issues,
+        };
+        if (v.status !== 'official') listed++;
+        if (entry.id && v.status !== 'official') {
+          const prev = seen.get(entry.id);
+          if (prev) {
+            entry.status = 'error';
+            entry.plugin = undefined;
+            entry.issues.unshift({
+              level: 'error',
+              field: 'id',
+              message: `Duplicate id "${entry.id}" (also in ${prev}).`,
+              hint: 'Every plugin in a repo needs its own id.',
+            });
+          } else seen.set(entry.id, c.file);
+        }
+        plugins.push(entry);
         continue;
       }
       const ex = extractManifest(text, c.from);
@@ -682,7 +702,7 @@ export async function scanRepo(input: string, opts: ScanOptions = {}): Promise<S
         message: plugins.some((p) => p.status === 'official')
           ? 'Every plugin found here is already listed from the official registry.'
           : `No plugin manifests found${root ? ` under ${root}` : ''}.`,
-        hint: `Add a ${MANIFEST_FILE} to each plugin folder (or a "${PACKAGE_KEY}" object with an "id" to its package.json).`,
+        hint: `Add a ${PLUGIN_MD} to each plugin folder (remote MCP servers: ${MANIFEST_FILE}, until remote.mcp in PLUGIN.md replaces it).`,
       });
 
     const r = {

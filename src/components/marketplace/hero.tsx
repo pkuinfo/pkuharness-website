@@ -7,15 +7,19 @@ import { useEffect, useState } from 'react';
 
 const ease = [0.23, 1, 0.32, 1] as const;
 
-const MANIFEST = `{
-  "$schema": "https://…/schema/plugin-manifest.v1.json",
-  "id": "canteen-menu",
-  "name": "食堂菜单",
-  "description": "今天各食堂的菜单和营业时间。",
-  "endpoint": "https://canteen.example.com/mcp",
-  "requires": ["network"],
-  "scopes": ["dining.pku.edu.cn"]
-}`;
+const MANIFEST = `---
+spec: 1
+id: canteen-menu
+name: 食堂菜单
+description: 今天各食堂的菜单和营业时间。
+version: 1.0.0
+author: you
+network: [dining.pku.edu.cn]
+tools:
+  menu: tools/menu.yaml
+---
+
+Use \`menu\` when the user asks what to eat.`;
 
 function useTyped(text: string, speed = 9) {
   const reduce = useReducedMotion();
@@ -38,32 +42,50 @@ function useTyped(text: string, speed = 9) {
 }
 
 /** Minimal JSON colouring for the hero snippet (keys / strings / punctuation). */
-function Json({ code }: { code: string }) {
-  const parts = code.split(/("(?:[^"\\]|\\.)*"?)(\s*:)?/g);
-  const out: React.ReactNode[] = [];
-  for (let i = 0; i < parts.length; i += 3) {
-    if (parts[i])
-      out.push(
-        <span key={`p${i}`} className="text-fd-muted-foreground">
-          {parts[i]}
-        </span>,
-      );
-    const str = parts[i + 1];
-    const colon = parts[i + 2];
-    if (str)
-      out.push(
-        <span key={`s${i}`} className={colon ? 'text-fd-foreground' : 'text-brand-bright dark:text-[#ff8a96]'}>
-          {str}
-        </span>,
-      );
-    if (colon)
-      out.push(
-        <span key={`c${i}`} className="text-fd-muted-foreground">
-          {colon}
-        </span>,
-      );
-  }
-  return <>{out}</>;
+/** Minimal colouring for the hero's PLUGIN.md (fences, keys, values, body). */
+function PluginMd({ code }: { code: string }) {
+  let fences = 0;
+  return (
+    <>
+      {code.split('\n').map((line, i) => {
+        const key = `${i}:${line}`;
+        const nl = i > 0 ? '\n' : '';
+        if (line === '---') {
+          fences++;
+          return (
+            <span key={key} className="text-fd-muted-foreground">
+              {nl}
+              {line}
+            </span>
+          );
+        }
+        if (fences >= 2)
+          return (
+            <span key={key} className="text-fd-muted-foreground">
+              {nl}
+              {line}
+            </span>
+          );
+        const m = line.match(/^(\s*)([\w$-]+)(:)(.*)$/);
+        if (!m)
+          return (
+            <span key={key}>
+              {nl}
+              {line}
+            </span>
+          );
+        return (
+          <span key={key}>
+            {nl}
+            {m[1]}
+            <span className="text-fd-foreground">{m[2]}</span>
+            <span className="text-fd-muted-foreground">{m[3]}</span>
+            <span className="text-brand-bright dark:text-[#ff8a96]">{m[4]}</span>
+          </span>
+        );
+      })}
+    </>
+  );
 }
 
 export function MarketplaceHero({
@@ -106,8 +128,8 @@ export function MarketplaceHero({
           transition={{ duration: 0.6, ease, delay: 0.1 }}
           className="mt-5 max-w-xl text-[15px] leading-7 text-fd-muted-foreground"
         >
-          官方插件随 App 一起发布；社区插件是运行在开发者服务器上的 MCP
-          服务，手机上不运行任何第三方代码，也永远拿不到你的校园密码。每个插件需要什么、连到哪里、往云端发什么，都写在这里。
+          插件就是一个带 PLUGIN.md 的文件夹：App 解释执行它声明的步骤，不运行任何第三方代码，校园请求由 App
+          用你的会话代发，插件永远拿不到你的密码。贴一个链接就能安装。每个插件用哪些校园服务、连到哪里、能做什么，都写在这里。
         </motion.p>
         <motion.dl
           initial={{ opacity: 0 }}
@@ -161,12 +183,12 @@ export function MarketplaceHero({
           <span className="size-2.5 rounded-full bg-fd-muted-foreground/25" />
           <span className="size-2.5 rounded-full bg-fd-muted-foreground/25" />
           <figcaption className="ml-2 font-mono text-[11px] text-fd-muted-foreground">
-            your-repo/canteen/<span className="text-fd-foreground">pku-harness.plugin.json</span>
+            your-repo/canteen/<span className="text-fd-foreground">PLUGIN.md</span>
           </figcaption>
         </div>
         <pre className="min-h-[220px] overflow-x-auto px-4 py-4 font-mono text-[12.5px] leading-6">
           <code>
-            <Json code={typed} />
+            <PluginMd code={typed} />
             <span className={done ? 'animate-pulse text-fd-primary' : 'text-fd-primary'}>▍</span>
           </code>
         </pre>

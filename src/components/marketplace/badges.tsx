@@ -1,4 +1,4 @@
-import { BadgeCheck, Cloud, Package, Radio, Server, ShieldQuestion } from 'lucide-react';
+import { BadgeCheck, Cloud, FileText, Package, Radio, Server, ShieldQuestion } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { CAPABILITY } from '@/lib/marketplace/labels';
@@ -53,6 +53,16 @@ export function KindBadge({ kind, endpoint }: { kind: MarketplacePlugin['kind'];
       >
         <Server className="size-3" />
         自部署
+      </Badge>
+    );
+  if (kind === 'declarative')
+    return (
+      <Badge
+        className="bg-brand-bright/10 text-brand dark:text-[#ff8a96]"
+        title="A PLUGIN.md the app interprets on your phone: install by link, no code runs"
+      >
+        <FileText className="size-3" />
+        声明式
       </Badge>
     );
   return kind === 'builtin' ? (

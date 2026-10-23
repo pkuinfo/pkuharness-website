@@ -6,10 +6,12 @@ icon: Send
 
 ## Before you submit
 
-- Your MCP server is deployed over HTTPS (or you document how to self-host it), and its `name`
-  equals the manifest `id`. Start from
-  [`templates/remote-plugin`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/templates/remote-plugin)
-  and the [remote plugin guide](/docs/build/remote-plugin).
+- Each plugin is a folder with a `PLUGIN.md`, and every file its frontmatter names (`tools/`,
+  `widgets/`, `screens/`) is committed. See the [manifest reference](/docs/marketplace/manifest)
+  and [Declarative plugins](/docs/build/declarative-plugins).
+- For a remote MCP plugin: the server is deployed over HTTPS (or you document how to self-host
+  it) and its `name` equals the `id`. Start from
+  [`templates/remote-plugin`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/templates/remote-plugin).
 - The repository is **public** on github.com.
 - You follow the [review rules](/docs/marketplace/review): no campus passwords, honest effects,
   data not instructions, cloud disclosure.
@@ -39,8 +41,8 @@ instead of 60.
 
 ## Many plugins in one repo
 
-Nothing special is needed: every manifest in the repo is picked up, each with its own handle
-`owner/repo/<id>`. For big monorepos, add a root `pku-harness.json` listing the plugin folders.
+Nothing special is needed: every `PLUGIN.md` in the repo is picked up, each with its own handle
+`owner/repo/<folder>` and install link. For big monorepos, add a root `pku-harness.json` listing the plugin folders.
 It makes scans faster, fixes the order, and keeps example or test manifests out:
 
 ```json title="pku-harness.json"
@@ -49,7 +51,10 @@ It makes scans faster, fixes the order, and keeps example or test manifests out:
 
 ## Updating
 
-Push. The marketplace rescans listed repositories about once an hour from their default branch.
+Push. The marketplace rescans listed repositories about once an hour from their default branch,
+and the app re-fetches installed `PLUGIN.md` plugins from their link: same declarations, the
+update applies silently; wider declarations (a new campus service, host, ability or a stronger
+tool effect) wait for the user to accept.
 Adding a plugin folder lists it; deleting one removes it. Keep `id`s stable: users' installs,
 widgets and scheduled checks refer to them.
 
@@ -58,7 +63,7 @@ so you can fix it.
 
 ## Removal
 
-- **By you:** delete the manifests (or the repo, or make it private). The listing disappears on
+- **By you:** delete the `PLUGIN.md` files (or the repo, or make it private). The listing disappears on
   the next rescan. To remove the repo entry too, open a pull request deleting it from
   `data/sources.json`.
 - **By maintainers:** plugins that break the [review rules](/docs/marketplace/review) are removed

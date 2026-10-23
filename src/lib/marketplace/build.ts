@@ -61,6 +61,33 @@ export async function fetchOfficial(
   }
 }
 
+/** Copy a PLUGIN.md's declarations onto an official registry entry (registry keeps kind/verified). */
+export function mergeDeclarations(entry: MarketplacePlugin, doc: MarketplacePlugin) {
+  const keys = [
+    'format',
+    'handle',
+    'campus',
+    'network',
+    'abilities',
+    'tools',
+    'widgets',
+    'screens',
+    'commands',
+    'defaultModes',
+    'installUrl',
+    'deepLink',
+    'instructions',
+    'manifestSource',
+    'version',
+    'nameEn',
+    'descriptionEn',
+  ] as const;
+  for (const k of keys) if (doc[k] !== undefined) Object.assign(entry, { [k]: doc[k] });
+  entry.requires = [...new Set([...entry.requires, ...doc.requires])];
+  entry.scopes = [...new Set([...entry.scopes, ...doc.scopes])];
+  entry.manifestPath = doc.manifestPath;
+}
+
 export interface BuildResult {
   index: MarketplaceIndex;
   reports: { repo: string; report: ScanReport }[];
@@ -72,10 +99,16 @@ export interface BuildResult {
  */
 export async function buildIndex(
   sources: SourcesFile,
-  opts: FetchOptions & { concurrency?: number } = {},
+  opts: FetchOptions & { concurrency?: number; scanOfficial?: boolean } = {},
 ): Promise<BuildResult> {
   const official = await fetchOfficial(opts);
   const officialIds = new Set(official.plugins.map((p) => p.id));
+  // Official plugins that moved to PLUGIN.md: merge their declarations (install link, tools,
+  // campus services…) into the registry entries, and list PLUGIN.md-only ones as official.
+  const officialScan =
+    opts.scanOfficial === false || sources.sources.some((s) => s.repo.toLowerCase() === OFFICIAL_REPO)
+      ? null
+      : scanRepo(OFFICIAL_REPO, { ...opts, officialIds });
   const ordered = [...sources.sources].sort(
     (a, b) => a.addedAt.localeCompare(b.addedAt) || a.repo.localeCompare(b.repo),
   );
@@ -97,6 +130,13 @@ export async function buildIndex(
       }
     }),
   );
+
+  for (const sp of (await officialScan)?.plugins ?? []) {
+    if (!sp.plugin || sp.from !== 'plugin-md') continue;
+    const entry = official.plugins.find((p) => p.id === sp.plugin?.id);
+    if (entry) mergeDeclarations(entry, sp.plugin);
+    else if (sp.status === 'ok') official.plugins.push(sp.plugin);
+  }
 
   const taken = new Map<string, string>();
   const community: MarketplacePlugin[] = [];

@@ -6,6 +6,7 @@ type Repo = {
   branch?: string;
   files?: Record<string, unknown>;
   rateLimited?: boolean;
+  sizes?: Record<string, number>;
 };
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -20,6 +21,97 @@ const manifest = (id: string, extra: Record<string, unknown> = {}) => ({
   scopes: ['example.com'],
   ...extra,
 });
+
+const textOf = (body: unknown) => (body === undefined ? '' : typeof body === 'string' ? body : JSON.stringify(body));
+
+const md = (frontmatter: string, body = 'Use the tools when the user asks.') =>
+  `---\n${frontmatter.trim()}\n---\n\n${body}\n`;
+
+/** PLUGIN.md fixtures (plugin language spec v1). */
+export const DOC_PLUGINS: Record<string, unknown> = {
+  'classrooms/PLUGIN.md': md(
+    `
+spec: 1
+id: classrooms
+name: 空闲教室
+description: 查询各教学楼今天、明天、后天的空闲教室。
+version: 1.2.0
+author: carol
+icon: building
+campus: [card]
+network: [portal.pku.edu.cn]
+abilities: [notify]
+tools:
+  free: tools/free.yaml
+  rooms:
+    title: 教室列表
+    description: List rooms.
+    effect: read
+    steps: []
+    return: "[]"
+widgets:
+  overview: widgets/overview.json
+dataSources:
+  overview: { tool: free, args: { day: today }, ttl: 30m }
+commands:
+  study: { description: 找自习室, prompt: "Find a free room {{input}}" }
+i18n:
+  en: { name: Free classrooms, description: Free classrooms in each teaching building. }
+`,
+    'Use `free` when the user asks where to study.',
+  ),
+  'classrooms/tools/free.yaml': 'title: 空闲教室\ndescription: Free rooms.\neffect: read\nsteps: []\nreturn: "[]"\n',
+  'classrooms/widgets/overview.json': { title: 'Free rooms', spec: {} },
+  'classrooms/pku-harness.plugin.json': { id: 'shadowed', name: 'x', description: 'never read' },
+  'broken/PLUGIN.md': md(`
+spec: 1
+id: broken
+name: 坏插件
+description: Paths that escape or don't exist.
+version: 0.1.0
+author: carol
+tools:
+  up: ../classrooms/tools/free.yaml
+  gone: tools/missing.yaml
+widgets:
+  abs: /etc/passwd
+dataSources:
+  x: { tool: nope, ttl: 5m }
+`),
+  'big/PLUGIN.md': md(`
+spec: 1
+id: big
+name: 大插件
+description: Names a file that is too large.
+version: 1.0.0
+author: carol
+tools:
+  huge: tools/huge.yaml
+`),
+  'big/tools/huge.yaml': 'title: t\ndescription: d\neffect: read\n',
+  'remote/PLUGIN.md': md(`
+spec: 1
+id: remote-canteen
+name: 食堂（远程）
+description: A remote MCP plugin described by PLUGIN.md.
+version: 1.0.0
+author: carol
+campus: [card]
+remote: { mcp: "https://canteen.example.com/mcp", auth: bearer }
+`),
+  'nofm/PLUGIN.md': '# just markdown, no frontmatter\n',
+  'badtool/PLUGIN.md': md(`
+spec: 1
+id: badtool
+name: 无效工具
+description: The tool file lacks an effect.
+version: 2.0.0
+author: carol
+tools:
+  t: t.yaml
+`),
+  'badtool/t.yaml': 'title: t\ndescription: no effect here\n',
+};
 
 export function renderMarketplaceFixture() {
   const repos: Record<string, Repo> = {
@@ -47,6 +139,7 @@ export function renderMarketplaceFixture() {
         'node_modules/foo/pku-harness.plugin.json': manifest('ignored'),
       },
     },
+    'carol/doc-plugins': { stars: 9, files: DOC_PLUGINS, sizes: { 'big/tools/huge.yaml': 600 * 1024 } },
     'bob/copycat': { stars: 1, files: { 'pku-harness.plugin.json': manifest('canteen-menu') } },
     'alice/secret': { private: true },
     'alice/limited': { rateLimited: true },
@@ -111,7 +204,10 @@ export function renderMarketplaceFixture() {
         for (let i = 1; i < segs.length; i++) dirs.add(segs.slice(0, i).join('/'));
       }
       return json({
-        tree: [...[...dirs].map((path) => ({ path, type: 'tree' })), ...files.map((path) => ({ path, type: 'blob' }))],
+        tree: [
+          ...[...dirs].map((path) => ({ path, type: 'tree' })),
+          ...files.map((path) => ({ path, type: 'blob', size: r.sizes?.[path] ?? textOf(r.files?.[path]).length })),
+        ],
         truncated: false,
       });
     }

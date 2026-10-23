@@ -14,7 +14,20 @@ export type Capability =
   | 'cloud'
   | 'ongoing';
 
-export type PluginKind = 'builtin' | 'remote';
+/** builtin: ships in the app; remote: an MCP server; declarative: a PLUGIN.md the app interprets. */
+export type PluginKind = 'builtin' | 'remote' | 'declarative';
+
+export type ToolEffect = 'read' | 'write' | 'money' | 'public';
+
+/** A tool declared in a PLUGIN.md (effect known when inline or when its file was read). */
+export interface MarketplaceTool {
+  name: string;
+  title?: string;
+  effect?: ToolEffect;
+  /** File the tool lives in, relative to the plugin folder (absent = inline). */
+  path?: string;
+  userOnly?: boolean;
+}
 
 /** One plugin as the marketplace shows it (official registry entry or scanned community manifest). */
 export interface MarketplacePlugin {
@@ -59,6 +72,31 @@ export interface MarketplacePlugin {
   manifestPath?: string;
   /** Non-blocking review notes from the scanner (shown as "checks" on the detail page). */
   warnings?: string[];
+
+  /* ---- PLUGIN.md (plugin language, spec v1) ---- */
+  /** Which manifest the plugin was read from. Official registry entries have none unless merged. */
+  format?: 'plugin-md' | 'json';
+  /** Display handle `owner/repo/path` (the plugin language's handle; `slug` stays owner/repo/id for URLs). */
+  handle?: string;
+  /** Campus services it calls with the user's session (`card`, `treehole`, …). */
+  campus?: string[];
+  /** Public hosts it calls (same as `scopes` for PLUGIN.md plugins). */
+  network?: string[];
+  /** Host abilities it uses (`todos`, `browser`, `notify`, …). */
+  abilities?: string[];
+  tools?: MarketplaceTool[];
+  widgets?: string[];
+  screens?: string[];
+  commands?: { name: string; description: string }[];
+  defaultModes?: Partial<Record<ToolEffect, 'auto' | 'ask' | 'off'>>;
+  /** Install link the app accepts (GitHub folder URL on the default branch). */
+  installUrl?: string;
+  /** `pkuharness://plugin?src=<installUrl>` */
+  deepLink?: string;
+  /** Markdown body of PLUGIN.md (agent instructions), capped. */
+  instructions?: string;
+  /** Raw PLUGIN.md frontmatter (YAML), capped, for display. */
+  manifestSource?: string;
 }
 
 export interface MarketplaceSource {

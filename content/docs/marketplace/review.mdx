@@ -13,9 +13,10 @@ the plugins repository's
 
 <Callout type="error" title="Never ask for campus passwords">
   Credentials stay on the student's phone. A plugin must not ask for, collect or proxy the
-  student ID password, OTP codes or session cookies, in its tools, its UI or its docs. If you need an
-  authenticated campus session, say so with `requires: ["campus-session"]`; scoped session
-  grants for remote plugins are on the roadmap.
+  student ID password, OTP codes or session cookies, in its tools, its UI or its docs. A
+  `PLUGIN.md` that needs a campus service declares it in `campus`; the app makes those requests
+  with the user's session, and the plugin never sees credentials. Remote MCP servers get no
+  campus session at all.
 </Callout>
 
 1. **Tools are the API.** Clear Chinese `title` for users, a `description` for the model that
@@ -26,12 +27,16 @@ the plugins repository's
 3. **Return data, not instructions.** Tool results are shown to the model as data. Don't embed
    prompts, hidden instructions or "ignore previous instructions"-style text in results, and
    don't relay untrusted content (forum posts, emails) as if it were instructions.
-4. **Disclose cloud use.** If the plugin uses PKU Harness Cloud, the manifest's `cloud` block
+4. **Declare exactly what you touch.** In `PLUGIN.md`, list every campus service (`campus`),
+   public host (`network`) and host ability (`abilities`) you need, and give every tool its real
+   `effect`. That list is the permission sheet students accept; the app refuses anything
+   undeclared.
+5. **Disclose cloud use.** If the plugin uses PKU Harness Cloud, the manifest's `cloud` block
    must say in plain words what leaves the device. Undisclosed data collection is grounds for
    removal.
-5. **Be accurate about reach.** `scopes` lists the hosts your server talks to; `requires`
+6. **Be accurate about reach.** `scopes` lists the hosts your server talks to; `requires`
    lists what the phone must provide. Don't depend on a shell or filesystem on the phone.
-6. **Credit protocol sources.** If you port a campus protocol from
+7. **Credit protocol sources.** If you port a campus protocol from
    [pkucli](https://github.com/pkuinfo/pkucli), credit the source file.
 
 ## Automatic checks vs verification
@@ -40,8 +45,9 @@ Every listed plugin passed the scanner ([what it checks](/docs/marketplace/manif
 That proves the manifest is well-formed, not that the code is safe. **Verified** means a
 maintainer additionally:
 
-- read the source at the listed folder and confirmed it matches the manifest (tools, effects,
-  scopes, cloud disclosure);
+- read the `PLUGIN.md`, its tool files and the Markdown instructions, and confirmed the
+  declarations match what the steps do (campus services, hosts, abilities, effects, cloud
+  disclosure), with no prompt-like text in instructions or results;
 - confirmed the public endpoint runs that source (or the plugin is self-hosted);
 - checked the rules above, especially credentials and prompt injection.
 

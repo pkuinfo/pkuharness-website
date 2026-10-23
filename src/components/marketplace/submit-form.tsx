@@ -33,21 +33,38 @@ type State =
 
 const STEPS = ['resolve repository', 'list files', 'read manifests', 'validate'];
 
-const STARTER = `{
+const STARTER_MD = `---
+spec: 1
+id: my-plugin
+name: 我的插件
+description: 一句话说明它为同学们做什么。
+version: 0.1.0
+author: your-github-name
+network: [example.pku.edu.cn]
+tools:
+  lookup: tools/lookup.yaml
+i18n:
+  en: { name: My plugin, description: What it does, in one sentence. }
+---
+
+Use \`lookup\` when the user asks about … Answer with …`;
+
+/** Remote MCP servers, until remote.mcp in PLUGIN.md replaces it. */
+const STARTER_JSON = `{
   "$schema": "/schema/plugin-manifest.v1.json",
   "id": "my-plugin",
   "name": "我的插件",
   "description": "一句话说明它为同学们做什么。",
   "endpoint": "https://my-plugin.example.com/mcp",
   "requires": ["network"],
-  "scopes": ["example.pku.edu.cn"],
-  "license": "MIT",
-  "i18n": { "en": { "name": "My plugin", "description": "What it does, in one sentence." } }
+  "scopes": ["example.pku.edu.cn"]
 }`;
 
 function issueUrl(report: ScanReport) {
   const repo = report.repo?.fullName ?? report.input;
-  const handles = report.plugins.filter((p) => p.status === 'ok' && p.plugin).map((p) => p.plugin?.slug);
+  const handles = report.plugins
+    .filter((p) => p.status === 'ok' && p.plugin)
+    .map((p) => p.plugin?.handle ?? p.plugin?.slug);
   const params = new URLSearchParams({
     template: 'plugin-submission.yml',
     title: `[plugin] ${repo}`,
@@ -265,13 +282,12 @@ function Starter() {
         <p className="font-mono text-xs tracking-wider text-fd-muted-foreground">BEFORE YOU SUBMIT</p>
         <ol className="mt-3 space-y-2.5 text-sm leading-6 text-fd-muted-foreground">
           <li>
-            <span className="mr-2 font-mono text-fd-primary">1</span>每个插件目录放一个{' '}
-            <code className="font-mono text-fd-foreground">pku-harness.plugin.json</code>。
+            <span className="mr-2 font-mono text-fd-primary">1</span>每个插件一个文件夹，放一个{' '}
+            <code className="font-mono text-fd-foreground">PLUGIN.md</code>；它引用的文件（tools/、widgets/）都要提交。
           </li>
           <li>
-            <span className="mr-2 font-mono text-fd-primary">2</span>
-            <code className="font-mono text-fd-foreground">id</code> 和你的 MCP 服务器{' '}
-            <code className="font-mono">name</code> 保持一致。
+            <span className="mr-2 font-mono text-fd-primary">2</span>如实声明 <code className="font-mono">campus</code>
+            、<code className="font-mono">network</code> 和每个工具的 <code className="font-mono">effect</code>。
           </li>
           <li>
             <span className="mr-2 font-mono text-fd-primary">3</span>不要索要校园密码；工具返回数据，不返回指令。
@@ -290,10 +306,34 @@ function Starter() {
 }
 
 function StarterManifest() {
-  const [code, setCode] = useState(STARTER);
-  useEffect(() => setCode(STARTER.replace('"/schema', `"${window.location.origin}/schema`)), []);
+  const [tab, setTab] = useState<'md' | 'json'>('md');
+  const [origin, setOrigin] = useState('');
+  useEffect(() => setOrigin(window.location.origin), []);
+  const code = tab === 'md' ? STARTER_MD : STARTER_JSON.replace('"/schema', `"${origin}/schema`);
   return (
     <div className="min-w-0">
+      <div role="tablist" aria-label="Manifest format" className="mb-2 flex gap-1 font-mono text-[11px]">
+        {(
+          [
+            ['md', 'PLUGIN.md'],
+            ['json', 'pku-harness.plugin.json · 远程 MCP'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={cn(
+              'rounded-md px-2 py-1 transition-colors',
+              tab === id ? 'bg-fd-secondary text-fd-foreground' : 'text-fd-muted-foreground hover:text-fd-foreground',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <pre className="overflow-x-auto rounded-lg border border-fd-border bg-fd-background/60 p-4 font-mono text-[12px] leading-5 text-fd-muted-foreground">
         {code}
       </pre>
@@ -509,7 +549,7 @@ function Result({ report, listed }: { report: ScanReport; listed: boolean }) {
           <div className="mt-3">
             <StarterManifest />
           </div>
-          <CopyField className="mt-3" label="文件名" value="pku-harness.plugin.json" />
+          <CopyField className="mt-3" label="文件名" value="PLUGIN.md" />
         </div>
       )}
     </motion.div>

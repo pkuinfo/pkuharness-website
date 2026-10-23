@@ -1,3 +1,5 @@
+import { Markdown } from 'fumadocs-core/content/md';
+import { remarkGfm } from 'fumadocs-core/mdx-plugins/remark-gfm';
 import { ServerCodeBlock } from 'fumadocs-ui/components/codeblock.rsc';
 import {
   ArrowUpRight,
@@ -9,13 +11,24 @@ import {
   Package,
   Server,
   ShieldCheck,
+  Smartphone,
   Star,
   TriangleAlert,
 } from 'lucide-react';
 import Link from 'next/link';
+import QRCode from 'qrcode';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
-import { appServerName, CAPABILITY, CLOUD_SERVICE, visibleTags } from '@/lib/marketplace/labels';
+import {
+  ABILITY,
+  appServerName,
+  CAMPUS_SERVICE,
+  CAPABILITY,
+  CLOUD_SERVICE,
+  EFFECT,
+  MODE,
+  visibleTags,
+} from '@/lib/marketplace/labels';
 import type { MarketplacePlugin } from '@/lib/marketplace/types';
 import { CloudBadge, GitHubIcon, KindBadge, TrustBadge } from './badges';
 import { CopyField } from './copy-field';
@@ -98,6 +111,175 @@ function Crumbs({ plugin }: { plugin: MarketplacePlugin }) {
   );
 }
 
+const EFFECT_TONE = {
+  neutral: 'bg-fd-muted text-fd-muted-foreground',
+  notice: 'bg-pku-amber/12 text-pku-gold dark:text-pku-amber',
+  warn: 'bg-brand-bright/12 text-brand dark:text-[#ff8a96]',
+};
+
+function Row({ label, en, children }: { label: string; en: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-2 border-t border-dashed border-fd-border py-4 first:border-t-0 first:pt-0 sm:grid-cols-[150px_1fr]">
+      <p className="text-sm font-medium">
+        {label}
+        <span className="block font-mono text-[11px] font-normal text-fd-muted-foreground">{en}</span>
+      </p>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
+/** What the app's permission sheet will show before install (spec §9), in plain words. */
+function Permissions({ plugin }: { plugin: MarketplacePlugin }) {
+  const none = <p className="text-sm text-fd-muted-foreground">无</p>;
+  const tools = plugin.tools ?? [];
+  return (
+    <Section title="权限说明" en="What it may do">
+      <p className="mb-4 text-sm leading-6 text-fd-muted-foreground">
+        插件只能做下面声明过的事；安装前 App 会给你看同样的清单，以后更新若要求更多权限，也会先问你。
+      </p>
+      <div className="rounded-xl border border-fd-border p-5">
+        <Row label="校园服务" en="campus (your session)">
+          {plugin.campus?.length ? (
+            <ul className="flex flex-wrap gap-2">
+              {plugin.campus.map((c) => (
+                <li key={c} className="rounded-md bg-brand-bright/10 px-2.5 py-1 text-xs">
+                  <span className="font-medium">{CAMPUS_SERVICE[c]?.zh ?? c}</span>
+                  <span className="ml-1.5 font-mono text-[11px] text-fd-muted-foreground">
+                    {CAMPUS_SERVICE[c]?.host ?? c}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            none
+          )}
+          {plugin.campus?.length ? (
+            <p className="mt-2 text-xs leading-5 text-fd-muted-foreground">
+              请求由 App 用你已登录的会话代发，插件拿不到密码、Cookie 或令牌。
+            </p>
+          ) : null}
+        </Row>
+        <Row label="公共主机" en="network">
+          {plugin.network?.length ? (
+            <ul className="flex flex-wrap gap-2">
+              {plugin.network.map((h) => (
+                <li
+                  key={h}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-fd-muted px-2.5 py-1 font-mono text-xs"
+                >
+                  <Globe className="size-3 text-fd-muted-foreground" />
+                  {h}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            none
+          )}
+        </Row>
+        <Row label="App 能力" en="abilities">
+          {plugin.abilities?.length ? (
+            <ul className="space-y-1 text-sm">
+              {plugin.abilities.map((a) => (
+                <li key={a}>
+                  {ABILITY[a]?.zh ?? a} <span className="font-mono text-[11px] text-fd-muted-foreground">{a}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            none
+          )}
+        </Row>
+        <Row label="工具" en="tools & effects">
+          {tools.length ? (
+            <ul className="divide-y divide-fd-border/60">
+              {tools.map((t) => {
+                const e = t.effect ? EFFECT[t.effect] : undefined;
+                return (
+                  <li key={t.name} className="flex items-center gap-3 py-1.5 text-sm first:pt-0">
+                    <span className="min-w-0 flex-1">
+                      {t.title ?? t.name}
+                      <span className="ml-2 font-mono text-[11px] text-fd-muted-foreground">
+                        {plugin.id}.{t.name}
+                      </span>
+                    </span>
+                    {t.userOnly && <span className="text-[11px] text-fd-muted-foreground">仅限手动</span>}
+                    <span
+                      className={cn('rounded px-1.5 py-0.5 text-[11px]', e ? EFFECT_TONE[e.tone] : EFFECT_TONE.neutral)}
+                    >
+                      {e ? e.zh : '效果未知'}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : plugin.kind === 'remote' ? (
+            <p className="text-sm text-fd-muted-foreground">由远程 MCP 服务器提供，安装时 App 会列出。</p>
+          ) : (
+            none
+          )}
+        </Row>
+        {(plugin.widgets?.length || plugin.screens?.length || plugin.commands?.length) && (
+          <Row label="界面与命令" en="widgets · screens · commands">
+            <ul className="space-y-1 text-sm">
+              {plugin.widgets?.length ? <li>看板组件：{plugin.widgets.join('、')}</li> : null}
+              {plugin.screens?.length ? <li>页面：{plugin.screens.join('、')}</li> : null}
+              {plugin.commands?.map((c) => (
+                <li key={c.name}>
+                  <span className="font-mono">/{c.name}</span>{' '}
+                  <span className="text-fd-muted-foreground">{c.description}</span>
+                </li>
+              ))}
+            </ul>
+          </Row>
+        )}
+        {plugin.defaultModes && Object.keys(plugin.defaultModes).length > 0 && (
+          <Row label="建议的权限模式" en="defaultModes">
+            <ul className="flex flex-wrap gap-2 text-xs">
+              {Object.entries(plugin.defaultModes).map(([k, v]) => (
+                <li key={k} className="rounded-md bg-fd-muted px-2 py-1">
+                  {EFFECT[k]?.zh ?? k}：{v ? MODE[v] : ''}
+                </li>
+              ))}
+            </ul>
+            {!plugin.verified && (
+              <p className="mt-2 text-xs text-fd-muted-foreground">
+                未审核插件的修改、付款、公开发布类工具一律先问你。
+              </p>
+            )}
+          </Row>
+        )}
+      </div>
+    </Section>
+  );
+}
+
+/** QR code of the deep link, rendered on the server (black on white so any camera reads it). */
+async function DeepLinkQr({ value }: { value: string }) {
+  const svg = await QRCode.toString(value, {
+    type: 'svg',
+    margin: 1,
+    errorCorrectionLevel: 'M',
+    color: { dark: '#111111', light: '#ffffff' },
+  });
+  return (
+    <figure className="mt-4 flex items-center gap-4 rounded-lg border border-fd-border p-3">
+      {/* biome-ignore lint/performance/noImgElement: inline SVG data URI, nothing to optimise */}
+      <img
+        src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`}
+        alt=""
+        width={112}
+        height={112}
+        className="size-28 shrink-0 rounded-md"
+      />
+      <figcaption className="text-xs leading-5 text-fd-muted-foreground">
+        用 PKU Harness 或手机相机扫码安装。
+        <span className="mt-1 block font-mono text-[10px] break-all opacity-70">pkuharness://plugin</span>
+      </figcaption>
+    </figure>
+  );
+}
+
 function InstallCard({ plugin }: { plugin: MarketplacePlugin }) {
   const step = (n: number, body: ReactNode) => (
     <li className="flex gap-3">
@@ -116,7 +298,30 @@ function InstallCard({ plugin }: { plugin: MarketplacePlugin }) {
       />
       <div className="p-5">
         <p className="font-mono text-[11px] tracking-wider text-fd-primary">ADD TO PKU HARNESS</p>
-        {plugin.kind === 'builtin' ? (
+        {plugin.installUrl && plugin.deepLink && plugin.kind !== 'builtin' ? (
+          <>
+            <ol className="mt-3 space-y-2 text-fd-muted-foreground">
+              {step(1, <>在手机上点「在 App 中打开」，或用 PKU Harness 扫描二维码。</>)}
+              {step(
+                2,
+                <>
+                  或在 App 的 <span className="font-medium text-fd-foreground">设置 → 插件</span>{' '}
+                  中通过链接添加，粘贴下面的安装链接。
+                </>,
+              )}
+              {step(3, <>核对权限说明（校园服务、主机、能力、工具效果）后安装。</>)}
+            </ol>
+            <a
+              href={plugin.deepLink}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-fd-primary px-4 py-2 text-sm font-medium text-fd-primary-foreground transition-transform active:scale-[0.98]"
+            >
+              <Smartphone className="size-4" />在 App 中打开
+            </a>
+            <DeepLinkQr value={plugin.deepLink} />
+            <CopyField className="mt-4" label="安装链接 · Install link" value={plugin.installUrl} />
+            {plugin.endpoint && <CopyField className="mt-3" label="MCP endpoint" value={plugin.endpoint} />}
+          </>
+        ) : plugin.kind === 'builtin' ? (
           <>
             <p className="mt-3 flex items-center gap-2 font-medium">
               <Package className="size-4 text-fd-muted-foreground" />随 App 内置
@@ -164,7 +369,7 @@ function InstallCard({ plugin }: { plugin: MarketplacePlugin }) {
             </a>
           </>
         )}
-        <CopyField className="mt-4" label="Handle" value={plugin.slug} />
+        <CopyField className="mt-4" label="Handle" value={plugin.handle ?? plugin.slug} />
         {plugin.kind === 'remote' && (
           <p className="mt-3 font-mono text-[11px] text-fd-muted-foreground">
             installs as <span className="text-fd-foreground">{appServerName(plugin)}</span>
@@ -247,6 +452,12 @@ function Checks({ plugin }: { plugin: MarketplacePlugin }) {
   if (plugin.official) items.push({ ok: true, text: '由 pkuinfo 维护，源码在官方插件仓库' });
   else if (plugin.verified) items.push({ ok: true, text: '维护者已阅读源码并标记为已审核' });
   else items.push({ ok: false, text: '尚未人工审核：清单已通过自动检查，但没有人读过它的源码' });
+  if (plugin.kind === 'declarative') {
+    items.push({ ok: true, text: '声明式插件：App 解释执行固定的指令集，不运行插件代码' });
+    items.push({ ok: true, text: '只能访问上面声明的校园服务和主机；校园请求由 App 代发，插件拿不到密码或 Cookie' });
+    if (!plugin.verified)
+      items.push({ ok: true, text: '未审核：修改、付款、公开发布类工具默认先问你，结果按不可信数据处理' });
+  }
   if (plugin.kind === 'remote') {
     items.push({ ok: true, text: '代码运行在作者的服务器上，不在你的手机上运行' });
     items.push({ ok: true, text: '拿不到你的校园账号密码（App 从不把密码交给远程插件）' });
@@ -309,6 +520,17 @@ export async function PluginDetail({ plugin, siblings }: { plugin: MarketplacePl
 
       <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_340px]">
         <div className="order-2 min-w-0 space-y-10 lg:order-1">
+          {plugin.format === 'plugin-md' && <Permissions plugin={plugin} />}
+
+          {plugin.instructions && (
+            <Section title="给 AI 的说明" en="Instructions">
+              <p className="mb-3 text-xs text-fd-muted-foreground">PLUGIN.md 正文，会随插件一起发给模型。</p>
+              <div className="prose prose-sm max-w-none rounded-xl border border-fd-border bg-fd-card/50 p-5 text-sm leading-7 dark:prose-invert [&_code]:font-mono [&_code]:text-[12.5px]">
+                <Markdown remarkPlugins={[remarkGfm]}>{plugin.instructions}</Markdown>
+              </div>
+            </Section>
+          )}
+
           <Section title="它能做什么" en="Capabilities">
             {plugin.requires.length === 0 ? (
               <p className="text-sm text-fd-muted-foreground">不需要任何额外能力：不联网、不发通知、不在后台运行。</p>
@@ -413,13 +635,17 @@ export async function PluginDetail({ plugin, siblings }: { plugin: MarketplacePl
 
           <Section title="清单" en="Manifest">
             <p className="mb-3 text-xs text-fd-muted-foreground">
-              市场读到的内容（规范化后）。来源：
+              {plugin.manifestSource ? 'PLUGIN.md 的 frontmatter，原样显示。' : '市场读到的内容（规范化后）。'}来源：
               <span className="font-mono">{plugin.manifestPath}</span> ·{' '}
               <Link href="/docs/marketplace/manifest" className="text-fd-primary hover:underline">
                 字段说明
               </Link>
             </p>
-            <ServerCodeBlock code={manifest} lang="json" />
+            {plugin.manifestSource ? (
+              <ServerCodeBlock code={plugin.manifestSource} lang="yaml" codeblock={{ title: 'PLUGIN.md' }} />
+            ) : (
+              <ServerCodeBlock code={manifest} lang="json" />
+            )}
           </Section>
         </div>
 

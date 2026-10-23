@@ -80,7 +80,8 @@ export function marketplaceLlms(index: MarketplaceIndex, siteUrl: string): strin
     `- Manifest JSON Schema: ${siteUrl}/schema/plugin-manifest.v1.json`,
     `- Submit a repo: ${siteUrl}/marketplace/submit`,
     '',
-    'To add a remote plugin in the app: 设置 → 插件 → 插件市场, or paste its endpoint URL. It installs as `mcp-<id>`.',
+    'Declarative plugins are folders with a PLUGIN.md; install one by pasting its install link in the app (设置 → 插件) or opening `pkuharness://plugin?src=<url-encoded link>`.',
+    'Remote MCP plugins: 设置 → 插件 → 插件市场, or paste the endpoint URL; they install as `mcp-<id>`.',
     '',
   ];
   const groups: [string, typeof index.plugins][] = [
@@ -96,6 +97,11 @@ export function marketplaceLlms(index: MarketplaceIndex, siteUrl: string): strin
         p.kind,
         p.verified ? 'verified' : 'unverified',
         p.kind === 'remote' ? (p.endpoint ? `endpoint ${p.endpoint}` : 'self-hosted') : null,
+        p.installUrl && p.kind !== 'builtin' ? `install link ${p.installUrl}` : null,
+        p.campus?.length ? `campus services ${p.campus.join(', ')}` : null,
+        p.tools?.length
+          ? `tools ${p.tools.map((t) => `${p.id}.${t.name}${t.effect ? ` (${t.effect})` : ''}`).join(', ')}`
+          : null,
         caps ? `requires ${caps}` : null,
         p.cloud?.uses.length ? `cloud: ${p.cloud.uses.join(', ')}` : null,
         visibleTags(p).length ? `tags ${visibleTags(p).join(', ')}` : null,

@@ -90,3 +90,43 @@ export const marketplaceHref = (p: Pick<MarketplacePlugin, 'slug'>) => `/marketp
 
 /** Tags users filter by (the "official" tag is shown as a badge instead). */
 export const visibleTags = (p: Pick<MarketplacePlugin, 'tags'>) => p.tags.filter((t) => t !== 'official');
+
+/** Campus services a PLUGIN.md may call with the user's session (spec §4). */
+export const CAMPUS_SERVICE: Record<string, { zh: string; en: string; host?: string }> = {
+  card: { zh: '校园卡', en: 'Campus card', host: 'bdcard.pku.edu.cn' },
+  its: { zh: '网费与网络账号', en: 'Network account', host: 'its.pku.edu.cn' },
+  treehole: { zh: '树洞', en: 'Treehole', host: 'treehole.pku.edu.cn' },
+  blackboard: { zh: '教学网', en: 'Course website', host: 'course.pku.edu.cn' },
+  elective: { zh: '选课网', en: 'Course election', host: 'elective.pku.edu.cn' },
+  cwfw: { zh: '财务综合信息门户', en: 'Finance portal', host: 'cwfw.pku.edu.cn' },
+  cwpay: { zh: '收费平台', en: 'Payments', host: 'cwpay.pku.edu.cn' },
+  bdkj: { zh: '北大空间（研讨室）', en: 'Room booking', host: 'bdkj.pku.edu.cn' },
+  library: { zh: '图书馆', en: 'Library', host: 'lib.pku.edu.cn' },
+  'library-space': { zh: '图书馆空间预约', en: 'Library spaces' },
+  portal: { zh: '校内门户', en: 'Portal', host: 'portal.pku.edu.cn' },
+};
+
+/** Host abilities (spec §7) in plain words. */
+export const ABILITY: Record<string, { zh: string; en: string }> = {
+  verify: { zh: '二次验证', en: 'Second-factor verification' },
+  otp: { zh: '读取手机令牌验证码', en: 'Read the OTP code' },
+  todos: { zh: '读写你的待办', en: 'Read and change your to-dos' },
+  timetable: { zh: '读写你的课表', en: 'Read and change your timetable' },
+  scheduler: { zh: '创建提醒与定时检查', en: 'Create reminders and scheduled checks' },
+  browser: { zh: '在浏览器中打开链接', en: 'Open links in the browser' },
+  campusPage: { zh: '打开已登录的校内网页', en: 'Open signed-in campus pages' },
+  sms: { zh: '读取短信验证码（需你确认）', en: 'Read an SMS code (you confirm)' },
+  files: { zh: '让你选择文件', en: 'Let you pick a file' },
+  crypto: { zh: '计算签名', en: 'Compute request signatures' },
+  notify: { zh: '发送本地通知', en: 'Send local notifications' },
+};
+
+/** Tool effects (spec §5): what a tool may do. */
+export const EFFECT: Record<string, { zh: string; en: string; tone: 'neutral' | 'notice' | 'warn' }> = {
+  read: { zh: '只读', en: 'Read', tone: 'neutral' },
+  write: { zh: '修改数据', en: 'Write', tone: 'notice' },
+  money: { zh: '涉及付款', en: 'Money', tone: 'warn' },
+  public: { zh: '公开发布', en: 'Public', tone: 'warn' },
+};
+
+export const MODE: Record<string, string> = { auto: '直接执行', ask: '先问你', off: '关闭' };

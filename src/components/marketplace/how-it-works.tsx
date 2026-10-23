@@ -4,12 +4,11 @@ import Link from 'next/link';
 const STEPS = [
   {
     icon: FileJson,
-    title: '放一个清单',
-    en: 'Add a manifest',
+    title: '写一个 PLUGIN.md',
+    en: 'Add a PLUGIN.md',
     body: (
       <>
-        在插件目录放 <code>pku-harness.plugin.json</code>（或在 package.json 里写 <code>&quot;pkuHarness&quot;</code>
-        ）。一个仓库可以有任意多个插件。
+        每个插件一个文件夹，放一个 <code>PLUGIN.md</code>：YAML 写声明，正文写给 AI 的说明。一个仓库可以有任意多个插件。
       </>
     ),
   },

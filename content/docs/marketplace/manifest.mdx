@@ -1,31 +1,38 @@
 ---
 title: Manifest reference
-description: The pku-harness.plugin.json format (v1), where the scanner looks for it, and every field.
+description: PLUGIN.md (plugin language v1) as the marketplace reads it, where the scanner looks, what it checks, and the pku-harness.plugin.json fallback for remote MCP servers.
 icon: FileJson
 ---
 
-A plugin is discovered by a **manifest**. It has the same fields as an entry of the official
-[`registry.json`](https://github.com/pkuinfo/pku-harness-plugins/blob/main/registry/registry.json)
-(`registry/schema.ts` is the source of truth), minus what the marketplace derives itself
-(`source`, `verified`), plus a few optional package fields.
+A plugin is a **folder with a `PLUGIN.md`**. Its YAML frontmatter is the manifest; its Markdown
+body is the instructions the agent gets. The full language (tools, steps, expressions, UI) is
+specified in
+[`docs/PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md);
+this page covers what the marketplace reads and checks. For an introduction, see
+[Declarative plugins](/docs/build/declarative-plugins).
 
-```json title="campus-tools/canteen/pku-harness.plugin.json"
-{
-  "$schema": "https://<this site>/schema/plugin-manifest.v1.json",
-  "id": "canteen-menu",
-  "name": "食堂菜单",
-  "description": "今天各食堂的菜单和营业时间。",
-  "endpoint": "https://canteen.example.com/mcp",
-  "requires": ["network"],
-  "scopes": ["dining.pku.edu.cn"],
-  "tags": ["food"],
-  "license": "MIT",
-  "i18n": { "en": { "name": "Canteen menu", "description": "Today's menus and opening hours." } }
-}
+```md title="campus-tools/canteen/PLUGIN.md"
+---
+spec: 1
+id: canteen-menu
+name: 食堂菜单
+description: 今天各食堂的菜单和营业时间。
+version: 1.0.0
+author: alice
+icon: food
+network: [dining.pku.edu.cn]
+tools:
+  menu: tools/menu.yaml
+widgets:
+  today: widgets/today.json
+dataSources:
+  today: { tool: menu, args: { day: today }, ttl: 30m }
+i18n:
+  en: { name: Canteen menu, description: "Today's menus and opening hours." }
+---
+
+Use `menu` when the user asks what to eat or which canteen is open. Prices are in yuan.
 ```
-
-Point `$schema` at [`/schema/plugin-manifest.v1.json`](/schema/plugin-manifest.v1.json) and
-VS Code, Zed or JetBrains validate the file as you type.
 
 ## Where the scanner looks
 
@@ -40,36 +47,118 @@ The scanner reads the repository's default branch through the GitHub API:
 
    `"."` means the repo root. A listed folder without a manifest is an error.
 
-2. Otherwise every **`pku-harness.plugin.json`** at any depth is a plugin, and so is every
-   **`package.json` whose `"pkuHarness"` object has an `"id"`**. Folders named `node_modules` or
-   starting with `.` are skipped. If a folder has both, the `pku-harness.plugin.json` wins.
+2. Otherwise every **`PLUGIN.md`** at any depth is a plugin. Folders named `node_modules` or
+   starting with `.` are skipped.
+
+One plugin per folder. If a folder has more than one manifest, **`PLUGIN.md` wins**, then
+`pku-harness.plugin.json`, then a `package.json` with a `"pkuHarness"` object (see
+[remote MCP plugins](#remote-mcp-plugins)).
 
 A submission can also point at a sub-folder (`https://github.com/owner/repo/tree/main/plugins`);
 then only that folder is scanned.
 
-### In package.json
+## Frontmatter
 
-```json title="package.json"
+| Field | Required | Notes |
+|---|---|---|
+| `spec` | yes | `1`. The app refuses versions it doesn't know. |
+| `id` | yes | `^[a-z0-9][a-z0-9-]{1,40}$`. Unique across the marketplace: tools are registered as `<id>.<tool>`. |
+| `name` | yes | Display name, Chinese first. |
+| `description` | yes | One sentence, 4–200 characters. |
+| `version` | yes | Semver. Quote it if YAML would read a number (`"1.0"` is not semver anyway). |
+| `author` | yes | GitHub handle or name. |
+| `icon`, `homepage` | | Icon from the harness set; a URL. |
+| `campus` | | Campus services called **with the user's session**: `card`, `its`, `treehole`, `blackboard`, `elective`, `cwfw`, `cwpay`, `bdkj`, `library`, `library-space`, `portal`, … |
+| `network` | | Public hosts it calls (`dining.pku.edu.cn`, `*.example.com`). HTTPS only. |
+| `abilities` | | Host abilities: `verify`, `otp`, `todos`, `timetable`, `scheduler`, `browser`, `campusPage`, `sms`, `files`, `crypto`, `notify`. |
+| `tools` | | Map of tool name → file (`tools/menu.yaml`) or an inline tool. Every tool has `title`, `description` and an honest `effect`: `read`, `write`, `money` or `public`. |
+| `dataSources` | | Read tools that widgets and scheduled checks poll: `{ tool, args?, ttl }`. |
+| `widgets`, `screens` | | Map of name → JSON file (generative-UI spec + bindings). |
+| `settings`, `commands`, `defaultModes` | | Settings rows, slash commands, suggested per-effect permission modes. |
+| `requires` | | Optional: it is **derived** from the declarations (below). |
+| `cloud` | | PKU Harness Cloud use with a plain-language disclosure ([below](#cloud-disclosure)). |
+| `i18n.en` | | English `name`, `description` and other overlay strings. |
+| `remote` | | `{ mcp: https URL, auth?: none \| bearer }` turns the folder into a [remote MCP plugin](#remote-mcp-plugins). |
+
+The **Markdown body** becomes the plugin's instructions for the model. The marketplace shows it
+on the plugin page (capped at 20,000 characters) and warns above 8,000: it is sent with every
+prompt, so keep it to when to use which tool and what the numbers mean.
+
+### Files
+
+Every file the app loads is named in the frontmatter (`tools`, `widgets`, `screens`); the app
+never lists folders. The scanner checks that each path:
+
+- is relative to `PLUGIN.md`, with no `..`, no leading `/` and no URL scheme;
+- exists in the repository (a missing file is an **error**);
+- together with `PLUGIN.md` stays within **512 KB** (from the GitHub tree's blob sizes).
+
+It also downloads each named tool file to read its `title` and `effect`, which the plugin page
+shows as part of the permission sheet. `tests/`, `README.md` and `assets/` are ignored.
+
+### Derived capabilities
+
+The plugin page and the filters show `requires` as the union of what you list and what the
+declarations imply:
+
+| Declaration | Implies |
+|---|---|
+| any `campus` service | `campus-session`, `network` |
+| `campus: [cwfw]` | also `campus-network` (cwfw only answers on the campus network) |
+| `network` hosts, or `remote` | `network` |
+| `abilities: [notify]` | `notifications` |
+| `abilities: [scheduler]` | `background` |
+| `cloud.uses` not empty | `cloud` |
+
+### Install links
+
+Each `PLUGIN.md` plugin's page shows its install link (the GitHub folder URL on the default
+branch, e.g. `https://github.com/alice/campus-tools/tree/main/canteen`), an *Open in app* button
+with the deep link `pkuharness://plugin?src=<url-encoded install link>`, and a QR code of that deep
+link. The handle shown is `owner/repo/path`.
+
+## Remote MCP plugins
+
+A remote plugin runs on your server and speaks MCP over Streamable HTTP. The app connects to it
+as the MCP server `mcp-<id>`, so use the `id` as your server's `name`. Describe it with a
+`PLUGIN.md` that has `remote` and no tools:
+
+```md title="PLUGIN.md"
+---
+spec: 1
+id: canteen-live
+name: 食堂实时人数
+description: 各食堂当前排队人数。
+version: 1.0.0
+author: alice
+remote: { mcp: "https://canteen.example.com/mcp", auth: none }
+---
+
+Use the tools when the user asks how crowded a canteen is.
+```
+
+Remote servers never receive campus sessions, so `campus` on a remote plugin is a warning.
+
+### Fallback: `pku-harness.plugin.json`
+
+Until `remote.mcp` in `PLUGIN.md` replaces it, the marketplace still reads
+`pku-harness.plugin.json` (and `package.json` → `"pkuHarness"`) for remote MCP servers. Point
+`$schema` at [`/schema/plugin-manifest.v1.json`](/schema/plugin-manifest.v1.json) and editors
+validate it as you type.
+
+```json title="pku-harness.plugin.json"
 {
-  "name": "@campus-tools/library-seat",
-  "version": "0.3.0",
-  "description": "图书馆座位查询与预约提醒。",
-  "license": "MIT",
-  "pkuHarness": {
-    "id": "library-seat",
-    "name": "图书馆座位",
-    "endpoint": "https://seat.example.com/mcp",
-    "requires": ["network"],
-    "scopes": ["seat.lib.pku.edu.cn"]
-  }
+  "$schema": "https://<this site>/schema/plugin-manifest.v1.json",
+  "id": "canteen-live",
+  "name": "食堂实时人数",
+  "description": "各食堂当前排队人数。",
+  "endpoint": "https://canteen.example.com/mcp",
+  "requires": ["network"],
+  "scopes": ["dining.pku.edu.cn"]
 }
 ```
 
-`description`, `version`, `license` and `homepage` default to the package's own fields; anything
-inside `pkuHarness` overrides them. A `pkuHarness` object **without an `id`** is treated as SDK
-metadata (the bundled plugins use `{ "builtin": true }`) and is not listed.
-
-## Fields
+### `pku-harness.plugin.json` fields
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -93,13 +182,35 @@ metadata (the bundled plugins use `{ "builtin": true }`) and is not listed.
 
 Unknown fields are ignored with a warning (so a typo doesn't silently drop data).
 
-### Capabilities (`requires`)
+#### In package.json
+
+```json title="package.json"
+{
+  "name": "@campus-tools/library-seat",
+  "version": "0.3.0",
+  "description": "图书馆座位查询与预约提醒。",
+  "license": "MIT",
+  "pkuHarness": {
+    "id": "library-seat",
+    "name": "图书馆座位",
+    "endpoint": "https://seat.example.com/mcp",
+    "requires": ["network"],
+    "scopes": ["seat.lib.pku.edu.cn"]
+  }
+}
+```
+
+`description`, `version`, `license` and `homepage` default to the package's own fields; anything
+inside `pkuHarness` overrides them. A `pkuHarness` object **without an `id`** is treated as SDK
+metadata (the bundled plugins use `{ "builtin": true }`) and is not listed.
+
+## Capabilities (`requires`)
 
 | Value | Meaning shown to users |
 |---|---|
 | `network` | Talks to servers on the internet. |
 | `campus-network` | Some hosts only answer on the PKU campus network. |
-| `campus-session` | Acts with the user's logged-in campus session. Remote plugins **do not** get campus sessions yet (scoped session grants are on the roadmap), so the scanner warns. |
+| `campus-session` | Acts with the user's logged-in campus session. `PLUGIN.md` plugins get it by declaring `campus` (the app signs the requests); remote MCP servers never do, so the scanner warns. |
 | `notifications` | Sends local notifications. |
 | `background` | Runs scheduled checks while the app is closed. |
 | `shell`, `filesystem` | Phones have neither; the app hides plugins that need them. Warned. |
@@ -108,7 +219,7 @@ Unknown fields are ignored with a warning (so a typo doesn't silently drop data)
 
 A remote plugin runs on your server, so only declare what the **phone** has to provide.
 
-### Cloud disclosure
+## Cloud disclosure
 
 ```json
 "cloud": {
@@ -129,17 +240,23 @@ Errors keep a plugin out of the marketplace; warnings are shown on its page unde
 
 | Check | Level |
 |---|---|
-| Invalid JSON, schema violations | error |
+| No frontmatter, invalid YAML or JSON, schema violations (`spec`, semver `version`, …) | error |
 | Duplicate `id` in the repo, an official id, or an id another listed repo already uses | error |
-| `kind: "builtin"` outside `pkuinfo/pku-harness-plugins` | error |
-| `endpoint` not https, private/local host or IP, credentials or query string | error |
+| A named file that is absolute, contains `..`, or doesn't exist; total over 512 KB | error |
+| A tool file without `title`, `description` or a valid `effect` | error |
+| `dataSources` pointing at an undeclared tool, `settings` at an undeclared screen | error |
+| `network` entries that aren't host names | error |
+| Endpoint (`remote.mcp`, `endpoint`) not https, a private/local host or IP, credentials or a query string | error |
 | `cloud` disclosure rules above | error |
-| No `endpoint` | info (listed as self-hosted) |
-| `campus-session`, `shell`, `filesystem` on a remote plugin | warning |
-| `requires: cloud` without a `cloud` block (or the reverse) | warning |
-| `scopes` that aren't host names, or none while requiring network | warning |
+| `kind: "builtin"` outside `pkuinfo/pku-harness-plugins` (JSON) | error |
+| Unknown `campus` services or `abilities` | warning |
+| `campus` on a remote plugin (`campus-session` on a JSON manifest) | warning |
+| `shell`, `filesystem` in `requires` | warning |
+| `requires: cloud` without a `cloud` block | warning |
+| Empty or very long Markdown body; no tools, commands or widgets | warning |
 | Unknown fields | warning |
-| No `i18n.en`, no `license` | info |
+| No `i18n.en`; JSON: no `endpoint` (self-hosted), no `license` | info |
 
-Limits: 100 plugins and 300 `package.json` files per repo, 256 KB per manifest, 10 s per GitHub
-request. A repo too big for one GitHub tree call gets a warning; add `pku-harness.json`.
+Limits: 100 plugins and 300 `package.json` files per repo, 40 tool files per plugin, 256 KB per
+downloaded file, 10 s per GitHub request. A repo too big for one GitHub tree call gets a warning;
+add `pku-harness.json`.

@@ -1,51 +1,147 @@
 ---
-title: Declarative plugins (preview)
-description: Upcoming. A plugin as a shareable folder or link - a PLUGIN.md manifest with agent instructions, tool definitions and generative-UI specs - interpreted by the app, installed by pasting a link, no app release. Not usable yet; build remote or bundled plugins today.
+title: Declarative plugins (PLUGIN.md)
+description: A plugin as a shareable folder - a PLUGIN.md manifest with agent instructions, tools written as YAML steps, and generative-UI widgets - interpreted by the app and installed by pasting a link. No code, no build, no app release.
 icon: FileCode
 ---
 
-<Callout type="warn" title="Design in progress">
-  This format is being designed and **is not implemented**. Nothing on this page is a stable
-  syntax. To ship a plugin today, write a [remote plugin](/docs/build/remote-plugin) (MCP) or a
-  [bundled plugin](/docs/build/bundled-plugin) (SDK).
+<Callout title="Spec v1, rolling out">
+  The language is specified in
+  [`docs/PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md)
+  (spec version 1). The marketplace already lists and validates `PLUGIN.md` plugins; the app's
+  interpreter and install sheet are landing in the app and the SDK (`@pku-harness/sdk` `lang/`).
+  This page summarises the spec. When the two disagree, the spec wins.
 </Callout>
 
-## Why
+A declarative plugin is to PKU Harness what a `SKILL.md` folder is to an agent: **a folder you
+can share as a link**. The app reads it and runs its declared steps with a small, safe
+interpreter. It never downloads or runs plugin code, so a new plugin or an update needs no app
+release and no server.
 
-Today a plugin is either code that ships inside the app (bundled, needs an app release) or a
-server someone has to run (remote MCP). Many campus integrations are simpler than that: a few
-authenticated requests to a campus service, some extraction, and a card to show the result. The
-declarative format aims to make those as easy to share as an agent skill: a folder, or a link to
-one.
+Use one for anything that is a few campus or public requests plus some extraction: free
+classrooms, canteen hours, notices, grades, library reads. Things the language can't express
+safely become **host abilities** in the harness, which any plugin can then use. For a server you
+run yourself, write a [remote plugin](/docs/build/remote-plugin).
 
-## The direction
+## Layout
 
-As currently planned (subject to change):
+```
+classrooms/
+  PLUGIN.md              # manifest (YAML frontmatter) + instructions for the agent (Markdown)
+  tools/free.yaml        # one tool per file (or inline in the frontmatter)
+  widgets/overview.json  # dashboard widget: generative-UI spec + bindings
+  screens/…json          # full-page generative-UI screens
+  tests/free.yaml        # recorded fixtures for the CLI; never fetched by the app
+  README.md, assets/     # for humans and the marketplace; ignored by the app
+```
 
-| Part | Holds |
-| --- | --- |
-| `PLUGIN.md` | The manifest and the instructions for the agent |
-| `tools/*.yaml` | Tools described as data: campus requests, then extraction and transformation of the response |
-| `ui/*.json` | [Generative-UI](/docs/concepts/generative-ui) specs for cards, forms and widgets |
+- One plugin per folder; a repo can hold many. The marketplace handle is `owner/repo/path`.
+- The app only loads files **named in the frontmatter** (relative paths, no `..`), so any static
+  host works: GitHub, a gist, your own server.
+- UTF-8 text; the files the app loads total at most **512 KB**.
 
-- **The app interprets it.** No compiled code is downloaded, so a new plugin or an update needs no
-  app release.
-- **Install by pasting a link.**
-- The rules that apply to every plugin stay: typed tools with honest effects, permissions and
-  consent, campus requests made by the harness (credentials never leave the device), and tool
-  results treated as data.
+## The manifest
 
-## The spec
+```md title="classrooms/PLUGIN.md"
+---
+spec: 1
+id: classrooms
+name: 空闲教室
+description: 查询各教学楼今天、明天、后天的空闲教室。
+version: 1.2.0
+author: pkuinfo
+icon: location
+network: [portal.pku.edu.cn]
+tools:
+  free: tools/free.yaml
+widgets:
+  overview: widgets/overview.json
+dataSources:
+  overview: { tool: free, args: { day: today }, ttl: 30m }
+i18n:
+  en: { name: Free classrooms, description: Free classrooms in each teaching building. }
+---
 
-The specification is written in the app repository:
-[`docs/PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md).
-It may not be published yet; follow [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness)
-for progress. These docs will document the format once it is implemented.
+Use `free` when the user asks where to study or which rooms are free. Periods are 1–12
+(1 = 08:00). Answer with the building and room, and the free period ranges.
+```
 
-## What to do meanwhile
+Required: `spec: 1`, `id`, `name`, `description` (4–200 characters), `version` (semver),
+`author`. The declarations that matter most are the ones students see before installing:
 
-- Design your tools as you would for any plugin ([Tools and schemas](/docs/build/tools)): small,
-  one effect each, data-only results. That design carries over.
-- Port the protocol from [pkucli](/docs/build/porting-from-pkucli) and keep notes of the exact
-  requests and the fields you extract: that is what a declarative tool will describe.
-- Ship it now as a remote plugin if it doesn't need the user's campus session.
+| Field | Declares |
+|---|---|
+| `campus` | Campus services the plugin may call **with the user's session** (`card`, `treehole`, `elective`, `cwfw`, …). The harness signs those requests; the plugin never sees a password, cookie or token. |
+| `network` | Public hosts it may call (HTTPS only). |
+| `abilities` | Host abilities: `todos`, `timetable`, `scheduler`, `notify`, `browser`, `campusPage`, `otp`, `sms`, `verify`, `files`, `crypto`. |
+| `tools` | Each tool's `effect`: `read`, `write`, `money` or `public`. |
+
+Also available: `dataSources`, `widgets`, `screens`, `settings`, `commands`, `defaultModes`,
+`cloud`, `i18n`, and `remote: { mcp, auth }` to describe a remote MCP server with a `PLUGIN.md`.
+The field-by-field reference, and what the marketplace checks, is in the
+[manifest reference](/docs/marketplace/manifest).
+
+The **Markdown body** is sent to the model as the plugin's instructions. Keep it short: when to
+use which tool, and what the numbers mean.
+
+## Tools
+
+A tool is data: a title for users, a description for the model, an honest effect, typed input,
+then **steps** that make requests and transform the responses, and a `return` expression.
+
+```yaml title="tools/free.yaml (abridged)"
+title: 空闲教室
+description: Free rooms in one building (or all) for today, tomorrow or the day after.
+effect: read
+input:
+  building: { type: string, optional: true, description: 'e.g. 二教, 理教' }
+  day: { enum: [today, tomorrow, after], default: today }
+steps:
+  - let: page
+    request:
+      url: https://portal.pku.edu.cn/publicQuery/ctrl/topic/myTopic/retrClassRoomFree.do
+      query: { buildingName: '${input.building}', time: '今天' }
+    as: json
+return: "page.rows.map(r => ({ room: r.room }))"
+```
+
+Steps can request declared hosts or campus services, extract with CSS selectors, JSON paths or
+regexes, transform with safe expressions, keep state in the plugin's own storage, and call
+declared abilities. There are no unbounded loops, no `eval` and no JavaScript; the interpreter
+enforces time, size and operation limits. See the spec for steps, expressions and limits.
+
+## Install links
+
+Students install a plugin by pasting a link in the app (设置 → 插件), scanning a QR code, or
+tapping *Open in app* on the [marketplace](/marketplace). The app accepts:
+
+| Form | Example |
+|---|---|
+| GitHub folder | `https://github.com/<owner>/<repo>/tree/<ref>/<path>` |
+| GitHub repo root | `https://github.com/<owner>/<repo>` (PLUGIN.md at the root) |
+| GitHub file | `https://github.com/<owner>/<repo>/blob/<ref>/<path>/PLUGIN.md` |
+| Any HTTPS URL of a `PLUGIN.md` | a raw gist URL, your own server |
+| Deep link | `pkuharness://plugin?src=<url-encoded link>` |
+
+Before installing, the app validates everything and shows the **permission sheet**: campus
+services, hosts, abilities, the effect of each tool, and whether the plugin is verified.
+Unverified plugins start with `write`, `money` and `public` tools on *ask*, and their results are
+treated as untrusted data.
+
+## Updates
+
+The app re-fetches an installed plugin's link on start (at most daily) and on pull-to-refresh:
+
+- same content hash: nothing happens;
+- new content, same declarations: applied, with an "updated to 1.3.0" note;
+- wider declarations (a new campus service, host, ability or stronger effect): held until the
+  user accepts.
+
+Users can pin a plugin or roll back to the previous version. So publishing an update is just a
+`git push`.
+
+## Publish
+
+Push the folder to a public GitHub repo, then submit the repo on the
+[marketplace](/marketplace/submit). It finds every `PLUGIN.md`, checks the paths and
+declarations, and shows exactly what students will see. See
+[Publishing](/docs/marketplace/publishing) and the [review rules](/docs/marketplace/review).

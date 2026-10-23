@@ -5,13 +5,13 @@ import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import Link from 'next/link';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
-import { ALL_CAPABILITIES, CAPABILITY, visibleTags } from '@/lib/marketplace/labels';
+import { ALL_CAPABILITIES, CAMPUS_SERVICE, CAPABILITY, visibleTags } from '@/lib/marketplace/labels';
 import type { Capability, MarketplacePlugin } from '@/lib/marketplace/types';
 import { PluginCard } from './plugin-card';
 
 type Tab = 'all' | 'official' | 'community';
 type Sort = 'official' | 'stars' | 'newest' | 'name';
-type Kind = 'any' | 'builtin' | 'remote';
+type Kind = 'any' | 'builtin' | 'remote' | 'declarative';
 
 const TABS: { id: Tab; zh: string; en: string }[] = [
   { id: 'all', zh: '全部', en: 'All' },
@@ -28,7 +28,20 @@ const ease = [0.23, 1, 0.32, 1] as const;
 
 function matches(p: MarketplacePlugin, q: string) {
   if (!q) return true;
-  const hay = [p.name, p.nameEn, p.description, p.descriptionEn, p.id, p.slug, p.author, ...p.tags, ...p.scopes]
+  const hay = [
+    p.name,
+    p.nameEn,
+    p.description,
+    p.descriptionEn,
+    p.id,
+    p.slug,
+    p.handle,
+    p.author,
+    ...p.tags,
+    ...p.scopes,
+    ...(p.campus ?? []),
+    ...(p.tools ?? []).map((t) => t.title ?? t.name),
+  ]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
@@ -67,7 +80,8 @@ function readUrl() {
     q: sp.get('q') ?? '',
     tab: (TABS.some((t) => t.id === tab) ? tab : 'all') as Tab,
     sort: (SORTS.some((s) => s.id === sort) ? sort : 'official') as Sort,
-    kind: (kind === 'builtin' || kind === 'remote' ? kind : 'any') as Kind,
+    kind: (kind === 'builtin' || kind === 'remote' || kind === 'declarative' ? kind : 'any') as Kind,
+    campus: sp.get('campus'),
     caps: (sp.get('requires')?.split(',') ?? []).filter((c): c is Capability => c in CAPABILITY),
     tag: sp.get('tag'),
   };
@@ -80,6 +94,7 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
   const [kind, setKind] = useState<Kind>('any');
   const [caps, setCaps] = useState<Capability[]>([]);
   const [tag, setTag] = useState<string | null>(null);
+  const [campus, setCampus] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const q = useDeferredValue(query.trim());
   const input = useRef<HTMLInputElement>(null);
@@ -93,7 +108,8 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
     setKind(s.kind);
     setCaps(s.caps);
     setTag(s.tag);
-    if (s.caps.length || s.tag || s.kind !== 'any') setFiltersOpen(true);
+    setCampus(s.campus);
+    if (s.caps.length || s.tag || s.campus || s.kind !== 'any') setFiltersOpen(true);
     setReady(true);
   }, []);
 
@@ -106,9 +122,10 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
     if (kind !== 'any') sp.set('kind', kind);
     if (caps.length) sp.set('requires', caps.join(','));
     if (tag) sp.set('tag', tag);
+    if (campus) sp.set('campus', campus);
     const s = sp.toString();
     window.history.replaceState(null, '', s ? `?${s}` : window.location.pathname);
-  }, [ready, q, tab, sort, kind, caps, tag]);
+  }, [ready, q, tab, sort, kind, caps, tag, campus]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -135,6 +152,11 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
     for (const p of plugins) for (const t of visibleTags(p)) m.set(t, (m.get(t) ?? 0) + 1);
     return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [plugins]);
+  const campusServices = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of plugins) for (const c of p.campus ?? []) m.set(c, (m.get(c) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [plugins]);
   const usedCaps = useMemo(
     () => ALL_CAPABILITIES.filter((c) => plugins.some((p) => p.requires.includes(c))),
     [plugins],
@@ -147,16 +169,18 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
         .filter((p) => kind === 'any' || p.kind === kind)
         .filter((p) => caps.every((c) => p.requires.includes(c)))
         .filter((p) => !tag || p.tags.includes(tag))
+        .filter((p) => !campus || (p.campus ?? []).includes(campus))
         .filter((p) => matches(p, q))
         .sort(compare(sort)),
-    [plugins, tab, kind, caps, tag, q, sort],
+    [plugins, tab, kind, caps, tag, campus, q, sort],
   );
 
-  const activeFilters = caps.length + (tag ? 1 : 0) + (kind !== 'any' ? 1 : 0);
+  const activeFilters = caps.length + (tag ? 1 : 0) + (campus ? 1 : 0) + (kind !== 'any' ? 1 : 0);
   const clearAll = () => {
     setQuery('');
     setCaps([]);
     setTag(null);
+    setCampus(null);
     setKind('any');
   };
   const toggleCap = (c: Capability) => setCaps((cs) => (cs.includes(c) ? cs.filter((x) => x !== c) : [...cs, c]));
@@ -277,9 +301,9 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
             >
               <div className="flex flex-col gap-2.5 pt-3 text-sm">
                 <FacetRow label="类型">
-                  {(['any', 'builtin', 'remote'] as Kind[]).map((k) => (
+                  {(['any', 'declarative', 'builtin', 'remote'] as Kind[]).map((k) => (
                     <Chip key={k} active={kind === k} onClick={() => setKind(k)}>
-                      {{ any: '不限', builtin: '内置', remote: '远程 MCP' }[k]}
+                      {{ any: '不限', declarative: '声明式', builtin: '内置', remote: '远程 MCP' }[k]}
                     </Chip>
                   ))}
                 </FacetRow>
@@ -291,6 +315,16 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
                     </Chip>
                   ))}
                 </FacetRow>
+                {campusServices.length > 0 && (
+                  <FacetRow label="校园">
+                    {campusServices.map(([c, n]) => (
+                      <Chip key={c} active={campus === c} onClick={() => setCampus(campus === c ? null : c)}>
+                        {CAMPUS_SERVICE[c]?.zh ?? c}
+                        <span className="font-mono text-[10px] opacity-60">{n}</span>
+                      </Chip>
+                    ))}
+                  </FacetRow>
+                )}
                 <FacetRow label="标签">
                   {tags.map(([t, n]) => (
                     <Chip key={t} active={tag === t} onClick={() => setTag(tag === t ? null : t)}>
@@ -423,9 +457,8 @@ function EmptyCommunity() {
         <p className="font-mono text-xs tracking-wider text-fd-primary">COMMUNITY · 0 PLUGINS</p>
         <h3 className="mt-3 text-xl font-semibold tracking-tight">第一个社区插件，可以是你的</h3>
         <p className="mt-2 text-sm leading-6 text-fd-muted-foreground">
-          写一个 MCP 服务器，在仓库里放一个{' '}
-          <code className="font-mono text-fd-foreground">pku-harness.plugin.json</code>
-          ，提交仓库地址即可上架。之后每次 push 都会自动更新。
+          在 GitHub 仓库里建一个文件夹，放一个 <code className="font-mono text-fd-foreground">PLUGIN.md</code>
+          ，提交仓库地址即可上架。不用写代码、不用部署服务器，之后每次 push 都会自动更新。
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Link
