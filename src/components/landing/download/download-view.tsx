@@ -171,7 +171,10 @@ function ComingSoon({ unreachable }: { unreachable: boolean }) {
         </span>
         <span className="font-medium">{unreachable ? '暂时读不到发布信息' : '准备中'}</span>
       </div>
-      <h2 id="soon-title" className="mt-5 max-w-2xl font-bold text-3xl tracking-[-0.03em] [word-break:keep-all] md:text-4xl">
+      <h2
+        id="soon-title"
+        className="mt-5 max-w-2xl font-bold text-3xl tracking-[-0.03em] [word-break:keep-all] md:text-4xl"
+      >
         首个公开安装包即将发布
       </h2>
       <p className="mt-3 font-medium text-fd-muted-foreground text-lg">The first public APK is on its way.</p>
