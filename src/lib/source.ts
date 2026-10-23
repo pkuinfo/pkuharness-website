@@ -3,6 +3,7 @@ import { lucideIconsPlugin } from 'fumadocs-core/source/lucide-icons';
 import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
 import { defineDocs } from 'fumadocs-mdx/macro';
 import { openapiPlugin } from 'fumadocs-openapi/server';
+import { i18n } from './i18n';
 import { parseAPIPageElement, renderOpenAPIMarkdown } from './openapi';
 import { docsRoute } from './shared';
 
@@ -21,6 +22,7 @@ const docs = defineDocs({
 
 // See https://fumadocs.dev/docs/headless/source-api for more info
 export const source = loader({
+  i18n,
   baseUrl: docsRoute,
   source: docs.toFumadocsSource(),
   // openapiPlugin: method badges for the generated Cloud API pages in the sidebar.

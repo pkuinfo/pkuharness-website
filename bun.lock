@@ -5,6 +5,7 @@
     "": {
       "name": "pkuharness-website",
       "dependencies": {
+        "@fumadocs/language": "^0.2.16",
         "@react-three/drei": "^10.7.9",
         "@react-three/fiber": "^9.8.2",
         "cn": "^0.5.0",
@@ -137,6 +138,8 @@
     "@fuma-translate/react": ["@fuma-translate/react@1.0.2", "", { "peerDependencies": { "@types/react": "*", "react": "^19.2.0", "react-dom": "^19.2.0" }, "optionalPeers": ["@types/react"] }, "sha512-uOiOtBx3nRXR8Nu1GzBf1tApgF1FErDBTHxRIAQeyQdyOoZbrNRN6H4kDCWObY4qyGeGbHydG0DHzgeUgFDMIw=="],
 
     "@fumadocs/json-schema": ["@fumadocs/json-schema@0.3.4", "", { "dependencies": { "@fuma-translate/react": "^1.0.2", "@scalar/json-magic": "^0.15.4" }, "peerDependencies": { "json-schema-typed": "*", "react": "^19.2.0" }, "optionalPeers": ["json-schema-typed", "react"] }, "sha512-q2b9W+uyfDUbvZ9GAoqKCpMfGa5zrTtCxVwc0rEo4+fplEOrTTBf78eCMzgf8Dx4DJS+fOzZ4VOJamL/poN6Jw=="],
+
+    "@fumadocs/language": ["@fumadocs/language@0.2.16", "", { "peerDependencies": { "@fumadocs/asyncapi": "*", "@fumadocs/graphql": "*", "@fumadocs/story": "*", "fumadocs-core": "*", "fumadocs-openapi": "*", "fumadocs-ui": "*" }, "optionalPeers": ["@fumadocs/asyncapi", "@fumadocs/graphql", "@fumadocs/story", "fumadocs-core", "fumadocs-openapi", "fumadocs-ui"] }, "sha512-v7PlDoNoH1Cx1a2bgh9P9k/4GBptv58IP9l1AqKGZsCnJVzzMQehj5sPue6UaCrMjkoxGRyJQifrPFMTmWyx6g=="],
 
     "@fumadocs/tailwind": ["@fumadocs/tailwind@0.1.4", "", { "peerDependencies": { "tailwindcss": "^4.0.0" }, "optionalPeers": ["tailwindcss"] }, "sha512-1LAmuroJ6TJoQodyODRhMC9ThAkfrV2N5vZjaj4KKs+dpF2bs0d/2z0604iMKBLv2BKstR7zE9TUa/L0pxGnhA=="],
 

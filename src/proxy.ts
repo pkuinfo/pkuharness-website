@@ -1,26 +1,37 @@
-import { isMarkdownPreferred, rewritePath } from 'fumadocs-core/negotiation';
-import { type NextRequest, NextResponse } from 'next/server';
-import { docsContentRoute, docsRoute } from '@/lib/shared';
+import { createI18nMiddleware } from 'fumadocs-core/i18n/middleware';
+import { isMarkdownPreferred } from 'fumadocs-core/negotiation';
+import { type NextFetchEvent, type NextRequest, NextResponse } from 'next/server';
+import { i18n } from '@/lib/i18n';
+import { docsContentRoute } from '@/lib/shared';
 
-const { rewrite: rewriteDocs } = rewritePath(`${docsRoute}{/*path}`, `${docsContentRoute}{/*path}/content.md`);
-const { rewrite: rewriteSuffix } = rewritePath(`${docsRoute}{/*path}.md`, `${docsContentRoute}{/*path}/content.md`);
+const i18nMiddleware = createI18nMiddleware(i18n);
 
-export default function proxy(request: NextRequest) {
-  const result = rewriteSuffix(request.nextUrl.pathname);
-  if (result) {
-    return NextResponse.rewrite(new URL(result, request.nextUrl));
-  }
+/** `/docs/x`, `/en/docs/x` (+ optional `.md`) → lang and slug path. */
+const DOCS = /^(?:\/(en|zh))?\/docs(\/.*?)?(\.md)?\/?$/;
 
-  if (isMarkdownPreferred(request)) {
-    const result = rewriteDocs(request.nextUrl.pathname);
+/** Paths served by route handlers or static files: never localized. */
+const PASSTHROUGH =
+  /^\/(api|_next|og|llms|schema|marketplace\.json|marketplace\/llms\.txt|updates)(\/|\.|$)|\.[a-z0-9]+$/i;
 
-    if (result) {
-      return NextResponse.rewrite(new URL(result, request.nextUrl), {
-        // this URL has two representations, selected by `Accept`
-        headers: { Vary: 'Accept' },
-      });
-    }
-  }
-
-  return NextResponse.next();
+function markdown(lang: string, rest: string | undefined) {
+  const path = !rest || rest === '/' || rest === '/index' ? '' : rest;
+  return `${docsContentRoute}/${lang}${path}/content.md`;
 }
+
+export default function proxy(request: NextRequest, event: NextFetchEvent) {
+  const { pathname } = request.nextUrl;
+  const docs = DOCS.exec(pathname);
+  if (docs) {
+    const [, lang = i18n.defaultLanguage, rest, md] = docs;
+    // Markdown for agents: `/docs/x.md`, or `Accept: text/markdown` on the page URL.
+    if (md) return NextResponse.rewrite(new URL(markdown(lang, rest), request.nextUrl));
+    if (isMarkdownPreferred(request))
+      return NextResponse.rewrite(new URL(markdown(lang, rest), request.nextUrl), { headers: { Vary: 'Accept' } });
+  }
+  if (PASSTHROUGH.test(pathname)) return NextResponse.next();
+  return i18nMiddleware(request, event);
+}
+
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+};

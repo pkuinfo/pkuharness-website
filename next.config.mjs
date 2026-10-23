@@ -7,6 +7,14 @@ const config = {
   reactStrictMode: true,
   // Self-contained server bundle for the Docker image (see Dockerfile).
   output: 'standalone',
+  experimental: {
+    // Dev only: drop in-memory cache after each disk snapshot. Keeps `next dev` within a few GB on
+    // shared machines (the default 'auto' relies on OS memory pressure, which cgroup caps don't signal).
+    turbopackMemoryEviction: 'full',
+    // Run webpack loaders (fumadocs-mdx, PostCSS) as worker threads instead of one child process per
+    // CPU core (~120 MB each). `force` because Next falls back on Node >= 24.13.1 (teardown issue).
+    turbopackPluginRuntimeStrategy: 'forceWorkerThreads',
+  },
 };
 
 export default withMDX(config);

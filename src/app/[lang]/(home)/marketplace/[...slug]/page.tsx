@@ -13,7 +13,7 @@ export async function generateStaticParams() {
   return index.plugins.map((p) => ({ slug: p.slug.split('/') }));
 }
 
-export async function generateMetadata({ params }: PageProps<'/marketplace/[...slug]'>): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps<'/[lang]/marketplace/[...slug]'>): Promise<Metadata> {
   const { slug } = await params;
   if (slug.length === 3) {
     const p = await getPlugin(slug.join('/'));
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: PageProps<'/marketplace/[...s
   return { title: `${slug.join('/')} — 插件市场` };
 }
 
-export default async function Page({ params }: PageProps<'/marketplace/[...slug]'>) {
+export default async function Page({ params }: PageProps<'/[lang]/marketplace/[...slug]'>) {
   const { slug } = await params;
   if (slug.length > 3 || !slug.every((s) => SEG.test(s))) notFound();
 
