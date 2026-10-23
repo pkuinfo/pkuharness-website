@@ -7,5 +7,5 @@ Thanks for helping the PKU Harness website.
 - **Plugins** are listed through the marketplace's Submit flow, which opens an issue here; a bot scans the
   repo and opens a pull request adding it to `data/sources.json`. Maintainers review and merge.
 - Use **bun** (`bun install`, `bun run …`, `bunx`), never npm/pnpm/yarn.
-- Before a PR: `bun run lint && bun run types:check && bun run build`.
+- Before a PR: `bun run check` (lint + types + tests), then `bun run build`.
 - Commits follow Conventional Commits (`feat:`, `fix:`, `docs:` …).

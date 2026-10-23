@@ -11,7 +11,8 @@
     "format": "biome format --write",
     "openapi": "bun openapi/generate.ts",
     "test": "bun test",
-    "marketplace": "bun scripts/marketplace.ts"
+    "marketplace": "bun scripts/marketplace.ts",
+    "check": "biome check && next typegen && tsc --noEmit && bun test"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
