@@ -72,10 +72,11 @@ bun run dev        # http://localhost:3000
 
 Optional environment variables (`.env.local`):
 
-| Variable               | Use                                                                                           |
-| ---------------------- | --------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL` | Canonical URL for OG images, `llms.txt` and schema ids. Defaults to `http://localhost:3000`   |
-| `GITHUB_TOKEN`         | Raises GitHub API rate limits for releases and marketplace scans. Read-only; no scopes needed |
+| Variable                | Use                                                                                                                                           |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`  | Canonical URL for OG images, `llms.txt` and schema ids. Defaults to `http://localhost:3000`                                                   |
+| `GITHUB_TOKEN`          | Raises GitHub API rate limits for releases and marketplace scans. Read-only; no scopes needed                                                 |
+| `GITHUB_WEBHOOK_SECRET` | Secret of the `release` webhook on pkuinfo/pku-harness (`/api/github-webhook`). Refreshes the download page as soon as a release is published |
 
 ## Project structure
 

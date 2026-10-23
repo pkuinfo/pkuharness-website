@@ -28,13 +28,13 @@ backup.
 
 ## Files
 
-| File                  | Where it goes                            | What                                                                                                     |
-| --------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `compose.yml`         | `/opt/pkuharness-website/compose.yml`    | The service: `127.0.0.1:3100`, `restart: unless-stopped`, 1 GB memory limit, rotated logs                |
-| `.env` (not in git)   | `/opt/pkuharness-website/.env`, mode 600 | `NEXT_PUBLIC_SITE_URL=https://harness.novadiffusion.com`, optional `GITHUB_TOKEN` (read-only, no scopes) |
-| `Caddyfile`           | site block in `/etc/caddy/Caddyfile`     | Reverse proxy. Production also imports the OTA snippet; see below                                        |
-| `deploy.sh`           | run locally                              | Pull and restart over SSH                                                                                |
-| `Dockerfile.prebuilt` |                                          | Fallback image from a local `bun run build` (see below)                                                  |
+| File                  | Where it goes                            | What                                                                                                                                                |
+| --------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `compose.yml`         | `/opt/pkuharness-website/compose.yml`    | The service: `127.0.0.1:3100`, `restart: unless-stopped`, 1 GB memory limit, rotated logs                                                           |
+| `.env` (not in git)   | `/opt/pkuharness-website/.env`, mode 600 | `NEXT_PUBLIC_SITE_URL=https://harness.novadiffusion.com`, `GITHUB_WEBHOOK_SECRET` (release webhook), optional `GITHUB_TOKEN` (read-only, no scopes) |
+| `Caddyfile`           | site block in `/etc/caddy/Caddyfile`     | Reverse proxy. Production also imports the OTA snippet; see below                                                                                   |
+| `deploy.sh`           | run locally                              | Pull and restart over SSH                                                                                                                           |
+| `Dockerfile.prebuilt` |                                          | Fallback image from a local `bun run build` (see below)                                                                                             |
 
 The production site block, with OTA updates served by Caddy itself:
 

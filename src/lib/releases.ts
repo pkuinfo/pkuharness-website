@@ -52,6 +52,9 @@ interface GhRelease {
   assets: GhAsset[];
 }
 
+/** Cache tag of the GitHub releases fetch; `/api/github-webhook` expires it when a release changes. */
+export const RELEASES_TAG = 'releases';
+
 export async function getReleases(): Promise<ReleasesResult> {
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
@@ -59,7 +62,11 @@ export async function getReleases(): Promise<ReleasesResult> {
   };
   if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   try {
-    const res = await fetch(API, { headers, next: { revalidate: 600 }, signal: AbortSignal.timeout(8000) });
+    const res = await fetch(API, {
+      headers,
+      next: { revalidate: 600, tags: [RELEASES_TAG] },
+      signal: AbortSignal.timeout(8000),
+    });
     if (!res.ok) return { releases: [], error: `GitHub ${res.status}` };
     const data = (await res.json()) as GhRelease[];
     return { releases: normalizeReleases(data) };
