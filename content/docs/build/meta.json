@@ -3,6 +3,7 @@
   "icon": "Hammer",
   "pages": [
     "index",
+    "quickstart",
     "remote-plugin",
     "bundled-plugin",
     "declarative-plugins",

@@ -56,7 +56,7 @@ describe('validatePluginMd', () => {
       campus: ['card'],
       network: ['portal.pku.edu.cn'],
       scopes: ['portal.pku.edu.cn'],
-      abilities: ['notify'],
+      abilities: ['scheduler'],
       widgets: ['overview'],
       commands: [{ name: 'study', description: '找自习室' }],
       installUrl: 'https://github.com/carol/doc-plugins/tree/main/classrooms',
@@ -67,8 +67,8 @@ describe('validatePluginMd', () => {
       { name: 'free', path: 'tools/free.yaml', title: '空闲教室', effect: 'read', userOnly: undefined },
       { name: 'rooms', title: '教室列表', effect: 'read', userOnly: undefined },
     ]);
-    // Derived: campus → campus-session + network; notify → notifications.
-    expect(p?.requires.sort()).toEqual(['campus-session', 'network', 'notifications']);
+    // Derived: campus → campus-session + network; scheduler → background.
+    expect(p?.requires.sort()).toEqual(['background', 'campus-session', 'network']);
     // Declarative plugins may use campus sessions: no "remote never gets sessions" warning.
     expect(p?.warnings).toEqual([]);
   });

@@ -1,0 +1,159 @@
+---
+title: Your first plugin in 5 minutes
+description: Write a PLUGIN.md plugin with one tool, test it against recorded responses, and share it as a link. Worked example - the free-classrooms plugin.
+icon: Rocket
+---
+
+This walks through a real plugin, [`plugins/classrooms`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/classrooms)
+in the plugins repo, cut down to its smallest tool: **how many classrooms are free in each
+teaching building right now**. It calls one public campus endpoint, so it needs no login.
+
+Full language reference: [Declarative plugins](/docs/build/declarative-plugins) and the spec
+[`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md).
+
+<Steps>
+
+<Step>
+
+### Get the author CLI
+
+The CLI lives in the plugins repo (bun required):
+
+```bash
+git clone https://github.com/pkuinfo/pku-harness-plugins
+cd pku-harness-plugins
+bun install
+```
+
+Usage: `bun run plugin validate|test|run <plugin-dir> [tool] [json-input]`.
+
+</Step>
+
+<Step>
+
+### Write `PLUGIN.md`
+
+One folder per plugin. The frontmatter is the manifest; the Markdown body is what the agent reads
+about when and how to use your tools.
+
+```md title="my-classrooms/PLUGIN.md"
+---
+spec: 1
+id: my-classrooms
+name: 教室概况
+description: 各教学楼现在有多少空闲教室。
+version: 0.1.0
+author: your-github-name
+network: [portal.pku.edu.cn]
+tools:
+  overview: tools/overview.yaml
+i18n:
+  en:
+    name: Classroom overview
+    description: How many classrooms are free in each teaching building right now.
+---
+
+my-classrooms__overview：各楼现在空闲教室数量。用户想找自习的地方时先用它挑楼。
+```
+
+- `network` lists every public host the plugin may call. Requests to anything else fail.
+- Every file the app loads is named in the frontmatter. The app never lists folders, so any static
+  host works.
+
+</Step>
+
+<Step>
+
+### Write the tool
+
+```yaml title="my-classrooms/tools/overview.yaml"
+title: 各楼空闲教室数
+description: 'How many classrooms are free right now in each teaching building: building, free, total.'
+effect: read
+steps:
+  - let: r
+    request:
+      url: https://portal.pku.edu.cn/publicQuery/classroomQuery/retrClassRoomInfos.do
+      headers: { referer: 'https://portal.pku.edu.cn/publicQuery/', accept: 'application/json' }
+    as: json
+  - check: "r.success && isList(r.rows)"
+    error: 教室概况查询未成功
+return: |
+  {
+    buildings: r.rows.map(b => ({ building: b.buildingName, free: b.classroomFree, total: b.classroomSum })),
+  }
+```
+
+- `title` is shown to users (Chinese first); `description` is for the model.
+- `effect` is `read`, `write`, `money` or `public`. Users choose per effect whether the agent may
+  act on its own, so declare it honestly.
+- Return data, never instructions. The result is shown to the model as data.
+
+<Callout type="warn" title="YAML gotcha">
+  Quote any expression or `${…}` template that contains `: ` or starts with `{` or `[`.
+  Unquoted, YAML parses it as a map or a list. `validate` prints this hint when it happens.
+</Callout>
+
+</Step>
+
+<Step>
+
+### Record a test
+
+Tests replay recorded responses, so they run offline and stay deterministic. Paste a (trimmed)
+real response as the `body`, or save it as a file next to the test and use `file:`:
+
+```yaml title="my-classrooms/tests/overview.yaml"
+tool: overview
+responses:
+  - match: retrClassRoomInfos.do
+    headers: { content-type: application/json }
+    body: '{"success":true,"rows":[{"buildingName":"一教","classroomFree":16,"classroomSum":32}]}'
+expect: { buildings: [{ building: 一教, free: 16, total: 32 }] }
+```
+
+A test has `tool`, optional `input` and `now`, the `responses` to serve (`match` a URL substring;
+`body` or `file`; `campus` for campus requests), and either `expect` (compared **exactly** with
+the result) or `expectError` (a pattern the error message must match).
+
+</Step>
+
+<Step>
+
+### Validate, test, run
+
+```bash
+bun run plugin validate path/to/my-classrooms
+bun run plugin test path/to/my-classrooms
+bun run plugin run path/to/my-classrooms overview '{}'
+```
+
+`validate` checks the manifest, tool schemas, expressions and file paths, the same checks the app
+and the marketplace run. `run` makes the real requests.
+
+</Step>
+
+<Step>
+
+### Share it
+
+Push the folder to a public GitHub repo. The folder URL is the install link:
+
+```
+https://github.com/<you>/<repo>/tree/main/my-classrooms
+```
+
+Students paste it in the app, scan its QR code, or open
+`pkuharness://plugin?src=<url-encoded link>`. To list it in the marketplace,
+[submit the repo](/marketplace/submit). One repo can hold any number of plugins. See
+[Publishing](/docs/marketplace/publishing).
+
+</Step>
+
+</Steps>
+
+## Next
+
+- Inputs, steps, expressions and errors: [Declarative plugins](/docs/build/declarative-plugins)
+- Calls that need the student's campus session: declare `campus` (see the spec, §4 and §9)
+- What reviewers check: [Review and safety](/docs/marketplace/review)

@@ -70,7 +70,7 @@ then only that folder is scanned.
 | `icon`, `homepage` | | Icon from the harness set; a URL. |
 | `campus` | | Campus services called **with the user's session**: `card`, `its`, `treehole`, `blackboard`, `elective`, `cwfw`, `cwpay`, `bdkj`, `library`, `library-space`, `portal`, … |
 | `network` | | Public hosts it calls (`dining.pku.edu.cn`, `*.example.com`). HTTPS only. |
-| `abilities` | | Host abilities: `verify`, `otp`, `todos`, `timetable`, `scheduler`, `browser`, `campusPage`, `sms`, `files`, `crypto`, `notify`. |
+| `abilities` | | Host abilities: `verify`, `otp`, `todos`, `timetable`, `scheduler`, `browser`, `campusPage`, `sms`, `files`, `crypto`. Any other name is an error (the app refuses it). |
 | `tools` | | Map of tool name → file (`tools/menu.yaml`) or an inline tool. Every tool has `title`, `description` and an honest `effect`: `read`, `write`, `money` or `public`. |
 | `dataSources` | | Read tools that widgets and scheduled checks poll: `{ tool, args?, ttl }`. |
 | `widgets`, `screens` | | Map of name → JSON file (generative-UI spec + bindings). |
@@ -106,7 +106,7 @@ declarations imply:
 | any `campus` service | `campus-session`, `network` |
 | `campus: [cwfw]` | also `campus-network` (cwfw only answers on the campus network) |
 | `network` hosts, or `remote` | `network` |
-| `abilities: [notify]` | `notifications` |
+| `abilities: [scheduler]` | `background` |
 | `abilities: [scheduler]` | `background` |
 | `cloud.uses` not empty | `cloud` |
 

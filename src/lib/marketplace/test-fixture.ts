@@ -40,7 +40,7 @@ author: carol
 icon: building
 campus: [card]
 network: [portal.pku.edu.cn]
-abilities: [notify]
+abilities: [scheduler]
 tools:
   free: tools/free.yaml
   rooms:

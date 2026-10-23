@@ -82,7 +82,7 @@ export interface MarketplacePlugin {
   campus?: string[];
   /** Public hosts it calls (same as `scopes` for PLUGIN.md plugins). */
   network?: string[];
-  /** Host abilities it uses (`todos`, `browser`, `notify`, …). */
+  /** Host abilities it uses (`todos`, `browser`, `scheduler`, …). */
   abilities?: string[];
   tools?: MarketplaceTool[];
   widgets?: string[];

@@ -285,9 +285,9 @@ export function validatePluginMd(
     );
   const unknownAbilities = m.abilities.filter((a) => !(a in ABILITIES));
   if (unknownAbilities.length)
-    warn(
+    err(
       'abilities',
-      `abilities: unknown ${unknownAbilities.map((a) => `"${a}"`).join(', ')}.`,
+      `abilities: unknown ${unknownAbilities.map((a) => `"${a}"`).join(', ')}; the app refuses abilities it doesn't know.`,
       `Known: ${Object.keys(ABILITIES).join(', ')}.`,
     );
   for (const cap of ['shell', 'filesystem'] as const)

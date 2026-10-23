@@ -118,7 +118,6 @@ export const ABILITY: Record<string, { zh: string; en: string }> = {
   sms: { zh: '读取短信验证码（需你确认）', en: 'Read an SMS code (you confirm)' },
   files: { zh: '让你选择文件', en: 'Let you pick a file' },
   crypto: { zh: '计算签名', en: 'Compute request signatures' },
-  notify: { zh: '发送本地通知', en: 'Send local notifications' },
 };
 
 /** Tool effects (spec §5): what a tool may do. */

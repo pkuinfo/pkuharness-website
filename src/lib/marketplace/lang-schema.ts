@@ -32,7 +32,10 @@ export const KNOWN_CAMPUS = [
   'portal',
 ] as const;
 
-/** Host abilities (§7) and the minimum effect of a tool that uses them. */
+/**
+ * Host abilities (§7) and the minimum effect of a tool that uses them. Exactly `abilitySchema` in
+ * pku-harness-plugins packages/sdk/src/lang/schema.ts; the app refuses any other name.
+ */
 export const ABILITIES: Record<
   string,
   { effect: z.infer<typeof toolEffect>; capability?: z.infer<typeof capability> }
@@ -47,7 +50,6 @@ export const ABILITIES: Record<
   sms: { effect: 'read' },
   files: { effect: 'read' },
   crypto: { effect: 'read' },
-  notify: { effect: 'write', capability: 'notifications' },
 };
 
 const campusName = z.string().regex(/^[a-z][a-z0-9-]{1,30}$/, 'lowercase letters, digits and dashes');

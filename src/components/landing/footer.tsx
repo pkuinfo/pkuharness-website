@@ -25,8 +25,8 @@ const columns: { title: string; links: { label: string; href: string }[] }[] = [
     links: [
       { label: 'GitHub 组织', href: repos.org },
       { label: '提交问题', href: `${github(repos.app)}/issues` },
-      { label: '参与贡献', href: `${github(repos.app)}/blob/main/CONTRIBUTING.md` },
-      { label: '安全问题', href: `${github(repos.app)}/blob/main/SECURITY.md` },
+      { label: '参与贡献', href: `${github(repos.app)}/blob/HEAD/CONTRIBUTING.md` },
+      { label: '安全问题', href: `${github(repos.app)}/blob/HEAD/SECURITY.md` },
     ],
   },
 ];
