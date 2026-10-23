@@ -1,0 +1,22 @@
+name: Docs issue or request
+description: A docs page is wrong, unclear or out of date, or a guide is missing.
+labels: [documentation]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: URL of the page, or "new page" for a request.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's wrong or missing?
+      description: For incorrect API details, link the source file in pku-harness or pku-harness-plugins if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested fix or outline

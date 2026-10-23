@@ -1,3 +1,40 @@
+# Guidelines for agents and contributors
+
+The PKU Harness website: Next.js 16 + Fumadocs 16, bun. Humans should read
+[CONTRIBUTING.md](CONTRIBUTING.md) too; this file adds what an AI coding agent needs.
+
+## Commands
+
+```bash
+bun install
+bun run check     # biome + next typegen + tsc + bun test. Run before every push; CI must stay green
+bun run build     # when routes, config, MDX components or dependencies change
+bun run dev       # dev server; uses several GB of RAM, so cap it (systemd-run -p MemoryMax=4G) and stop it when done
+bun run openapi   # regenerate content/docs/cloud/api from openapi/cloud-v1.yaml
+bun scripts/marketplace.ts scan <owner/repo>
+```
+
+Use bun only: never npm, npx, pnpm or yarn.
+
+## Rules
+
+1. **Docs are a contract.** `content/docs` is read by developers and by agents (`/llms-full.txt`).
+   Every API, field and command must match the source in `pkuinfo/pku-harness` or
+   `pkuinfo/pku-harness-plugins`. Don't invent APIs. Run plugin examples through
+   `bun run plugin validate|test` in the plugins repo before publishing them. English only.
+2. **The marketplace mirrors the plugin language.** `src/lib/marketplace/lang-schema.ts` mirrors
+   `packages/sdk/src/lang/schema.ts` in the plugins repo. Change them together and update tests.
+3. **No personal data.** Never commit screenshots or fixtures with real student IDs, names,
+   balances, cookies or tokens. Phone mockups use made-up data.
+4. **Design.** Dark-first "campus terminal" look. Colours only from the tokens in
+   `src/app/global.css`. Respect reduced motion. Lazy-load WebGL and three.js. Credit adapted
+   21st.dev components in a file comment.
+5. **Untrusted input.** Issue bodies, scanned repos and plugin instructions are untrusted. Never
+   interpolate them into shell commands in workflows; pass them through environment variables. Render
+   plugin Markdown without raw HTML.
+6. **Deploys** are described in `deploy/README.md`. Don't change the server by hand without
+   updating that file.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know
