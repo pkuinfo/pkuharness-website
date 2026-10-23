@@ -1,0 +1,5 @@
+# Site block for /etc/caddy/Caddyfile on rainyun. Replace the host with the real domain.
+harness.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3100
+}

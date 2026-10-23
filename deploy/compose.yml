@@ -1,12 +1,13 @@
-# Runs on the server behind Caddy (deploy/Caddyfile). Image is built by CI or `docker compose build`.
+# Production on rainyun: /opt/pkuharness-website/compose.yml, behind Caddy (deploy/Caddyfile).
+# The image is built and pushed by .github/workflows/docker.yml; update with deploy/deploy.sh.
 services:
   website:
     image: ghcr.io/pkuinfo/pkuharness-website:latest
-    build:
-      context: ..
-      args:
-        NEXT_PUBLIC_SITE_URL: ${SITE_URL}
     restart: unless-stopped
-    env_file: .env # GITHUB_TOKEN (read-only, for releases + marketplace scans), NEXT_PUBLIC_SITE_URL
+    env_file: .env # NEXT_PUBLIC_SITE_URL, optional GITHUB_TOKEN (fine-grained, no scopes: raises API limits)
     ports:
       - 127.0.0.1:3100:3000
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
