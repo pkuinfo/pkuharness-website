@@ -1,0 +1,5 @@
+{
+  "title": "Ecosystem",
+  "icon": "Network",
+  "pages": ["repositories", "roadmap", "contributing"]
+}

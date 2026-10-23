@@ -1,0 +1,84 @@
+---
+title: Host services
+description: Everything a bundled plugin does outside itself goes through `HostServices`, provided by the harness as `ctx.services` (tools) and `props.services` (screens, widgets).
+icon: Server
+---
+
+Bundled plugins never import app code. The harness hands them a `HostServices` object instead:
+`ctx.services` inside tools, `props.services` in screens and widgets. Each plugin also gets its own
+key-value store (`ctx.kv` / `props.kv`) and, when it declares one, a cloud client (`ctx.cloud`).
+
+## Overview
+
+| Service | What it gives you | Notes |
+| --- | --- | --- |
+| `campus` | Signed-in campus HTTP (`request(service, req)`), sign-in status, current 手机令牌 code, signed-in hand-off to the browser | Requires `campus-session`. See [Campus sessions](/docs/concepts/campus-sessions). |
+| `scheduler` | Create, update, remove, list jobs; run a check now | Exact notifications and scheduled checks. See [Scheduler](/docs/concepts/scheduler). |
+| `widgets` | Dashboard widgets: list, put, remove, reorder, preview, resolve, catalog | See [Dashboard](/docs/concepts/dashboard). |
+| `todos` | To-dos with optional reminders | |
+| `timetable` | Courses, semester, class reminder setting | |
+| `notify` | Whether reminders can fire on the minute; open the fix for what's missing | Call `fix` only from a tap |
+| `sms` | One-tap SMS code takeover (`awaitCode()`) | Android SMS User Consent; no SMS permission |
+| `files` | System file picker (`pick`) | User-initiated only; never from an agent tool |
+| `browser` | Open a URL in the system browser tab | For cashiers, documents, logins the harness can't do |
+| `crypto` | `sha256(text)` | Plugins have no crypto of their own |
+| `registry` | Installed plugins and tools (read-only) | |
+| `remote` | Install, uninstall, check remote MCP plugins | Used by the `plugins` plugin |
+| `genui` | Describe the generative-UI catalog, validate a spec | |
+| `ongoing?` | Android foreground service with an ongoing notification | Present only with the `ongoing` capability |
+
+The exact signatures are in [SDK → HostServices](/docs/sdk/host-services).
+
+## Private storage: `kv`
+
+```ts
+interface KV {
+  get<T>(key: string): Promise<T | undefined>;
+  set<T>(key: string, value: T): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+```
+
+Namespaced per plugin, stored in SQLite on the device, JSON values. Don't store secrets the user
+typed in it (it is not the keystore) and don't store large blobs.
+
+## Example: a tool that uses three services
+
+```ts
+import { defineTool } from '@pku-harness/sdk';
+import { z } from 'zod';
+
+export const remindLowBalance = defineTool({
+  title: '余额提醒',
+  description: 'Every morning at 08:00, notify when the campus card balance is below `below` yuan.',
+  input: z.object({ below: z.number().positive() }),
+  effect: 'write',
+  execute: async ({ below }, ctx) => {
+    if (!ctx.services.campus.status().signedIn) throw new Error('请先在设置里登录校园账号');
+    const job = await ctx.services.scheduler.create({
+      title: '校园卡余额提醒',
+      source: ctx.actor === 'agent' ? 'agent' : 'user',
+      trigger: { type: 'every', unit: 'day', interval: 1, times: ['08:00'], startAt: Date.now() },
+      action: {
+        type: 'check',
+        tool: 'wallet.cardBalance',
+        condition: { path: 'balance', op: '<', value: below },
+        title: '校园卡余额只剩 ¥{value}',
+      },
+    });
+    await ctx.kv.set('lowBalanceJob', job.id);
+    return { jobId: job.id, nextRunAt: job.nextRunAt };
+  },
+});
+```
+
+## Rules
+
+- **MUST** reach the app only through `services`, `kv`, `cloud` and (in UI) `host`. No imports
+  from the app, no global singletons shared between plugins.
+- **MUST NOT** import another plugin's code. Copy a small helper instead (bundled plugins do this
+  for their HTTP helpers).
+- **MUST** call `files.pick` and `notify.fix` only in response to a user's tap (`files.pick` never
+  from an agent tool).
+- **SHOULD** use public `fetch` only for public, unauthenticated pages (`requires: ['network']`),
+  and `services.campus.request` for anything that needs the user's session.

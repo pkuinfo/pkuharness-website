@@ -1,0 +1,99 @@
+---
+title: Porting from pkucli
+description: pkucli is the protocol reference for PKU services. Port endpoints, login hops and quirks from its Rust crates into a plugin, keep sign-in in the harness, and credit the source file.
+icon: Terminal
+---
+
+[`pkuinfo/pkucli`](https://github.com/pkuinfo/pkucli) is a Rust workspace of command-line tools for
+PKU web services. It already solved the hard parts: which endpoints exist, which login hops each
+service needs, which headers and parameters it insists on, how its HTML is shaped. Port behaviour
+from it instead of rediscovering it, and cite the source file in a comment.
+
+## Where things are
+
+| pkucli crate | Service | In PKU Harness |
+| --- | --- | --- |
+| `common` | IAAA login (password, QR), TOTP, captcha, sessions, credentials | The harness (`src/core/campus` in the app); **not** in plugins |
+| `campuscard` | Campus card (bdcard) | `wallet` plugin, `card` campus service |
+| `treehole` | Treehole (树洞) | `treehole` plugin, `treehole` service |
+| `course` | Blackboard (教学网) | `courses` plugin, `blackboard` service |
+| `elective` | Course selection | `elective` plugin, `elective` service |
+| `cwfw`, `cwpay` | Finance, finance payments | `finance` plugin, `cwfw` / `cwpay` services |
+| `bdkj` | Room booking | `room-booking` plugin, `bdkj` service |
+| `portal` | Portal | Portal SSO hop inside the harness |
+| `claspider` | Course recordings (智云课堂) | Planned |
+| `info-spider`, `info-auth` | WeChat articles | Planned (notices) |
+
+Inside a crate, `api.rs` (or `client.rs`) holds endpoints and response types, `login.rs` the
+service-specific sign-in hops, `commands.rs` the user-facing operations.
+
+## What moves where
+
+```
+pkucli crate                     PKU Harness
+─────────────────────────────    ──────────────────────────────────────────────
+login.rs  (IAAA → service SSO)   app: a campus service adapter (harness-owned)
+client.rs (headers, base URL)    plugin: the `url`/`headers` of services.campus.request
+api.rs    (endpoints, types)     plugin: src/api.ts + zod/TS types
+commands.rs / display.rs         plugin: tools (data, not formatted text)
+```
+
+- **Sign-in stays in the harness.** A plugin never implements IAAA or a service's SSO hops. If the
+  service isn't one the harness already signs in to (`card`, `its`, `treehole`, `blackboard`,
+  `bdkj`, `cwfw`, `cwpay`, `elective`, `library`, `library-space`), open an issue in
+  `pku-harness`: a new service is an adapter in `src/core/campus/adapters/`.
+- **Requests go through `services.campus.request(service, req)`.** Use paths relative to the
+  service host; the harness adds cookies or tokens.
+- **Public pages** (no login) can use plain `fetch` with `requires: ['network']`; copy pkucli's
+  headers (desktop user agent, `accept-language: zh-CN`), since some campus servers reject others.
+- **Parse into data.** pkucli's `display.rs` formats for a terminal; tools return structured JSON.
+
+## Example
+
+pkucli (Rust):
+
+```rust title="crates/campuscard/src/api.rs"
+/// 查询校园卡信息
+pub async fn query_card(&self) -> Result<CardQueryData> {
+    let url = format!("{CARD_BASE}/berserker-app/ykt/tsm/queryCard?synAccessSource=h5");
+    let resp = self.http.get(&url).send().await.context("查询校园卡失败")?;
+    let api_resp: ApiResp<CardQueryData> = parse_response(resp).await?;
+    check_resp(api_resp)
+}
+```
+
+Plugin (TypeScript):
+
+```ts title="plugins/wallet/src/card/api.ts (abridged)"
+/**
+ * Campus card (bdcard.pku.edu.cn) response handling, ported from pkucli
+ * crates/campuscard/src/api.rs. Amounts are in fen; every call carries synAccessSource=h5.
+ */
+import type { HostServices } from '@pku-harness/sdk';
+
+type Services = Pick<HostServices, 'campus'>;
+const get = (services: Services, url: string) => services.campus.request('card', { url });
+
+export async function cardAccount(services: Services) {
+  const data = unwrap<{ card: CardInfo[] }>(await get(services, '/berserker-app/ykt/tsm/queryCard?synAccessSource=h5'));
+  const account = data.card[0]?.account;
+  if (!account) throw new Error('校园卡缺少账户信息');
+  return account;
+}
+```
+
+## Second factors
+
+pkucli prompts in the terminal; a plugin can't. Service-level checks (Treehole's SMS check `40002`,
+the course token `40077`) become a tool result like
+`{ status: 'verification_required', methods: ['sms'], message }` plus a tool to send or redeem the
+code, and the plugin's screen can offer `services.sms.awaitCode()`. IAAA-level second factors are
+handled by the harness.
+
+## Rules
+
+- **MUST** cite the pkucli file you ported from in a comment at the top of the module.
+- **MUST** keep sign-in in the harness; plugins only make requests.
+- **SHOULD** port parsers together with a fixture from a real (anonymised) response and a test.
+- **SHOULD** fix bugs in both places: if you find a quirk pkucli doesn't handle, open an issue or
+  PR in pkucli too.

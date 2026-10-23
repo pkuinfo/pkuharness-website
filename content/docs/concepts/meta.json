@@ -1,0 +1,17 @@
+{
+  "title": "Concepts",
+  "icon": "Lightbulb",
+  "pages": [
+    "architecture",
+    "plugins",
+    "tools-and-effects",
+    "permissions",
+    "capabilities",
+    "host-services",
+    "generative-ui",
+    "dashboard",
+    "scheduler",
+    "campus-sessions",
+    "security"
+  ]
+}

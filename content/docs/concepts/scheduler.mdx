@@ -1,0 +1,107 @@
+---
+title: Scheduler and notifications
+description: One engine for reminders, to-dos, class reminders and scheduled checks. Jobs combine a trigger (once or a bounded series) with an action (notify, check, agent) and fire on the minute.
+icon: AlarmClock
+---
+
+Every recurring thing in PKU Harness (a reminder, a to-do's reminder, a class reminder, "check my
+card balance every morning") is a **job** in one scheduler. Users create jobs from the Schedule tab
+or by asking the agent; plugins create them with `services.scheduler`.
+
+## Jobs
+
+```ts
+type Job = {
+  id: string;
+  title: string;
+  trigger: Trigger;          // when
+  action: Action;            // what
+  enabled: boolean;
+  source: 'user' | 'agent' | 'plugin';
+  runs: number;              // occurrences fired (or passed)
+  lastRunAt: number | null;
+  nextRunAt: number | null;  // null when the series is over
+  // check / agent jobs also keep lastValue, lastError, history (last 20 runs), failures …
+  meta?: Record<string, unknown>;  // link back to the owner, e.g. { todoId }
+  createdAt: number;
+  updatedAt: number;
+};
+```
+
+## Triggers
+
+All times are **device-local**.
+
+| Trigger | Fields | Covers |
+| --- | --- | --- |
+| `{ type: 'at' }` | `at` (epoch ms) | "in 2 days", "tomorrow 8:00" |
+| `{ type: 'every' }` | `unit` (`minute` `hour` `day` `week`), `interval` (1–1000), `times?` (`"HH:MM"`, day/week), `weekdays?` (0 = Sunday … 6, week), `startAt`, `count?`, `until?` | "every morning at 8", "every 3 days, 16 times, then stop", "Mon/Wed/Fri 07:30 until the end of term" |
+
+A series is a sequence of periods (one minute/hour step, one day, or one Monday-based week), each
+with slots (times × weekdays). Slots before `startAt` are skipped; the rest are numbered 0, 1, 2…
+and cut by `count` and/or `until` (inclusive).
+
+The agent and forms use a friendlier input, `ScheduleInput`, with local `"YYYY-MM-DD HH:mm"` strings:
+
+```json
+{ "type": "repeat", "unit": "day", "interval": 3, "times": ["09:00"], "count": 16 }
+```
+
+`toTrigger(input)` converts it; `summarize(trigger)` returns `{ schedule, next, total, finished }`
+(e.g. `"每 3 天 09:00 · 共 16 次"` and the next three times) so the agent can confirm times back to
+the user.
+
+## Actions
+
+| Action | Fields | Runs |
+| --- | --- | --- |
+| `notify` | `title`, `body?`, `url?` (in-app route opened on tap) | Armed ahead of time as an exact notification; no code runs at fire time |
+| `check` | `tool` (read-only, `<plugin>.<tool>`), `args?`, `condition`, `title`, `body?`, `url?` | Calls the tool, reads `condition.path`, notifies only if the condition holds; `{value}` in the text is replaced by the value |
+| `agent` | `prompt` (4–1000 chars) | A fresh, read-only agent session with no chat history; replies `NO_REPLY` to stay silent, otherwise its short answer becomes the notification |
+
+Conditions: `{ path, op, value? }` with `op` one of `<` `<=` `>` `>=` `==` `!=` `changed` `always`.
+
+```json
+{
+  "type": "check",
+  "tool": "wallet.cardBalance",
+  "condition": { "path": "balance", "op": "<", "value": 100 },
+  "title": "校园卡余额只剩 ¥{value}，记得充值"
+}
+```
+
+## Exact delivery (Android)
+
+- `notify` jobs are armed as exact alarms ahead of time (a 14-day window, at most 64 per job and
+  400 in total) and re-armed on start, on every change, on foreground and from the background task.
+- `check` and `agent` jobs run in JavaScript. In the foreground a timer fires them on the minute;
+  with the app in the background or killed, an exact alarm wakes a headless task that runs what is
+  due, re-arms the next one and removes the placeholder.
+- This needs the notification permission and the "Alarms & reminders" special access (denied by
+  default on Android 14+). Battery optimisation is advisory. `services.notify.readiness()` reports
+  all three; `deliveryBlocker(readiness)` names the first blocker; `services.notify.fix(kind)` opens
+  the system prompt or screen (call it from a tap).
+
+## Unattended-run policy
+
+A check runs with nobody watching, so it is limited, logged and loud about failures:
+
+| Rule | Value |
+| --- | --- |
+| Tools a scheduled run may call | `read` only, re-checked at run time; an `ask` mode means declined |
+| Enabled jobs | ≤ 50 (`MAX_ACTIVE_JOBS`) |
+| Check frequency | at most every 15 min (`MIN_CHECK_GAP_MS`); no duplicate check (same tool, args, condition) |
+| Agent jobs | ≤ 10 (`MAX_AGENT_JOBS`), at most hourly (`MIN_AGENT_GAP_MS`), ≤ 8 steps per run (`AGENT_MAX_STEPS`) |
+| Late runs | A run more than 2 h late (`MAX_LATE_MS`) is logged as missed instead of alerting hours late |
+| Run log | Last 20 runs (`HISTORY_LIMIT`): due vs actual time, result, value, error |
+| Failures | 2 in a row (`FAIL_ALERT_AFTER`) tell the user once, again after 6 h; 10 (`DISABLE_AFTER`) turn the job off and say so |
+
+## For plugin authors
+
+- Make tools that are good to check: `read`, fast, a stable numeric or boolean field to compare
+  (`balance`, `unread`, `available`).
+- List such tools in `dataSources` so the agent can find them.
+- Create jobs for users with `services.scheduler.create({ …, source: 'plugin' })` only in response
+  to a user action, and keep the job id (`meta` or your `kv`) to update or remove it later.
+- The pure engine (`occurrencesAfter`, `nextOccurrence`, `describeTrigger`, `evaluate`, …) is
+  exported by the SDK; see [SDK → scheduler](/docs/sdk/scheduler).

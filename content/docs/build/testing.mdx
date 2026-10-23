@@ -1,0 +1,111 @@
+---
+title: Testing
+description: Unit-test pure logic and parsers with bun test, run the agent loop end to end against the scripted mock model, and exercise MCP with the demo-canteen example.
+icon: FlaskConical
+---
+
+Most campus plugins are three layers: an HTTP call, a parser, and a tool that shapes the result.
+Test the parser and the shaping with `bun test`, then try the whole thing in the app.
+
+## Unit tests (bun test)
+
+Run in the plugins repository:
+
+```bash
+bun test                      # every *.test.ts in the workspace
+bun test plugins/focus        # one plugin
+bunx tsc --noEmit -p .        # typecheck SDK + plugins
+```
+
+- Colocate tests: `src/parse.test.ts` next to `src/parse.ts`.
+- **Parsers**: save real responses as fixtures (`src/fixtures/*.html|json`) with personal data
+  replaced, and assert on the parsed result. Campus pages change; a fixture shows exactly what
+  broke.
+- **Time**: pass `now` explicitly instead of reading `Date.now()` inside logic (the SDK's
+  recurrence, timetable and format helpers all take `now`).
+- **React Native**: modules that import `react-native` can't load under bun unless you mock it.
+  Keep logic in plain modules, or mock it as `plugins/i18n.test.ts` does:
+
+```ts
+import { mock } from 'bun:test';
+
+mock.module('react-native', () => ({
+  StyleSheet: { create: (s: unknown) => s },
+  Platform: { OS: 'android', select: (o: Record<string, unknown>) => o.android ?? o.default },
+  View: () => null,
+}));
+```
+
+### Testing a tool with a fake context
+
+```ts title="plugins/focus/src/index.test.ts"
+import { expect, mock, test } from 'bun:test';
+import type { KV, ToolContext } from '@pku-harness/sdk';
+
+// index.ts imports the widget, which imports react-native: mock it before loading the plugin.
+mock.module('react-native', () => ({ View: () => null }));
+const { focusPlugin } = await import('./index');
+
+function memoryKV(): KV {
+  const m = new Map<string, unknown>();
+  return {
+    get: async <T,>(k: string) => m.get(k) as T | undefined,
+    set: async (k, v) => void m.set(k, v),
+    delete: async (k) => void m.delete(k),
+  };
+}
+
+test('start, then today shows the running session', async () => {
+  const ctx = { pluginId: 'focus', actor: 'user', kv: memoryKV(), services: {} } as unknown as ToolContext;
+  await focusPlugin.tools.start.execute({ label: '高数' }, ctx);
+  const today = (await focusPlugin.tools.today.execute({}, ctx)) as { running: { label: string } | null };
+  expect(today.running?.label).toBe('高数');
+});
+```
+
+`execute` doesn't validate input; the host does. Test validation separately with
+`tool.input.safeParse(...)` if it matters.
+
+## Mock model
+
+`examples/mock-llm` is a scripted OpenAI-compatible Chat Completions server for exercising the
+agent loop without a key:
+
+```bash
+bun examples/mock-llm/server.ts     # http://localhost:8788/v1, model "mock-agent"
+```
+
+In the app: Settings → AI service → OpenAI-compatible, base URL `http://10.0.2.2:8788/v1`
+(emulator) and model `mock-agent`. It picks a tool from keywords in your message, then summarises
+the tool result:
+
+| Message contains | It calls |
+| --- | --- |
+| `提醒` / `remind` | `scheduler__create` (every 3 days at 09:00, 16 times) |
+| `马上` / `soon` | `scheduler__create` (once, in 2 minutes) |
+| `看板` / `dash` | `dashboard__upsertWidget` (a widget bound to `timetable.today`) |
+| `表单` / `form` | `ui__render` (a top-up form) |
+| `remember` | `memory__remember` |
+| `食堂` / `canteen` | `mcp-demo-canteen__reserveSeat` (needs the demo plugin installed) |
+| `who` | Echoes the injected `<context>` block |
+
+Extend its `plan()` function locally to call your own tools by model name.
+
+## Demo remote plugin
+
+```bash
+bun examples/demo-canteen/server.ts   # :8787/mcp, bearer token demo-token
+```
+
+Add `http://10.0.2.2:8787/mcp` with token `demo-token` in Settings → Plugins → Add remote plugin.
+It has one read tool (`menu`) and one write tool (`reserveSeat`), so you can see the approval
+prompt for remote writes.
+
+## On a device
+
+- Dev-only deep links run a tool or a chat turn:
+  `pkuharness://dev?tool=<plugin>.<tool>&input=<json>` and `pkuharness://dev?chat=<text>`;
+  add `&actor=agent` to exercise the ask-first prompts.
+- Check both themes (dark and light) and both languages for screens and widgets.
+- Real campus data needs a real account: test read tools on your own account before asking
+  others to; never commit responses with personal data.

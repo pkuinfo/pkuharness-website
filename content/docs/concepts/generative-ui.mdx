@@ -1,0 +1,97 @@
+---
+title: Generative UI
+description: The agent renders native UI from a JSON spec using the host's component catalog, in chat (`ui.render`) and on the dashboard; form submissions come back as the user's next message.
+icon: Wand
+---
+
+The agent can answer with UI instead of text: a form to collect input, a choice list, a card
+summarising data. It writes a JSON **spec**, and the app renders it with native components from a
+fixed **catalog** (built on [json-render](https://github.com/vercel-labs/json-render)). Props are
+semantic (tone, size), never raw colours, so whatever the agent builds looks native. The same
+catalog powers AI-built dashboard widgets, so the agent learns one UI language.
+
+## The spec
+
+```ts
+// specSchema in @pku-harness/sdk (genui.ts)
+type UISpec = {
+  root: string;                                  // id of the root element
+  elements: Record<string, {
+    type: string;                                // a catalog component
+    props: Record<string, unknown>;              // every listed prop present; null when unused
+    children?: string[];                         // element ids
+    on?: Record<string, unknown>;                // events, e.g. { press: { action, params } }
+    visible?: unknown;
+  }>;
+  state?: Record<string, unknown>;               // initial state, e.g. { form: { amount: "50" } }
+};
+```
+
+State bindings inside props:
+
+| Binding | Meaning |
+| --- | --- |
+| `{ "$state": "/card/balance" }` | Read a value from state (JSON pointer) |
+| `{ "$bindState": "/form/amount" }` | Two-way bind an input to state |
+| `{ "$template": "今天共 ${/today/count} 节课" }` | String with state values interpolated |
+
+## Catalog
+
+| Component | Props | Notes |
+| --- | --- | --- |
+| `Column` | `gap` | Vertical stack; has children |
+| `Row` | `gap`, `align`, `wrap` | Horizontal row; has children |
+| `Card` | `title`, `subtitle` | Grouped panel; has children. Don't nest cards. |
+| `Heading` | `text`, `size` | |
+| `Text` | `text`, `tone`, `size` | |
+| `Stat` | `label`, `value`, `prefix`, `suffix`, `decimals`, `delta`, `deltaTone`, `caption`, `icon`, `size` | A key number, animated on change |
+| `Badge` | `label`, `tone` | |
+| `ListItem` | `title`, `subtitle`, `value`, `icon` | Event `press` |
+| `Divider` | — | |
+| `Progress` | `label`, `value` (0–1), `tone` | |
+| `TextField` | `label`, `placeholder`, `value`, `keyboard` | Bind `value` |
+| `Toggle` | `label`, `value` | Bind `value` |
+| `Choice` | `label`, `options`, `value` | ≤ 12 options; bind `value` |
+| `Sparkline` | `values`, `tone` | |
+| `Ring` | `value` (0–1), `label`, `caption`, `tone`, `size` | |
+| `DateTime` | `label`, `value`, `mode` | Native picker; value is local `"YYYY-MM-DD HH:mm"` |
+| `Button` | `label`, `variant` | Event `press` |
+
+Actions for `on.press`:
+
+| Action | Params | Effect |
+| --- | --- | --- |
+| `submit` | `{ label }` | Sends everything under `/form` back to the agent as the user's next message |
+| `callTool` | `{ tool, input }` | Runs a plugin tool directly (same permission check as the agent) |
+
+The live catalog is the source of truth: the `ui.render` tool description embeds
+`services.genui.describeCatalog()`, and `services.genui.checkSpec(spec)` validates a spec.
+
+## Example: a top-up form
+
+```json
+{
+  "root": "card",
+  "elements": {
+    "card": { "type": "Card", "props": { "title": "充值校园卡", "subtitle": "选择金额" }, "children": ["amount", "ok"] },
+    "amount": {
+      "type": "Choice",
+      "props": {
+        "label": null,
+        "options": [{ "label": "¥50", "value": "50", "hint": null }, { "label": "¥100", "value": "100", "hint": "常用" }],
+        "value": { "$bindState": "/form/amount" }
+      }
+    },
+    "ok": { "type": "Button", "props": { "label": "确认", "variant": "primary" }, "on": { "press": { "action": "submit", "params": { "label": "充值" } } } }
+  },
+  "state": { "form": { "amount": "100" } }
+}
+```
+
+## For plugin authors
+
+- Remote plugins can't render UI directly; the agent renders it from their data.
+- Bundled plugin screens can render a spec with `host.components.GenUI`:
+  `<GenUI spec={spec} onSubmit={(form, label) => …} />`.
+- Prefer a native screen or widget (`contributes.screens` / `widgets`) for anything users open
+  often; generative UI is for one-off, conversational UI.

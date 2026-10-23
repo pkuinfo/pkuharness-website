@@ -1,0 +1,132 @@
+---
+title: Tools and schemas
+description: How to design tools the model uses well, with zod (bundled) or JSON Schema (MCP) inputs, honest effects, data-only results and recoverable states.
+icon: Wrench
+---
+
+Tools are the API of a plugin, for the model and for your own screens. A good tool is small, does
+one thing, says exactly when to use it, and returns data the model can act on. The concepts are in
+[Tools and effects](/docs/concepts/tools-and-effects); this page is the practical guide.
+
+## Naming
+
+| Thing | Rule | Example |
+| --- | --- | --- |
+| Tool name | ASCII camelCase verb or noun, unique in the plugin | `cardBalance`, `search`, `reserveSeat` |
+| Tool id | `<plugin>.<name>` (automatic) | `wallet.cardBalance` |
+| Model name | `<plugin>__<name>` (automatic) | `wallet__cardBalance` |
+| `title` | Short Chinese label for users | `校园卡余额` |
+
+Group related reads into one tool with a filter argument rather than ten near-identical tools:
+every enabled tool is sent with every request.
+
+## Descriptions
+
+Write `description` for the model, in English or Chinese:
+
+- **When** to use it, in the words a student would use ("Use when the user asks which canteen is
+  least crowded").
+- **What** comes back: fields, units (yuan, minutes, Beijing time), how fresh the data is.
+- **Limits** and **follow-ups**: page sizes, required order ("call `treehole__sendCode` first"),
+  what to do on `verification_required`.
+- Don't repeat the input schema; describe fields with `.describe()` instead.
+
+A description may be a function of host services, for text that depends on the device:
+
+```ts
+description: (services) => `Show a native UI in the chat… Components:\n${services.genui.describeCatalog()}`,
+```
+
+## Inputs
+
+Bundled plugins use zod 4. The model sees the JSON Schema generated from it, and the host
+validates every call (from the agent, a screen or the scheduler) before `execute` runs.
+
+```ts
+input: z.object({
+  from: z.string().trim().max(20).optional().describe('boarding place, e.g. 燕园 / 新燕园'),
+  at: z.string().optional().describe('Beijing time "YYYY-MM-DD HH:mm", default now'),
+  count: z.number().int().min(1).max(10).optional().describe('departures per direction, default 3'),
+}),
+```
+
+- Bound every number and string (`.min`, `.max`), and give defaults in the description.
+- Prefer enums for closed sets (`z.enum(['weekday', 'holiday'])`).
+- Use local `"YYYY-MM-DD HH:mm"` strings for times the model writes (the SDK's
+  `scheduleInputSchema` and `parseLocal` do this for schedules).
+- Remote plugins: the MCP `inputSchema` (JSON Schema) is converted to zod on the device with
+  `z.fromJSONSchema`; keep it to plain JSON Schema features.
+
+## Effects
+
+Pick one: `read`, `write`, `money`, `public` (see [Permissions](/docs/concepts/permissions)).
+
+```ts
+effect: 'read',      // a balance, a list, a search
+effect: 'write',     // add a to-do, follow a post, book a room
+effect: 'money',     // create a payment order, top up, switch the card to digital mode
+effect: 'public',    // post or reply on Treehole
+```
+
+Mark tools that return third-party text `untrusted: true`, and gates the agent must not open
+`userOnly: true`.
+
+## Results
+
+```ts
+execute: async ({ name, sort = 'least' }, ctx) => {
+  const { time, canteens } = await fetchCrowd(ctx.signal);
+  return { time, canteens: canteens.filter((c) => !name || c.name.includes(name)), source: CROWD_SOURCE };
+},
+```
+
+- Return JSON objects with self-explanatory field names and units.
+- Include where data came from and how fresh it is when it matters (`source`, `time`).
+- Return ids the model can pass to the next tool.
+- Respect `ctx.signal` (abort) in network calls.
+- Throw `Error` with a short, user-readable Chinese message for failures
+  (`throw new Error('校园卡登录已失效')`); the agent relays it.
+- For an expected state that needs the user, return a status instead of throwing:
+
+```ts
+export type VerificationRequired = { status: 'verification_required'; kind: 'login'; methods: ['sms']; message: string };
+
+// in execute:
+if (needsSms) {
+  return {
+    status: 'verification_required',
+    kind: 'login',
+    methods: ['sms'],
+    message: '树洞需要短信验证。先调用 treehole__sendCode 发送验证码，再带上 code 重试。',
+  } satisfies VerificationRequired;
+}
+```
+
+## Context and instructions
+
+| Field | Sent | Use for |
+| --- | --- | --- |
+| `instructions` | In the system prompt, every request | Short rules: which tool for which question, caveats ("以预约系统为准") |
+| `context({ query, kv, services })` | Before each turn, marked as data (800 ms budget) | Facts relevant to this message, e.g. the memory snapshot. Return `undefined` when nothing applies. |
+
+Both cost tokens on every request and change the prompt prefix (which hurts the model's cache);
+keep them short and stable. Don't include the time or date: the harness adds it to every turn.
+
+## Calling your tools from UI
+
+```ts
+// in a screen or widget (actor: 'user', no approval prompt)
+await invoke('focus.start', { label: '高数' });
+
+// live read with the host's shared cache
+const data = host.useToolData<{ minutes: number }>('focus.today', {}, { ttlMinutes: 1 });
+```
+
+## Checklist
+
+- [ ] One responsibility per tool; reads and writes split.
+- [ ] Chinese `title`, English title in `i18n.en.tools`, model-facing `description`.
+- [ ] Every input field bounded and described.
+- [ ] Honest `effect`; `untrusted` / `userOnly` where they apply.
+- [ ] Results are data, small, with units; no secrets, no instructions.
+- [ ] Errors are short user-readable messages; recoverable states are status objects.

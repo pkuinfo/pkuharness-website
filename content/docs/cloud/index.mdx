@@ -1,0 +1,81 @@
+---
+title: PKU Harness Cloud
+description: An optional, open backend standard for plugins - store, channels, push, files and functions - served by any conforming provider (official, self-hosted or custom), end-to-end encrypted by default, with no campus identity in the cloud.
+icon: Cloud
+---
+
+Some plugin features need a server: sharing something live with a friend who doesn't have the app,
+keeping a small piece of state across devices, exact-time pushes on iOS. **PKU Harness Cloud** is
+the standard for that, designed so the user still doesn't have to trust the server:
+
+- **A blind router and store by default.** Payloads are encrypted on the phone; the server forwards
+  and stores ciphertext.
+- **No campus identity in the cloud.** A device is identified only by a keypair. The server never
+  learns the student ID or name, and never receives campus credentials or sessions.
+- **One contract, many providers.** The official instance, a self-hosted reference server, or any
+  URL the user enters. Plugins can't tell which.
+- **Per-plugin isolation enforced by the host.** Each plugin gets a client bound to itself, with
+  its own tokens, namespace and the user's consent.
+- **The agent sees tools, never cloud credentials, tokens or share links.**
+
+<Callout title="Status (2026-10-23)">
+  Implemented: protocol v1 (`@pku-harness/cloud-protocol`), the SDK types, the reference server
+  (`packages/cloud-server`), the host client (device identity, per-plugin binding and consent,
+  E2E store and channels, Settings → Cloud with a connection test) and the first plugin,
+  `card-share` (share a campus-card payment code live, end to end encrypted). Not yet: the official
+  hosted instance (Settings offers self-hosted URLs meanwhile), and `push` / `functions` (the
+  reference server answers `501 unsupported` until a later stage).
+</Callout>
+
+## Three parts
+
+| Part | What | Where |
+| --- | --- | --- |
+| **Service definition** | SDK types (`CloudManifest`, `PluginCloud`) + a versioned HTTP protocol (`/v1`) | `@pku-harness/sdk` (`cloud.ts`), `@pku-harness/cloud-protocol`, [API reference](/docs/cloud/api/meta) |
+| **Service providers** | Official instance, open-source reference server (self-hosted), any conforming URL | [Providers and self-hosting](/docs/cloud/providers) |
+| **Consumers** | Plugins, through `ctx.cloud` / `props.cloud` | [Plugin guide](/docs/cloud/plugin-guide) |
+
+## Services
+
+| Service | What it does | Encryption |
+| --- | --- | --- |
+| `store` | Key-value store per `(device, plugin)`, versions (`If-Match`), TTLs | Values sealed when the plugin declares `e2e` |
+| `channels` | Relay channels for live sharing: a device opens a channel, viewers join with a share link, frames are relayed | Always end to end: per-peer keys derived from the link secret |
+| `push` | Push tokens and scheduled pushes (planned) | Payloads sealed; the server learns the time only |
+| `files` | File storage (planned) | |
+| `functions` | Server functions a plugin declares, run on the user's provider (planned) | Declared and approved; the one place plaintext may be processed |
+
+`GET /v1/meta` tells the app which services a provider offers. A plugin whose `uses` aren't all
+offered is marked unavailable, with the reason.
+
+## How a request flows
+
+```
+plugin ──ctx.cloud.store.put(key, value)──► host (bound client for this plugin)
+          │ checks consent, manifest `uses`, `e2e`
+          │ seals value (XChaCha20-Poly1305) when e2e
+          │ mints/refreshes a 10-min token (Ed25519-signed challenge)
+          ▼
+        provider  PUT /v1/store/<key>   Authorization: Bearer <token>
+          │ namespace = (deviceId, plugin) from the token
+          ▼
+        stores ciphertext
+```
+
+## Where server code runs
+
+1. **Standard services** (store, channels, mailbox, push, files): implemented by every conforming
+   server, no plugin code on it. Prefer this tier.
+2. **Provider functions**: code in `plugins/<id>/server/*.ts`, reviewed in the plugins repository,
+   run in time- and memory-limited workers on the user's provider (planned; unreviewed community
+   code later moves to isolates).
+3. **External backends**: any URL speaking the protocol, declared in the manifest
+   (`backend: { kind: 'external', url }`) and approved by the user.
+
+## Next
+
+- [Plugin guide](/docs/cloud/plugin-guide): declare `cloud`, get consent, use `store` and `channels`.
+- [Security](/docs/cloud/security): device keys, proof of work, tokens, envelopes, share links.
+- [Providers and self-hosting](/docs/cloud/providers).
+- [`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package): schemas and crypto for servers and viewer pages.
+- [API reference](/docs/cloud/api/meta): every endpoint, generated from the OpenAPI 3.1 spec.

@@ -1,0 +1,71 @@
+---
+title: Connect a model
+description: Bring your own model key. DeepSeek is the default provider; any OpenAI-compatible endpoint, including a local server, also works.
+icon: Sparkles
+---
+
+The agent needs a language model. PKU Harness does not run a model service: you bring your own
+key, it is stored in the device keystore, and requests go straight from your phone to the provider
+you chose. A hosted model option may come later.
+
+Model access is itself a plugin (a *provider plugin*), so community plugins can add more providers.
+Two ship with the app:
+
+| Provider | Default base URL | Models | Key |
+| --- | --- | --- | --- |
+| **DeepSeek** (default) | `https://api.deepseek.com` | `deepseek-flash` (DeepSeek-V4.1-Flash, 1M context, text + image), `deepseek-v4-pro` (DeepSeek-V4-Pro, 1M context) | Create one under API Keys at [platform.deepseek.com](https://platform.deepseek.com) |
+| **OpenAI-compatible** | `https://api.openai.com/v1` (editable) | Listed live from the server's `/models` | The provider's API key; leave empty for a local server |
+
+## Set it up
+
+<Steps>
+<Step>
+
+### Open Settings → AI service
+
+Or the "AI service" step of onboarding.
+
+</Step>
+<Step>
+
+### Pick a provider and paste the key
+
+For OpenAI-compatible providers, also set the base URL (it must end where `/chat/completions`
+lives, usually `…/v1`) and pick a model from the list.
+
+</Step>
+<Step>
+
+### Test the connection
+
+The app sends a small request and shows the result. For DeepSeek it also shows your account
+balance.
+
+</Step>
+</Steps>
+
+You can switch the model per chat session from the model pill in the composer (or `/model`).
+
+## Cost and context
+
+- The app records token usage per request and shows it in Settings → Usage: cache hit rate,
+  daily tokens, models, tools. With published prices (DeepSeek) it estimates spending.
+- Requests are built to be **prefix-cache friendly** (static system prompt, a fixed tool block,
+  append-only history), because cached input costs a fraction of uncached input.
+- Older turns are compacted automatically above the context budget (Settings → AI service →
+  context budget, default 128k tokens).
+
+## Testing without a key
+
+Developers can run the scripted mock model from the plugins repository and point the
+OpenAI-compatible provider at it:
+
+```bash
+# in pku-harness-plugins
+bun examples/mock-llm/server.ts
+# then in the app: AI service → OpenAI-compatible
+#   Base URL: http://10.0.2.2:8788/v1   (emulator; use your machine's LAN IP on a device)
+#   Model:    mock-agent
+```
+
+See [Testing](/docs/build/testing) for what it does.

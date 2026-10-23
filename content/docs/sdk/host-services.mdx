@@ -1,0 +1,183 @@
+---
+title: HostServices
+description: Exact signatures of every host service a bundled plugin receives as ctx.services or props.services, with the job, widget catalog and ongoing-notification types.
+---
+
+Source: `packages/sdk/src/plugin.ts`. Concepts: [Host services](/docs/concepts/host-services).
+
+```ts
+interface HostServices {
+  browser: {
+    open(url: string): Promise<{ opened: true }>;
+  };
+  files: {
+    pick(opts?: { types?: string[]; multiple?: boolean }): Promise<PickedFile[]>;
+  };
+  crypto: {
+    sha256(text: string): Promise<string>;
+  };
+  registry: {
+    plugins(): PluginInfo[];
+    tool(id: string): ToolInfo | undefined;
+  };
+  remote: {
+    install(input: { url: string; name?: string; token?: string }): Promise<{ id: string; name: string; tools: { name: string; effect: ToolEffect }[] }>;
+    uninstall(id: string): Promise<void>;
+    has(id: string): boolean;
+  };
+  genui: {
+    describeCatalog(): string;
+    checkSpec(spec: unknown): SpecCheck;
+  };
+  notify: {
+    readiness(): Promise<NotifyReadiness>;
+    fix(kind: NotifyFixKind): Promise<NotifyReadiness>;
+  };
+  sms: {
+    awaitCode(): Promise<string | null>;
+  };
+  scheduler: {
+    create(input: JobInput): Promise<Job>;
+    update(id: string, patch: JobPatch): Promise<Job>;
+    remove(id: string): Promise<void>;
+    get(id: string): Job | undefined;
+    list(): Job[];
+    runCheck(id: string): Promise<CheckResult>;
+  };
+  widgets: {
+    list(): Widget[];
+    get(id: string): Widget | undefined;
+    newId(): string;
+    put(widget: Widget): Promise<void>;
+    remove(id: string): Promise<void>;
+    reorder(ids: string[]): Promise<void>;
+    preview(widget: Widget): Promise<Record<string, unknown>>;
+    resolve(widget: Widget, force?: boolean): Promise<Record<string, unknown>>;
+    catalog(): WidgetCatalogEntry[];
+  };
+  todos: {
+    list(): Todo[];
+    get(id: string): Todo | undefined;
+    add(input: TodoInput, source: JobSource): Promise<Todo>;
+    update(id: string, patch: Partial<TodoInput>, source: JobSource): Promise<Todo>;
+    setDone(id: string, done: boolean): Promise<Todo>;
+    remove(id: string): Promise<void>;
+  };
+  campus: {
+    status(): CampusStatus;
+    request(service: CampusService, req: CampusRequest): Promise<CampusResponse>;
+    otp(): Promise<OtpCode | null>;
+    otpStatus(): Promise<OtpStatus>;
+    otpBindStart(): Promise<{ sentTo: string | null }>;
+    otpBindFinish(smsCode: string): Promise<OtpStatus>;
+    otpUnbindLocal(): Promise<void>;
+    openSignedIn(service: CampusService): Promise<{ opened: true }>;
+  };
+  ongoing?: {
+    start(opts: OngoingOptions): OngoingHandle;
+  };
+  timetable: {
+    get(): { courses: Course[]; semester: Semester | null; reminderMinutes: number | null };
+    newId(): string;
+    upsert(course: Course): Promise<void>;
+    remove(id: string): Promise<void>;
+    setReminderMinutes(minutes: number | null): Promise<void>;
+    reloadSemester(): Promise<void>;
+  };
+}
+```
+
+## Behaviour notes
+
+| Member | Notes |
+| --- | --- |
+| `browser.open` | Opens the system browser tab (Custom Tabs / SFSafariViewController). App links on that page (`weixin://`, `alipays://`) open those apps. Resolves once the page is open; it can't tell whether a payment went through, so re-read the result (a balance) when the user is back. |
+| `files.pick` | User-initiated only: call it from a screen in response to a tap, never from an agent tool. `types` are MIME types with wildcards (`['application/pdf', 'image/*']`). Resolves `[]` on cancel. Files are copied into the app cache; you get references (URIs valid for this app session), not bytes. |
+| `crypto.sha256` | SHA-256 of the UTF-8 text, lowercase hex. For request signatures. |
+| `registry` | Read-only introspection. `tool(id)` resolves legacy ids. |
+| `remote` | Remote MCP plugin management, used by the `plugins` plugin. |
+| `genui` | `describeCatalog()` returns the catalog as text for a tool description; `checkSpec(spec)` validates a spec. |
+| `notify.readiness` / `fix` | Whether reminders fire on the minute (notification permission, exact alarms, battery optimisation). Call `fix` only from a tap; re-read readiness when the app returns to the foreground. |
+| `sms.awaitCode` | Resolves with the code of the next incoming SMS once the user allows reading that one message (Android SMS User Consent); `null` when unavailable, denied, unclear or after 5 minutes. Call it right after asking the service to send the SMS. |
+| `scheduler` | See [scheduler](/docs/sdk/scheduler) for `Trigger`, `Action`, `Job`. `runCheck` runs a check job now. |
+| `widgets.preview` / `resolve` | Resolve a widget's bindings now / through the TTL cache (`force` refetches); return the state the spec will see. |
+| `widgets.catalog` | Native widgets contributed by enabled plugins. |
+| `todos` | `source` records who made the change. |
+| `campus.request` | Requires `campus-session`. See [campus](/docs/sdk/campus). |
+| `campus.otp` | Current 手机令牌 code when the user bound the app's authenticator, else `null`. Never the secret. |
+| `campus.otpStatus`, `otpBindStart`, `otpBindFinish`, `otpUnbindLocal` | Authenticator management, for the bundled authenticator plugin's screens only. |
+| `campus.openSignedIn` | Opens the service in the system browser already signed in (the service's own hand-off). Rejects when the service has none. |
+| `ongoing` | Present only with the `ongoing` capability (Android). Start it from a user action, stop it when done. |
+| `timetable.reloadSemester` | Re-read the semester after the calendar plugin saved it. |
+
+## Types used above
+
+```ts
+type JobInput = { title: string; trigger: Trigger; action: Action; source: JobSource; enabled?: boolean; meta?: Record<string, unknown> };
+type JobPatch = Partial<Pick<Job, 'title' | 'trigger' | 'action' | 'enabled' | 'meta'>>;
+type CheckResult = { notified: boolean; value?: unknown; error?: string };
+
+type ToolInfo = { id: string; pluginId: string; title: string; effect: ToolEffect };
+
+type PluginInfo = {
+  id: string;
+  name: string;
+  kind: 'system' | 'builtin' | 'remote';
+  enabled: boolean;
+  modes: Record<ToolEffect, 'auto' | 'ask' | 'off'>;
+  tools: { id: string; title: string; effect: ToolEffect }[];
+};
+
+interface WidgetCatalogEntry {
+  plugin: string;
+  pluginName: string;
+  widget: string;
+  title: string;
+  description: string;
+  sizes: WidgetSize[];
+  defaultSize: WidgetSize;
+  /** JSON Schema of the widget's config, if it takes any. */
+  config?: Record<string, unknown>;
+}
+
+interface OngoingOptions {
+  title: string;
+  body?: string;
+  /** When the activity ends (ms epoch): shown as a countdown; the host stops it then. */
+  until?: number;
+  /** Label of the notification's stop action (default 停止). */
+  stopLabel?: string;
+  /** Called when the user taps stop (or the system ends the service). */
+  onStop?: () => void;
+}
+
+interface OngoingHandle {
+  update(p: { title?: string; body?: string }): void;
+  stop(): void;
+}
+```
+
+## Example: pick a file and upload it
+
+```ts
+import type { HostServices } from '@pku-harness/sdk';
+
+/** Call from a screen's button handler: only the user can pick files. */
+export async function pickAndSubmit(services: HostServices, hiddenFields: [string, string][]) {
+  const [file] = await services.files.pick({ types: ['application/pdf'] });
+  if (!file) return null; // cancelled
+  return services.campus.request('blackboard', {
+    url: '/webapps/assignment/uploadAssignment?action=submit',
+    method: 'POST',
+    multipart: {
+      fields: hiddenFields, // the submission form's hidden fields (nonce, course_id, content_id…)
+      files: [{ field: 'newFile_LocalFile0', name: file.name, mime: file.mime, uri: file.uri }],
+    },
+  });
+}
+```
+
+Abridged from the `courses` plugin: the real flow (`plugins/courses/src/api.ts` `submitAssignment`,
+ported from pkucli `crates/course`) first reads the submission form for its hidden fields and a
+fresh nonce, then posts, then re-reads the assignment to confirm the attempt. File bytes never pass
+through the plugin: the host streams them from the picked URI.

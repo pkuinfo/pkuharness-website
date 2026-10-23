@@ -1,0 +1,105 @@
+---
+title: Dashboard widgets and data
+description: Widgets are either AI-built (a generative-UI spec plus bindings to read tools) or plugin-provided native components; the host owns refresh with a shared stale-while-revalidate cache.
+icon: LayoutDashboard
+---
+
+The Dashboard tab is filled by the `dashboard` plugin. It shows one ordered list of widgets of two
+kinds, side by side. Users ask the agent for numbers ("show my card balance and the next shuttle")
+and the agent builds or edits the dashboard; users can also long-press to reorder, resize or
+delete, and add plugin widgets from the widget gallery.
+
+| Kind | Drawn by | Data |
+| --- | --- | --- |
+| **AI-built** `{ spec, bindings }` | The agent writes a [generative-UI](/docs/concepts/generative-ui) spec (`dashboard.upsertWidget`) | `bindings`: state path → read tool |
+| **Plugin-provided** `{ source: { plugin, widget, config? } }` | The plugin's own native component (`contributes.widgets`), mounted in an error boundary | The component calls `host.useToolData(...)` |
+
+The agent checks `dashboard.catalog` first and places a plugin widget when one fits
+(`dashboard.addPluginWidget`); it builds its own only otherwise. The dashboard draws the card
+chrome (title, freshness, long-press menu) for both kinds.
+
+## Widget model
+
+```ts
+type Widget = {
+  id: string;
+  title: string;
+  size: 'sm' | 'md' | 'lg';           // sm = half-width tile, md = full width, lg = full-width hero
+  spec: Record<string, unknown>;      // json-render spec (empty for plugin widgets)
+  bindings: Record<string, Binding>;  // JSON pointer in state → data source
+  source?: { plugin: string; widget: string; config?: Record<string, unknown> };
+  position: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
+type Binding = {
+  tool: string;            // read-only tool id, e.g. "calendar.today"
+  args?: Record<string, unknown>;
+  path?: string;           // dot path into the result; empty = whole result
+  ttlMinutes?: number;     // 0 – 1440, default 5
+};
+```
+
+An AI-built widget that shows today's classes:
+
+```json
+{
+  "title": "下一节课",
+  "size": "md",
+  "spec": {
+    "root": "col",
+    "elements": {
+      "col": { "type": "Column", "props": { "gap": "sm" }, "children": ["h", "t"] },
+      "h": { "type": "Heading", "props": { "text": { "$template": "今天共 ${/today/count} 节课" }, "size": "md" } },
+      "t": { "type": "Text", "props": { "text": { "$template": "下一节：${/today/next/name} ${/today/next/time}" }, "tone": "muted", "size": null } }
+    }
+  },
+  "bindings": { "/today": { "tool": "timetable.today", "ttlMinutes": 1 } }
+}
+```
+
+## Refresh: owned by the host
+
+Every read-tool result lives in **one store keyed by tool + args**, shared by AI-built widgets,
+plugin widgets, plugin screens and scheduled checks (the TanStack Query model):
+
+- The last value is persisted, so a cold start shows numbers immediately with their age
+  ("3 分钟前"); a skeleton appears only when nothing was ever fetched.
+- A value is stale after its TTL (default 5 min). Stale queries **on a focused screen** refetch on
+  screen focus, when the app returns to the foreground, and on a timer while visible. Hidden tabs
+  and the background never poll.
+- Pull-to-refresh forces every query on screen. Identical concurrent requests share one promise.
+- A failed refresh keeps the last value and marks it ("刷新失败 · 10 分钟前").
+- Scheduled checks prime the store, so a background balance check also updates the widget.
+
+So a plugin widget **MUST NOT** poll on its own timer. Load data with `host.useToolData` and pick a
+TTL that matches how fast the data changes (balances 5–15 min, slow data 60+).
+
+## Writing a plugin widget
+
+```tsx
+import type { PluginWidgetProps } from '@pku-harness/sdk';
+import { View } from 'react-native';
+
+type Crowd = { name: string; percent: number }[];
+
+export function CrowdWidget({ host, size }: PluginWidgetProps) {
+  const { Text, Skeleton } = host.components;
+  const t = host.useTheme();
+  const data = host.useToolData<{ canteens: Crowd }>('canteen.crowd', {}, { ttlMinutes: 2 });
+  if (data.status === 'loading') return <Skeleton width="60%" height={20} />;
+  if (!data.value) return <Text tone="muted">{data.error ?? '暂无数据'}</Text>;
+  const list = data.value.canteens.slice(0, size === 'sm' ? 3 : 6);
+  return (
+    <View style={{ gap: t.spacing.xs }}>
+      {list.map((c) => (
+        <Text key={c.name} variant="callout">{`${c.name} ${c.percent}%`}</Text>
+      ))}
+    </View>
+  );
+}
+```
+
+Register it under `contributes.widgets` with a `description` written for the agent (it reads it
+to choose widgets). See [UI contributions](/docs/build/ui#widgets).

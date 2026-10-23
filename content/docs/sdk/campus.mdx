@@ -1,0 +1,114 @@
+---
+title: campus
+description: Types for authenticated campus HTTP through the harness (CampusService, CampusRequest, CampusResponse, multipart uploads, picked files) and for sign-in status and the 手机令牌 code.
+---
+
+Source: `packages/sdk/src/campus.ts`. Concepts: [Campus sessions](/docs/concepts/campus-sessions).
+Requires the `campus-session` capability.
+
+```ts
+/**
+ * - `card`: bdcard.pku.edu.cn (synjones JWT added for you)
+ * - `its`: its.pku.edu.cn (网络账号 session)
+ * - `treehole`: treehole.pku.edu.cn `/chapi/…` (Bearer JWT + device uuid added for you). Its own
+ *   second factors stay visible: 40002 = SMS check, 40077 = course-data token.
+ * - `blackboard`: course.pku.edu.cn (教学网, HTML pages; SSO session, redirects followed)
+ * - more registered by the harness's adapters (bdkj, cwfw, cwpay, elective, library, library-space)
+ */
+type CampusService = 'card' | 'its' | 'treehole' | 'blackboard' | (string & {});
+
+type CampusRequest = {
+  /** Absolute URL, or a path on the service's host (e.g. "/berserker-app/…"). */
+  url: string;
+  method?: 'GET' | 'POST';
+  headers?: Record<string, string>;
+  body?: string;
+  contentType?: string;
+  responseType?: 'text' | 'base64';
+  /** Form fields, sent url-encoded (instead of `body`). */
+  form?: Record<string, string>;
+  /**
+   * Where the session credential goes. Default: headers. 'form' puts it into `form` too, for APIs
+   * that read and sign the token from the body (the campus card's order API).
+   */
+  authIn?: 'headers' | 'form';
+  /** Last step before sending a `form`: add a signature. Runs inside the harness; bundled plugins only. */
+  sign?: (fields: Record<string, string>) => Record<string, string> | Promise<Record<string, string>>;
+  /** Follow 3xx redirects (default: the service's own choice). false = read `location` yourself. */
+  followRedirects?: boolean;
+  /** A multipart/form-data body (file uploads), instead of `body` / `form`. Method defaults to POST. */
+  multipart?: CampusMultipart;
+  /** Request timeout in ms (default 20 s; 120 s for multipart). */
+  timeoutMs?: number;
+};
+
+type CampusMultipart = {
+  /** Text fields: an array of [name, value] keeps order and allows repeated names. Written before files. */
+  fields: Record<string, string> | [string, string][];
+  files: CampusFilePart[];
+};
+
+type CampusFilePart = {
+  /** Form field name of the part, e.g. "newFile_LocalFile0". */
+  field: string;
+  /** File name sent to the server. */
+  name: string;
+  /** MIME type, e.g. "application/pdf". */
+  mime: string;
+  /** Local URI from `services.files.pick`. */
+  uri: string;
+};
+
+type PickedFile = {
+  name: string;
+  mime: string;
+  /** Bytes, when the system reports it. */
+  size: number | null;
+  /** Local URI, valid for this app session. */
+  uri: string;
+};
+
+type CampusResponse = { status: number; url: string; headers: Record<string, string>; body: string };
+
+type CampusStatus = {
+  signedIn: boolean;
+  username: string | null;
+  /** Holder's name when known (from the campus card). */
+  name: string | null;
+};
+
+/** The current 手机令牌 (IAAA TOTP) code; the secret never leaves the harness. */
+type OtpCode = { code: string; /** Seconds until the code rolls over (1–30). */ remainingSeconds: number };
+
+/** The harness's 手机令牌 binding (no secret). `pending` = binding SMS sent, awaiting the code. */
+type OtpStatus = { bound: boolean; userId: string | null; userName: string | null; boundAt: number | null; pending: boolean };
+```
+
+## Examples
+
+```ts
+// JSON API with the card session
+const res = await ctx.services.campus.request('card', { url: '/berserker-app/ykt/tsm/queryCard?synAccessSource=h5' });
+if (res.status !== 200) throw new Error(`校园卡服务返回 HTTP ${res.status}`);
+const json = JSON.parse(res.body);
+
+// Treehole JSON POST
+await ctx.services.campus.request('treehole', {
+  url: '/chapi/api/jwt_send_msg',
+  method: 'POST',
+  body: JSON.stringify({}),
+  contentType: 'application/json',
+});
+
+// a signed form that carries the session token in the body, read the redirect yourself
+// (abridged from plugins/wallet/src/card/recharge.ts, ported from pkucli campuscard api.rs)
+const order = await ctx.services.campus.request('card', {
+  url: '/charge/order/thirdOrder',
+  method: 'POST',
+  followRedirects: false,
+  authIn: 'form', // the host adds the card session to the form before signing
+  form: { feeitemid: '401', tranamt: '50', synAccessSource: 'h5' /* … */ },
+  sign: (fields) => signFields(fields, ctx.services.crypto.sha256), // your signature over the final fields
+});
+const cashier = order.headers.location; // open with services.browser.open; never return it to the model
+```

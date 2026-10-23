@@ -1,0 +1,96 @@
+---
+title: cloud-protocol package
+description: '@pku-harness/cloud-protocol - the zod wire schemas, path builders, envelope crypto, share-link helpers, proof of work and token challenge shared by the app, providers and viewer pages.'
+icon: Package
+---
+
+`@pku-harness/cloud-protocol` is pure TypeScript for Hermes, Bun and browsers. The app, the
+reference server and viewer pages import the same file, so the wire format and the encryption
+can't drift. Dependencies: `@noble/ciphers`, `@noble/curves`, `@noble/hashes` (pinned); peer
+`zod ^4`. Plugins normally don't import it (the host does the cloud work); servers and viewer pages
+do.
+
+It lives in `packages/cloud-protocol` of
+[`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) and is not published to
+npm: use it from a checkout (workspace package `@pku-harness/cloud-protocol`), or vendor the
+`src/` folder into your server or page build.
+
+## Modules
+
+| Module | Exports |
+| --- | --- |
+| `schemas.ts` | `PROTOCOL_VERSION`, every request/response/frame schema (`metaResponse`, `registerDeviceRequest`, `authTokenRequest`, `storePutRequest`, `createChannelRequest`, `ownerInFrame`, `peerInFrame`, …), id schemas, `envelopeSchema`, `errorBody`, `wireErrorCode`, `DEFAULT_LIMITS`, `paths` |
+| `crypto.ts` | `generateDeviceIdentity`, `generateSignKeyPair`, `generateBoxKeyPair`, `sign`, `verify`, `seal` / `open`, `sealBytes` / `openBytes`, `EnvelopeError`, `hkdfSha256`, `sha256`, `generateShareSecret`, `deriveShareKeys`, `joinHash`, `ownerPeerKey`, `viewerPeerKey`, `derivePeerKey`, `KDF_INFO`, `KEY_BYTES`, `NONCE_BYTES`, `SIG_BYTES` |
+| `link.ts` | `buildShareLink`, `buildAppShareLink`, `parseShareLink`, `parseKeyFragment`, `scrubShareLinks`, `SHARE_LINK_SCRUB_RE`, `CHANNEL_ID_RE`, `APP_SCHEME` |
+| `pow.ts` | `solvePow`, `verifyPow`, `powHash`, `powPrefix`, `leadingZeroBits`, `DEFAULT_POW_DIFFICULTY` (16), `MAX_POW_DIFFICULTY` (28), `POW_CONTEXT` |
+| `auth.ts` | `signAuthChallenge`, `verifyAuthChallenge`, `authChallengeBytes`, `normaliseAudience`, `AUTH_CONTEXT`, `AUTH_MAX_SKEW_MS` (5 min), `TOKEN_TTL_S` (600) |
+| `bytes.ts` | `toB64url`, `fromB64url`, `isB64url`, `utf8` |
+
+Wire conventions: binary is base64url without padding; times are Unix ms unless the name ends in
+`S` (seconds); unknown keys are stripped on parse.
+
+## Viewer page: join a channel and decrypt
+
+```ts
+import {
+  deriveShareKeys,
+  envelopeSchema,
+  fromB64url,
+  generateBoxKeyPair,
+  joinResponse,
+  open,
+  parseKeyFragment,
+  paths,
+  peerInFrame,
+  channelInfoResponse,
+  toB64url,
+  viewerPeerKey,
+} from '@pku-harness/cloud-protocol';
+
+// after GET /s/<id> the page is at /w/<plugin>/<page>?c=<id>#k=<secret>
+const channelId = new URLSearchParams(location.search).get('c')!;
+const k = parseKeyFragment(location.hash);
+if (!k) throw new Error('link has no key');
+const { authKey, encKey } = deriveShareKeys(k);
+
+const info = channelInfoResponse.parse(await (await fetch(paths.publicChannel(channelId))).json());
+const meta = open(encKey, info.meta);          // the owner's sealed meta (validate it!)
+
+const me = generateBoxKeyPair();
+const joined = joinResponse.parse(
+  await (
+    await fetch(paths.join(channelId), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ authKey: toB64url(authKey), peerPub: toB64url(me.publicKey) }),
+    })
+  ).json(),
+);
+
+const key = viewerPeerKey(me.secretKey, me.publicKey, fromB64url(info.chanPub), encKey);
+const ws = new WebSocket(new URL(paths.peerWs(channelId, joined.peerToken), location.href).href.replace(/^http/, 'ws'));
+ws.onmessage = (ev) => {
+  const frame = peerInFrame.parse(JSON.parse(ev.data));
+  if (frame.t === 'msg') console.log(open(key, envelopeSchema.parse(frame.env)));
+};
+```
+
+The reference server redirects `/s/<id>` to `/w/<plugin>/<page>?c=<id>`; the browser keeps the
+`#k=` fragment across the redirect, and the server never sees it. Webviews without WebSocket use
+`GET /v1/c/{id}/events?t=` (SSE) and `POST /v1/c/{id}/send` instead. A full viewer is
+`plugins/card-share/web` (a port of pkubdcard's UI).
+
+## Server: verify a token request
+
+```ts
+import { authTokenRequest, fromB64url, verifyAuthChallenge } from '@pku-harness/cloud-protocol';
+
+const body = authTokenRequest.parse(await req.json());
+const device = await db.device(body.deviceId);           // stored signPub
+const check = verifyAuthChallenge(body, fromB64url(device.signPub), { aud: 'https://cloud.example.org' });
+if (!check.ok) return error(401, 'unauthorized', check.reason);
+if (await nonces.seen(body.nonce)) return error(401, 'unauthorized', 'replay');
+// issue a token with claims { sub: deviceId, plg: plugin, svc: services, iat, exp: iat + 600_000 }
+```
+
+The full endpoint list is in the [API reference](/docs/cloud/api/meta).

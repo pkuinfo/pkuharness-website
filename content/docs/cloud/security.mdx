@@ -1,0 +1,118 @@
+---
+title: Security
+description: How PKU Harness Cloud keeps the server blind - device keypairs, proof-of-work registration, signed short-lived plugin tokens, XChaCha20-Poly1305 envelopes, share-link secrets in the URL fragment, claim-once channels and redaction.
+icon: Lock
+---
+
+## Device identity
+
+Each device generates two keypairs on first use and keeps the secrets in the keystore
+(after-first-unlock, this device only):
+
+| Key | Algorithm | Used for |
+| --- | --- | --- |
+| Signing key | Ed25519 | Signing token challenges |
+| Box key | X25519 | Key agreement |
+
+That is the whole identity: no student ID, no name, no phone number. Settings → Cloud shows a
+fingerprint of the signing key, **reset identity** and **delete cloud data**
+(`DELETE /v1/devices/me`, also called before a full app reset).
+
+## Registration: proof of work
+
+`POST /v1/devices` costs a proof of work instead of an account, to make farming identities
+expensive without app attestation (which would break self-built APKs):
+
+```
+prefix = UTF-8("pku-harness-cloud/v1/pow\n" + salt + "\n" + signPub + "\n" + boxPub + "\n")
+hash   = SHA-256(prefix ‖ UTF-8(nonce))         # nonce: decimal, no leading zeros, ≤ 15 digits
+valid  = hash has ≥ difficulty leading zero bits
+```
+
+`salt` and `difficulty` come from `GET /v1/meta`; the server accepts its current and previous
+salt. Default difficulty 16 is about one second on a phone; clients refuse anything above 28, so a
+hostile provider can't make phones spin forever. Binding both public keys into the prefix means one
+solution registers exactly one identity.
+
+## Plugin tokens
+
+Every request carries a bearer token bound to **one device, one plugin and a set of services**,
+valid 10 minutes. The device gets it by signing a challenge with its Ed25519 key:
+
+```
+pku-harness-cloud/v1/auth
+<aud>        provider origin, lowercase scheme://host[:port]
+<deviceId>
+<plugin>
+<services>   deduplicated, sorted, joined by ","
+<ts>         Unix ms
+<nonce>      16 random bytes, base64url
+```
+
+- `aud` stops a provider from replaying a signature at another provider.
+- The server accepts `|now − ts| ≤ 5 min` and rejects a reused nonce in that window.
+- Store namespaces and channel ownership come from the token (`sub`, `plg`), never from the path,
+  so one plugin can't touch another's data.
+- Plugins never see tokens: the host mints and attaches them.
+
+## Envelopes
+
+Encrypted payloads on the wire and at rest are envelopes:
+
+```json
+{ "v": 1, "n": "<24-byte nonce, base64url>", "c": "<ciphertext ‖ 16-byte tag, base64url>" }
+```
+
+XChaCha20-Poly1305 with a random 24-byte nonce, optionally with associated data (a channel id, a
+frame kind) that the opener must repeat. Implemented once in `@pku-harness/cloud-protocol` on the
+audited [noble](https://paulmillr.com/noble/) libraries (pure JavaScript), so the app (Hermes), the
+reference server (Bun) and viewer pages (WeChat webview, no WebCrypto) share one implementation.
+
+## Share links and channels
+
+```
+https://<provider>/s/<channelId>#k=<base64url 32 bytes>
+```
+
+- The secret `k` lives in the **URL fragment**, which browsers never send to the server.
+- `authKey = HKDF-SHA256(k, "pku-harness-cloud/v1/join")`: the server stores only
+  `joinHash = base64url(sha256(authKey))`, so it can gate joins without being able to join.
+- `encKey = HKDF-SHA256(k, "pku-harness-cloud/v1/enc")` never leaves the devices; it seals the
+  channel `meta` and feeds the per-peer key.
+- On join, the viewer sends `authKey` and an ephemeral X25519 public key. Frames between owner and
+  peer use `HKDF-SHA256(ikm = X25519(own, other) ‖ encKey, salt = chanPub ‖ peerPub, info = "pku-harness-cloud/v1/peer")`.
+- **Claim**: `maxPeers` defaults to 1. The first joiner binds the channel and later joiners get
+  `409 conflict`, so a forwarded link is useless. The owner can kick a peer to free the seat.
+- Gates the server can't verify (a masked-name hint, a PIN) are checked on the owner's device; the
+  server only rate-limits (20 joins per IP per minute) and locks a channel after 5 wrong `authKey`s.
+
+### Keeping links away from the model
+
+- The SDK's `SecretLink` is opaque; `JSON.stringify(link)` is `"[secret link]"`.
+- The host scrubs share-link patterns (`/s/<id>#k=…`, `pkuharness://share/<id>#k=…`) from tool
+  output and logs (`scrubShareLinks`).
+- Tools never return links; screens show them with `host.shareLink` or `<QRCode link>`.
+
+## Limits
+
+Token buckets per `(deviceId, plugin, service)` plus per IP, with `RateLimit-*` headers; a 429 maps
+to `CloudError('rate_limited', retryAfterS)`. Defaults:
+
+| Resource | Default |
+| --- | --- |
+| Store | 1 MB, 1,000 keys per plugin per device, 64 KB per value |
+| Channels | 5 open per device, TTL 60 s – 24 h (default 15 min), 5 peers max, 4 KB frames, 60 frames/min, 64 mailbox slots |
+| Joins | 20 per IP per minute |
+| Push (planned) | 100 pending schedules |
+| Functions (planned) | 60 calls per minute |
+
+## Residual risks, stated honestly
+
+- **Metadata**: a provider sees timing, sizes and IP addresses (the disclosure lines must say so).
+- **Viewer pages run the provider's JavaScript.** A malicious operator could serve a page that
+  leaks `k`, exposing what flows through that one channel during the share (not credentials).
+  Mitigations: pages are static, built reproducibly from the plugins repository, served with a
+  strict CSP (`connect-src 'self'`); app viewers decrypt natively through a deep link and never run
+  provider JavaScript.
+- **Server functions** (planned) process plaintext by design; they must be declared and approved,
+  and are reviewed in the plugins repository.

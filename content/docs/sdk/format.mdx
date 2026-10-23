@@ -1,0 +1,43 @@
+---
+title: format
+description: Locale-aware date and time strings (Hermes ignores Intl locales) and defineStrings for type-checked per-locale string tables.
+---
+
+Source: `packages/sdk/src/format.ts`. Guide: [Languages](/docs/build/i18n). `AppLocale` is
+`'zh-Hans' | 'en'`. Output matches the app's own formatting.
+
+## String tables
+
+```ts
+/** Per-locale string table; `en` must have exactly the keys (and value types) of `zh-Hans`. */
+type Localized<T> = { 'zh-Hans': T; en: T };
+
+/** Define a plugin's string table with `en` type-checked against `zh-Hans`. */
+const defineStrings: <T>(table: { 'zh-Hans': T; en: NoInfer<T> }) => Localized<T>;
+```
+
+## Dates and times
+
+| Function | Signature | zh-Hans | en |
+| --- | --- | --- | --- |
+| `formatClock` | `(d: Date \| number, seconds?: boolean) => string` | `21:04` / `21:04:37` | same |
+| `formatWeekday` | `(d: Date \| number, locale) => string` | `周一` | `Mon` |
+| `weekdayName` | `(weekday: number, locale) => string` (1 = Monday … 7 = Sunday) | `周一` | `Mon` |
+| `formatLocalDate` | `(d, locale, now?) => string` (year added when not the current one) | `10月18日`, `2025年10月18日` | `Oct 18`, `Oct 18, 2025` |
+| `formatLocalDateTime` | `(d, locale, now?) => string` | `10月18日 21:04` | `Oct 18, 21:04` |
+| `formatRelative` | `(ms: number, locale, now?) => string` (past timestamps) | `刚刚`, `3 分钟前`, `21:04`, `昨天 21:04`, then date + time | `Just now`, `3 min ago`, `21:04`, `Yesterday 21:04`, … |
+| `formatDay` | `(d, locale, now?) => string` | `今天`, `明天`, `昨天`, `周三` (within a week), date | `Today`, `Tomorrow`, `Yesterday`, `Wed`, date |
+| `formatCountdown` | `(ms: number, locale) => string` (time left) | `3天5小时`, `2小时10分`, `8分钟`, `不到1分钟`, `已到` | `3d 5h`, `2h 10m`, `8 min`, `<1 min`, `Now` |
+| `dayDiff` | `(d, now?) => number` | calendar days from now (0 today, 1 tomorrow, −1 yesterday), DST-safe | |
+| `plural` | `(n: number, one: string, many?: string) => string` | — | `plural(3, 'book')` → `3 books` |
+
+```ts
+import { formatCountdown, formatRelative } from '@pku-harness/sdk';
+
+const locale = host.useLocale();
+formatRelative(data.updatedAt ?? Date.now(), locale);      // "3 分钟前" / "3 min ago"
+formatCountdown(deadline - Date.now(), locale);            // "2小时10分" / "2h 10m"
+```
+
+Model-facing timestamps are a different thing: the harness adds the current time to every turn, and
+schedule tools use `formatLocal` (`"2026-10-20 08:00 周二"`) from [scheduler](/docs/sdk/scheduler).

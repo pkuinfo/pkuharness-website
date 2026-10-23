@@ -1,0 +1,99 @@
+---
+title: Architecture
+description: The harness is an agent loop, a design system and host services; plugins provide every capability through one contract.
+icon: Layers
+---
+
+PKU Harness borrows two ideas from [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness):
+**everything is a plugin**, and the app is **AI-native but human-equal**. Every capability exists
+once, as a typed tool; the UI calls it on a tap and the agent calls it in a conversation.
+
+## Layers
+
+```
+UI            routes · screens · design system (tokens, components, motion) · generative-UI catalog
+                   │
+Core runtime  plugin registry + permissions · agent loop · dashboard · scheduler · storage
+              campus session manager (IAAA, per-service sessions)
+                   │
+Plugins       @pku-harness/plugins (bundled)  ·  remote MCP plugins  ·  provider plugins
+                   │
+Native        campus-http module (redirect control, per-session cookie jars, HTTP/1.1, no proxy)
+```
+
+Dependencies point down only. Plugins never import app code; everything a plugin does outside
+itself goes through **host services** (`ctx.services`) and, for UI, through **`HostUI`**.
+
+## The harness
+
+| Part | What it is | Plugin-facing surface |
+| --- | --- | --- |
+| **Agent loop** | Streams a model (AI SDK, any provider plugin) with every enabled tool, multi-step (up to 10 steps per reply). Keeps a model-visible history per session; compacts old turns; records usage. | `tools`, `instructions`, `context`, `contributes.commands` |
+| **Design system** | Tokens, native controls, motion. Plugin screens are built from it, so they look native and keep working as the app evolves. | `HostUI` (`host.components`, `host.useTheme()`…) |
+| **Host services** | Campus HTTP, scheduler, widgets, to-dos, timetable, notifications readiness, files, browser, crypto, registry. | `HostServices` (`ctx.services`, `props.services`) |
+| **Generative UI** | A catalog of components the agent may render from a JSON spec, in chat and on the dashboard. | `ui.render` tool, `HostUI.components.GenUI` |
+
+## The four tabs
+
+| Tab | Owner |
+| --- | --- |
+| Chat | The harness |
+| Dashboard | A tab **slot** filled by the `dashboard` plugin (`contributes.tabs`) |
+| Schedule | A tab slot filled by the `schedule` plugin |
+| Settings | The harness (plus Settings rows contributed by plugins) |
+
+## Plugins
+
+A plugin is a TypeScript object built with `definePlugin` (bundled) or an MCP server (remote).
+Either way the harness turns it into the same thing: a set of tools with ids `<plugin>.<tool>`,
+effects and input schemas, plus optional UI.
+
+```ts
+import { definePlugin, defineTool } from '@pku-harness/sdk';
+import { z } from 'zod';
+
+export const helloPlugin = definePlugin({
+  id: 'hello',
+  name: '你好',
+  description: '演示插件。',
+  version: '0.1.0',
+  scopes: [],
+  tools: {
+    greet: defineTool({
+      title: '打招呼',
+      description: 'Greet someone by name.',
+      input: z.object({ name: z.string() }),
+      effect: 'read',
+      execute: async ({ name }) => ({ greeting: `你好，${name}` }),
+    }),
+  },
+});
+```
+
+See [Plugins](/docs/concepts/plugins) for bundled vs remote.
+
+## Where data lives
+
+| Data | Where |
+| --- | --- |
+| Campus credentials, model API keys, remote plugin tokens | Device keystore (SecureStore) |
+| Chat sessions, usage, widgets, jobs, to-dos, timetable, plugin KV | SQLite on the device |
+| Optional plugin data you opted into | A [PKU Harness Cloud](/docs/cloud) provider, end-to-end encrypted |
+
+There is no project server in the default path. The model provider you configured receives the
+conversation; campus services receive the requests they would get from a browser.
+
+## How code reaches users
+
+| What changed | How it reaches users |
+| --- | --- |
+| A remote (MCP) plugin | Its server updates; the app calls it live |
+| A marketplace listing (`registry.json`) | Fetched live by the app |
+| App JavaScript, SDK, bundled plugins | App release, or a signed over-the-air update (planned: self-hosted, code-signed expo-updates) |
+| Native code (modules, permissions) | New app release |
+
+## Next
+
+- [Plugins](/docs/concepts/plugins): bundled vs remote, and how to choose.
+- [Tools and effects](/docs/concepts/tools-and-effects): the single API surface.
+- [Security model](/docs/concepts/security): credentials, prompt injection, consent.

@@ -1,0 +1,51 @@
+---
+title: Declarative plugins (preview)
+description: Upcoming. A plugin as a shareable folder or link - a PLUGIN.md manifest with agent instructions, tool definitions and generative-UI specs - interpreted by the app, installed by pasting a link, no app release. Not usable yet; build remote or bundled plugins today.
+icon: FileCode
+---
+
+<Callout type="warn" title="Design in progress">
+  This format is being designed and **is not implemented**. Nothing on this page is a stable
+  syntax. To ship a plugin today, write a [remote plugin](/docs/build/remote-plugin) (MCP) or a
+  [bundled plugin](/docs/build/bundled-plugin) (SDK).
+</Callout>
+
+## Why
+
+Today a plugin is either code that ships inside the app (bundled, needs an app release) or a
+server someone has to run (remote MCP). Many campus integrations are simpler than that: a few
+authenticated requests to a campus service, some extraction, and a card to show the result. The
+declarative format aims to make those as easy to share as an agent skill: a folder, or a link to
+one.
+
+## The direction
+
+As currently planned (subject to change):
+
+| Part | Holds |
+| --- | --- |
+| `PLUGIN.md` | The manifest and the instructions for the agent |
+| `tools/*.yaml` | Tools described as data: campus requests, then extraction and transformation of the response |
+| `ui/*.json` | [Generative-UI](/docs/concepts/generative-ui) specs for cards, forms and widgets |
+
+- **The app interprets it.** No compiled code is downloaded, so a new plugin or an update needs no
+  app release.
+- **Install by pasting a link.**
+- The rules that apply to every plugin stay: typed tools with honest effects, permissions and
+  consent, campus requests made by the harness (credentials never leave the device), and tool
+  results treated as data.
+
+## The spec
+
+The specification is written in the app repository:
+[`docs/PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md).
+It may not be published yet; follow [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness)
+for progress. These docs will document the format once it is implemented.
+
+## What to do meanwhile
+
+- Design your tools as you would for any plugin ([Tools and schemas](/docs/build/tools)): small,
+  one effect each, data-only results. That design carries over.
+- Port the protocol from [pkucli](/docs/build/porting-from-pkucli) and keep notes of the exact
+  requests and the fields you extract: that is what a declarative tool will describe.
+- Ship it now as a remote plugin if it doesn't need the user's campus session.

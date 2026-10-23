@@ -1,0 +1,73 @@
+---
+title: dashboard
+description: The Widget type, Binding and WidgetSource schemas and WidgetSize used by dashboard widgets and services.widgets.
+---
+
+Source: `packages/sdk/src/dashboard.ts`. Concepts: [Dashboard](/docs/concepts/dashboard).
+
+```ts
+import { z } from 'zod';
+
+export const bindingSchema = z.object({
+  tool: z.string().describe('read-only tool id, e.g. "calendar.today"'),
+  args: z.record(z.string(), z.unknown()).optional(),
+  /** Dot path into the tool result; empty = the whole result. */
+  path: z.string().optional(),
+  /** Cache lifetime in minutes (default 5). */
+  ttlMinutes: z.number().min(0).max(24 * 60).optional(),
+});
+export type Binding = z.infer<typeof bindingSchema>;
+
+export const widgetSizeSchema = z
+  .enum(['sm', 'md', 'lg'])
+  .describe('sm = half width tile, md = full width, lg = full width hero');
+export type WidgetSize = z.infer<typeof widgetSizeSchema>;
+
+/** A widget a plugin ships (`contributes.widgets`), placed on the dashboard by key. */
+export const widgetSourceSchema = z.object({
+  plugin: z.string(),
+  widget: z.string().describe("key in the plugin's contributes.widgets"),
+  config: z.record(z.string(), z.unknown()).optional(),
+});
+export type WidgetSource = z.infer<typeof widgetSourceSchema>;
+
+/**
+ * Two kinds, rendered side by side: AI-built (`spec` + `bindings`) or plugin-provided
+ * (`source`, the plugin draws it natively; `spec`/`bindings` stay empty).
+ */
+export type Widget = {
+  id: string;
+  title: string;
+  size: WidgetSize;
+  /** json-render spec ({ root, elements, state? }). */
+  spec: Record<string, unknown>;
+  /** State path (JSON pointer, e.g. "/card") → data source. */
+  bindings: Record<string, Binding>;
+  source?: WidgetSource;
+  position: number;
+  createdAt: number;
+  updatedAt: number;
+};
+```
+
+Bindings write their results into the spec's state with [`setPointer`](/docs/sdk/pointer), so a
+binding at `/card` with `path: "balance"` makes `{ "$state": "/card" }` the balance.
+
+Placing a plugin widget from a tool:
+
+```ts
+const w: Widget = {
+  id: ctx.services.widgets.newId(),
+  title: '下一班校车',
+  size: 'md',
+  spec: {},
+  bindings: {},
+  source: { plugin: 'shuttle', widget: 'next', config: { from: '新燕园', to: '燕园' } },
+  position: ctx.services.widgets.list().length,
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+};
+await ctx.services.widgets.put(w);
+```
+
+Most plugins don't need this: the agent places widgets with `dashboard.addPluginWidget`.

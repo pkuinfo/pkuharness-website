@@ -1,0 +1,16 @@
+{
+  "title": "Build a plugin",
+  "icon": "Hammer",
+  "pages": [
+    "index",
+    "remote-plugin",
+    "bundled-plugin",
+    "declarative-plugins",
+    "tools",
+    "ui",
+    "i18n",
+    "testing",
+    "porting-from-pkucli",
+    "publishing"
+  ]
+}

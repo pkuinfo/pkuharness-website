@@ -1,0 +1,241 @@
+---
+title: ui
+description: HostUI (components, theme, navigation, haptics, live data hooks), the props screens and widgets receive, and every contribution type (screens, Settings rows, tabs, widgets, commands).
+---
+
+Source: `packages/sdk/src/ui.ts`. Guide: [UI contributions](/docs/build/ui).
+
+## Props
+
+```ts
+interface PluginScreenProps {
+  host: HostUI;
+  services: HostServices;
+  /** This plugin's store. */
+  kv: KV;
+  /** Run one of the app's tools as the user (same validation and permissions as the agent). */
+  invoke(toolId: string, input?: Record<string, unknown>): Promise<unknown>;
+  params: Record<string, string | undefined>;
+  /** This plugin's cloud client (plugins that declare `PluginDef.cloud`). */
+  cloud?: PluginCloud;
+}
+
+interface PluginWidgetProps {
+  host: HostUI;
+  services: HostServices;
+  kv: KV;
+  invoke(toolId: string, input?: Record<string, unknown>): Promise<unknown>;
+  size: WidgetSize;
+  /** Agent/user-chosen options, validated by `configSchema`. */
+  config: Record<string, unknown>;
+  cloud?: PluginCloud;
+}
+```
+
+## HostUI
+
+```ts
+type AppLocale = 'zh-Hans' | 'en';
+
+interface HostUI {
+  components: HostComponents;
+  haptics: { tap(): void; select(): void; success(): void; warning(): void };
+  /** Navigate to an app route or another plugin screen (`/p/<plugin>/<screen>`). */
+  navigate(href: string): void;
+  back(): void;
+  /** Re-render when the host's data stores change (jobs, todos, widgets, timetable). */
+  useStoreVersion(): number;
+  useTheme(): HostTheme;
+  /** Current time, refreshed every `intervalMs`. */
+  useNow(intervalMs?: number): Date;
+  /** Close a modal screen (falls back to the given route when opened from a deep link). */
+  dismiss(fallback?: string): void;
+  /** Switch to chat and send a message to the agent. */
+  ask(text: string): void;
+  /** Live result of a read-only tool. `ttlMinutes` defaults to 5. */
+  useToolData<T = unknown>(tool: string, args?: Record<string, unknown>, opts?: { ttlMinutes?: number; path?: string }): LiveData<T>;
+  /** An AI-built widget's spec state with every binding filled in. */
+  useWidgetData(widget: Pick<Widget, 'spec' | 'bindings'>): LiveData<Record<string, unknown>>;
+  /** Live values for several bindings at once. */
+  useBindings(bindings: Binding[]): LiveData<unknown[]>;
+  /** Force-refresh every live query on screen (pull-to-refresh); resolves when all settle. */
+  refreshAll(): Promise<void>;
+  /** "刚刚" / "3 分钟前" / "昨天 08:00" for a past timestamp. */
+  formatAgo(ms: number, now?: number): string;
+  /** While mounted: block screenshots/recording; `brightness` raises it for scanners. */
+  useSecureDisplay(opts?: { brightness?: boolean }): void;
+  /** App language (re-renders on change). */
+  useLocale(): AppLocale;
+  /** Undefined when this build has no clipboard module. */
+  clipboard?: { setString(text: string): Promise<void> };
+  /** System share sheet with a share link; the plugin never sees the URL. Undefined until the host supports cloud channels. */
+  shareLink?(link: SecretLink, opts?: { message?: string }): Promise<void>;
+}
+```
+
+## LiveData
+
+```ts
+interface LiveData<T = unknown> {
+  /** 'loading' only before the first value; afterwards errors keep the last value. */
+  status: 'loading' | 'error' | 'ready';
+  value?: T;
+  /** Last refresh error (also set while a stale value is shown). */
+  error?: string;
+  /** When the shown value was fetched (ms epoch). */
+  updatedAt?: number;
+  /** A request is in flight. */
+  fetching: boolean;
+  /** Refetch now, ignoring the TTL. */
+  refresh(): Promise<void>;
+}
+```
+
+Stale-while-revalidate: the last value (persisted across launches) shows at once; the host
+refetches when it is older than its TTL, on screen focus, when the app returns to the foreground,
+every TTL while visible, and on `refresh()`. The same tool + args share one request and one cache
+entry across widgets, screens and scheduled checks.
+
+## HostTheme
+
+```ts
+type TextVariant = 'display' | 'title' | 'headline' | 'body' | 'bodyStrong' | 'callout' | 'caption' | 'micro' | 'numberXL' | 'numberL' | 'numberM';
+
+interface HostTheme {
+  name: 'light' | 'dark';
+  colors: Record<
+    | 'bg' | 'surface' | 'surface2' | 'surface3' | 'border' | 'text' | 'textMuted' | 'textFaint'
+    | 'accent' | 'accentMuted' | 'onAccent' | 'up' | 'upMuted' | 'down' | 'downMuted'
+    | 'warn' | 'warnMuted' | 'info' | 'infoMuted' | 'elevated' | 'brand' | 'onBrand',
+    string
+  >;
+  spacing: Record<'xxs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'xxxl', number>;
+  radius: Record<'sm' | 'md' | 'lg' | 'xl' | 'full', number>;
+  typography: Record<TextVariant, Record<string, unknown>>;
+  courseColor(index: number): { fill: string; ink: string };
+  glass: { surface: string; rim: string; sheen: string };
+  contentWidth: number;
+}
+```
+
+## HostComponents
+
+All are React components passed by the host. `Style` is a plain React Native style, passed through.
+
+```ts
+type Tone = 'default' | 'muted' | 'faint' | 'accent' | 'up' | 'down' | 'warn' | 'info' | 'onAccent';
+type ChipTone = 'neutral' | 'accent' | 'up' | 'down' | 'warn' | 'info';
+
+interface HostComponents {
+  Screen: ComponentType<{ title: string; subtitle?: string; back?: boolean; trailing?: ReactNode; children: ReactNode; refreshControl?: ReactNode }>;
+  Text: ComponentType<{ variant?: TextVariant; tone?: Tone; align?: 'left' | 'center' | 'right'; numberOfLines?: number; selectable?: boolean; style?: Style; children?: ReactNode }>;
+  Button: ComponentType<{ title: string; onPress?: () => void; variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; size?: 'sm' | 'md' | 'lg'; icon?: string; loading?: boolean; disabled?: boolean; style?: Style }>;
+  IconButton: ComponentType<{ icon: string; label: string; onPress?: () => void; variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; size?: number; disabled?: boolean }>;
+  ListGroup: ComponentType<{ title?: string; footer?: string; children: ReactNode }>;
+  ListRow: ComponentType<{ icon?: string; title: string; subtitle?: string; value?: string; accessory?: ReactNode; onPress?: () => void; chevron?: boolean; titleLines?: number }>;
+  Chip: ComponentType<{ label: string; tone?: ChipTone; icon?: string }>;
+  Surface: ComponentType<{ level?: 1 | 2 | 3; padded?: boolean; children?: ReactNode; style?: Style }>;
+  EmptyState: ComponentType<{ icon: string; title: string; message?: string; action?: ReactNode }>;
+  Skeleton: ComponentType<{ width?: number | `${number}%`; height?: number; rounded?: number }>;
+  FadeIn: ComponentType<{ index?: number; children: ReactNode; style?: Style }>;
+  Icon: ComponentType<{ name: string; size?: number; color?: string }>;
+  Stat: ComponentType<{ label: string; value: number | null; prefix?: string; suffix?: string; decimals?: number; caption?: string; icon?: string }>;
+  Switch: ComponentType<{ value: boolean; onValueChange: (v: boolean) => void; label?: string; disabled?: boolean }>;
+  Checkbox: ComponentType<{ value: boolean; onValueChange: (v: boolean) => void; label: string }>;
+  Segmented: ComponentType<{ options: { label: string; value: string }[]; value: string; onChange: (v: string) => void }>;
+  Row: ComponentType<{ gap?: 'xs' | 'sm' | 'md' | 'lg'; align?: 'start' | 'center' | 'end' | 'between'; children: ReactNode }>;
+  Column: ComponentType<{ gap?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'; children: ReactNode }>;
+  Pressable: ComponentType<{ onPress?: () => void; onLongPress?: () => void; delayLongPress?: number; accessibilityLabel?: string; accessibilityRole?: string; accessibilityHint?: string; scaleTo?: number; haptic?: boolean; disabled?: boolean; style?: Style; children?: ReactNode }>;
+  Field: ComponentType<{ label?: string; value: string; onChangeText: (v: string) => void; placeholder?: string; hint?: string; multiline?: boolean; secureTextEntry?: boolean; autoFocus?: boolean; keyboardType?: string; autoCapitalize?: 'none' | 'sentences' }>;
+  DateTimeField: ComponentType<{ label: string; value: Date | null; onChange: (d: Date) => void; mode?: 'date' | 'time' | 'datetime'; placeholder?: string; onClear?: () => void }>;
+  Stepper: ComponentType<{ value: number; onChange: (n: number) => void; min?: number; max?: number; suffix?: string; label: string }>;
+  WeekdayPicker: ComponentType<{ value: number[]; onChange: (v: number[]) => void; multiple?: boolean }>;
+  SheetScreen: ComponentType<{ title: string; children: ReactNode; primary: string; onPrimary: () => void; primaryDisabled?: boolean; loading?: boolean; danger?: string; onDanger?: () => void; secondary?: string; onSecondary?: () => void }>;
+  Sparkline: ComponentType<{ values: number[]; tone?: 'accent' | 'up' | 'down' | 'info'; height?: number }>;
+  Ring: ComponentType<{ value: number; label?: string; caption?: string; tone?: 'accent' | 'up' | 'down' | 'warn'; size?: number }>;
+  Hourglass: ComponentType<{ period?: number; size?: number; tone?: 'accent' | 'up' | 'down' | 'warn' }>;
+  GenUI: ComponentType<{ spec: Record<string, unknown>; onSubmit?: (form: Record<string, unknown>, label?: string) => void }>;
+  SortableList: ComponentType<{ ids: string[]; rowHeight: number; onReorder: (ids: string[]) => void; renderRow: (id: string, handle: ReactNode) => ReactNode }>;
+  PluginWidget: ComponentType<{ source: { plugin: string; widget: string; config?: Record<string, unknown> }; size: WidgetSize }>;
+  Glass: ComponentType<{ children?: ReactNode; style?: Style; radius?: number; tone?: 'regular' | 'strong' | 'brand'; onPress?: () => void; onLongPress?: () => void; accessibilityLabel?: string; accessibilityRole?: 'button' | 'summary' | 'none'; haptic?: boolean }>;
+  GlassEdges: ComponentType<{ radius?: number }>;
+  QRCode: ComponentType<{ value?: string; link?: SecretLink; size?: number; ecl?: 'L' | 'M' | 'Q' | 'H' }>;
+}
+```
+
+| Component | Notes |
+| --- | --- |
+| `Screen` | Root of a pushed screen: header with title, back, optional trailing element, pull-to-refresh. |
+| `SheetScreen` | Form sheet layout for modal screens: title + close, scrolling body, primary (and optional secondary / danger) action. |
+| `Pressable` | Tappable container with the app's press feedback. |
+| `Hourglass` | Drains over `period` seconds aligned to Unix time (e.g. a TOTP window) and flips at each boundary. |
+| `GenUI` | Renders a [generative-UI spec](/docs/sdk/genui) with the host catalog. |
+| `SortableList` | Vertical list sortable by dragging a handle; rows rendered by the plugin. |
+| `PluginWidget` | Mounts a plugin-contributed widget (error-isolated). |
+| `Glass` / `GlassEdges` | The app's panel material; use for cards and tiles. |
+| `QRCode` | Dark on white in every theme. `link` encodes a share link the plugin can't read (wins over `value`). |
+
+## Contributions
+
+```ts
+interface Contributions {
+  /** Screens mounted at `/p/<plugin>/<screen>`. */
+  screens?: Record<string, ScreenContribution>;
+  /** Rows listed in Settings, opening one of the plugin's screens. */
+  settings?: SettingsContribution[];
+  /** Fill one of the harness's tab slots with a screen. */
+  tabs?: TabContribution[];
+  /** Native dashboard widgets, keyed by id. */
+  widgets?: Record<string, WidgetContribution>;
+  /** Slash commands, keyed by name (lowercase, /^[a-z][a-z0-9-]*$/). */
+  commands?: Record<string, CommandContribution>;
+}
+
+interface ScreenContribution {
+  title: string;
+  component: ComponentType<PluginScreenProps>;
+  /** 'modal' screens open at `/m/<plugin>/<screen>` (forms); default 'push' at `/p/…`. */
+  presentation?: 'push' | 'modal';
+}
+
+interface SettingsContribution {
+  /** Key of a screen in `contributes.screens`. */
+  screen: string;
+  title: string;
+  subtitle?: string;
+  icon?: string;
+}
+
+type TabSlot = 'dashboard' | 'schedule';
+
+interface TabContribution {
+  slot: TabSlot;
+  /** Key of a screen in `contributes.screens`. */
+  screen: string;
+}
+
+interface WidgetContribution {
+  title: string;
+  /** What it shows; the agent reads this to pick widgets. */
+  description: string;
+  sizes?: WidgetSize[];
+  defaultSize?: WidgetSize;
+  configSchema?: z.ZodType<Record<string, unknown>>;
+  component: ComponentType<PluginWidgetProps>;
+}
+
+type CommandContribution = {
+  /** One line, shown in the / menu. */
+  description: string;
+  /** Extra names matched by the menu, e.g. Chinese ('余额'). */
+  aliases?: string[];
+  /** Placeholder for the argument. Present = the command takes input. */
+  argHint?: string;
+} & (
+  | { /** Sent as the user message; `{{input}}` is replaced. */ prompt: string }
+  | {
+      /** Runs locally; the returned text is shown as a notice (never sent to the model). */
+      run: (input: string, ctx: { services: HostServices; navigate: (href: string) => void; locale: AppLocale }) => Promise<string | void> | string | void;
+    }
+);
+```

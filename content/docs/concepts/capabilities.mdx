@@ -1,0 +1,47 @@
+---
+title: Capabilities
+description: Plugins declare what they need from the device in `requires`; the harness hides plugins whose requirements the device can't meet and explains why.
+icon: Smartphone
+---
+
+A phone is not a workstation: there is no shell or user-visible filesystem for plugins, background
+time is limited, and some campus hosts only answer on the campus network. A plugin lists what it
+needs in `PluginDef.requires` (and the registry entry's `requires`). The harness compares that with
+what the device offers; a plugin with an unmet requirement is hidden from the agent, its tools are
+refused, and Settings shows the reason.
+
+```ts
+definePlugin({
+  id: 'finance',
+  // …
+  requires: ['campus-session', 'campus-network'],
+});
+```
+
+## The capabilities
+
+| Capability | Meaning | Present today |
+| --- | --- | --- |
+| `network` | General internet access (plain `fetch`) | Yes |
+| `campus-network` | Hosts reachable only from the PKU network | Declared as available; the request fails off campus |
+| `campus-session` | Authenticated campus HTTP through the host (`services.campus`); credentials never exposed | Android (needs the native campus-http module; iOS after its Swift port) |
+| `notifications` | Local notifications | Yes |
+| `background` | Periodic background execution | Yes |
+| `cloud` | A [PKU Harness Cloud](/docs/cloud) provider is configured | While the user has a provider configured (reactive) |
+| `ongoing` | A persistent ongoing notification / foreground service (`services.ongoing`) | Android |
+| `shell` | A shell | **Never** on phones. A plugin that needs it must be remote. |
+| `filesystem` | A filesystem | Not offered to plugins. Use `services.files.pick` for user-chosen files. |
+
+## Rules
+
+- **MUST** list every capability the plugin's tools depend on. A plugin that calls
+  `services.campus.request` requires `campus-session`; one that calls a campus-only host also
+  requires `campus-network`.
+- **MUST NOT** require `shell` or `filesystem` in a bundled plugin. Heavy work (scraping many
+  pages, OCR, long jobs) belongs in a remote plugin.
+- Remote plugins run on a server, so `shell` is not a device requirement; the registry validator
+  rejects `requires: ['shell']` for remote entries.
+- **SHOULD** check optional services before use: `services.ongoing` is `undefined` where the
+  `ongoing` capability is missing; `ctx.cloud` is `undefined` on hosts without cloud support.
+- A plugin that also works without the cloud declares `cloud.optional: true` instead of requiring
+  `cloud`, and checks `ctx.cloud?.available`.

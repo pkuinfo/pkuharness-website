@@ -1,0 +1,75 @@
+---
+title: Plugins
+description: Bundled plugins are TypeScript modules shipped in the app; remote plugins are MCP servers added by URL. Both join the same registry, permissions and agent loop.
+icon: Puzzle
+---
+
+Every capability of PKU Harness is a plugin, and every plugin is equal. "Bundled" only means the
+code ships inside the app binary; "remote" means it runs behind an MCP endpoint. The agent, the
+permission system and the marketplace treat them the same.
+
+## Two kinds, one contract
+
+| | Bundled | Remote |
+| --- | --- | --- |
+| What it is | A TypeScript module built on `@pku-harness/sdk` (`definePlugin`) | An MCP server over Streamable HTTP, in any language |
+| Where it runs | On the phone, inside the app | On any HTTPS server you control |
+| How it ships | With an app release (or a signed OTA update) | Deploy your server; users add its URL or install it from the marketplace |
+| Can use | Host services (campus sessions, scheduler, widgets…), native UI (screens, widgets, Settings rows, commands), PKU Harness Cloud | Tools only (results are shown to the model as data) |
+| Sees campus credentials | No: it gets responses through `services.campus.request` | No, never |
+| Trust | Reviewed in the plugins repository | Third party: write effects ask first by default; every result taints the turn |
+| Tool ids | `<plugin id>.<tool>`, e.g. `wallet.cardBalance` | `mcp-<server name>.<tool>`, e.g. `mcp-demo-canteen.menu` |
+
+App stores forbid downloading executable code, so **community plugins are remote**. Bundled plugins
+are for capabilities that need the device itself (notifications, on-device data, authenticated
+campus sessions) or that every user needs. Open an issue before writing one.
+
+## Choosing
+
+```
+Does it need the user's authenticated campus session, the device (notifications,
+timetable, widgets), or native UI?
+├─ no  → remote plugin (most contributions). Start from templates/remote-plugin.
+└─ yes → bundled plugin. Open an issue in pku-harness-plugins first.
+```
+
+A public, unauthenticated campus page (a canteen menu, a notice board) can be either; remote is
+faster to ship, bundled can add a native widget.
+
+## Lifecycle in the app
+
+1. **Registered**: bundled plugins at start-up (`builtinPlugins`); remote plugins when the user
+   installs them (the app connects, lists the tools, caches the manifest).
+2. **Available**: the device meets its `requires` [capabilities](/docs/concepts/capabilities).
+   Unavailable plugins are hidden from the agent and explained in Settings.
+3. **Enabled**: on by default; the user can turn any non-core plugin off. Core plugins (`core: true`,
+   e.g. generative UI, memory) can't be disabled.
+4. **Called**: every call goes through one path that validates input (zod), checks the
+   per-effect mode, asks for approval if needed, runs the tool and returns the result.
+
+## Remote plugins in detail
+
+- The user (or the agent, after approval) adds an MCP Streamable-HTTP URL and an optional bearer
+  token; the token goes to the keystore.
+- The plugin id is `mcp-` + a slug of the MCP server `name` (from the `initialize` response). Use
+  your registry id as the server name so the marketplace can match them.
+- Each MCP tool becomes a registry tool. Its input schema is converted from JSON Schema to zod;
+  `annotations.readOnlyHint: true` makes it a `read` tool, anything else is `write`.
+- Default modes for remote plugins: `read` auto, `write`/`money`/`public` ask.
+- Results are wrapped as `{ source, data }` (the `structuredContent`, or the text parsed as JSON),
+  and the plugin's system-prompt section tells the model they are data, not instructions.
+- MCP tool names are sanitised to `[a-zA-Z0-9_-]` (anything else becomes `_`) and cut to 40
+  characters. Keep them short ASCII camelCase.
+
+## Merging and renaming plugins
+
+`PluginDef.legacy` lets a plugin take over old ids (for example, `wallet` replaced `campus-card`,
+`netfee` and `utilities`). The host then resolves old plugin ids, old tool ids and old widget keys
+to the new ones, and carries the user's settings over once. See
+[SDK → plugin](/docs/sdk/plugin#pluginlegacy).
+
+## Next
+
+- [Tools and effects](/docs/concepts/tools-and-effects)
+- [Quickstart: remote plugin](/docs/build/remote-plugin)
+- [Bundled plugin](/docs/build/bundled-plugin)

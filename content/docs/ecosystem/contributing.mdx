@@ -1,0 +1,55 @@
+---
+title: Contributing
+description: How to contribute to PKU Harness - plugins, the app, the protocol reference and these docs - plus conventions, community, security reports and license.
+icon: HeartHandshake
+---
+
+PKU Harness is built in the open for the PKU community. Issues and pull requests are welcome in
+every repository.
+
+## Where to contribute
+
+| You want to | Go to |
+| --- | --- |
+| Connect a campus service or add a capability | A remote plugin (your own repo) or [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) (bundled, open an issue first). See [Build a plugin](/docs/build). |
+| List a plugin | [Marketplace](/docs/marketplace) |
+| Fix or improve the app | [`pku-harness`](https://github.com/pkuinfo/pku-harness): read `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/DESIGN.md` first |
+| Document or fix a campus protocol | [`pkucli`](https://github.com/pkuinfo/pkucli) |
+| Improve these docs | [`pkuharness-website`](https://github.com/pkuinfo/pkuharness-website), `content/docs/` (the edit link is on every page) |
+
+## Conventions
+
+- **bun** for everything JavaScript/TypeScript (`bun install`, `bun run`, `bun test`, `bunx`).
+- Conventional, small commits: `feat(wallet): …`, `fix(treehole): …`, `docs: …`.
+- Plugins repository: `bun test`, `bunx tsc --noEmit -p .` and `bun scripts/validate-registry.ts`
+  pass before a pull request.
+- App: `bun run check` (typecheck + lint) and `bun test`; UI changes are checked on a device or
+  emulator in dark and light themes.
+- Plugin changes land in `pku-harness-plugins` first (released as packages), then the app bumps
+  `@pku-harness/*`.
+- Campus protocols are ported from pkucli with the source file credited.
+- English docs and code comments; Chinese user-facing copy, with English translations for every
+  user-facing string.
+
+## Using AI agents
+
+The repositories are written to be worked on by people and coding agents together: each has an
+`AGENTS.md` (or `CLAUDE.md`) with its rules. For plugins, point your agent at
+[For AI agents](/docs/for-agents) and the Markdown versions of these docs (`/llms.txt`).
+You are responsible for what you submit: review generated code, run the checks, and never let an
+agent handle real credentials.
+
+## Community
+
+- Discuss ideas and report bugs in GitHub issues of the relevant repository.
+- Be kind; all repositories follow a code of conduct (`CODE_OF_CONDUCT.md`).
+
+## Security
+
+Report vulnerabilities privately as described in `SECURITY.md` of the affected repository, not in
+public issues. Never include real credentials, tokens or personal data in issues, fixtures or logs.
+
+## License
+
+All repositories are MIT licensed. By contributing you agree that your contribution is released
+under the same license.

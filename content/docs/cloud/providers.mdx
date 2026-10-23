@@ -1,0 +1,75 @@
+---
+title: Providers and self-hosting
+description: Choose the official instance, a self-hosted reference server or any conforming URL; what a provider must implement; how to run and configure the reference server.
+icon: Server
+---
+
+## Choosing a provider (users)
+
+Settings → Cloud offers:
+
+| Option | Meaning |
+| --- | --- |
+| **Official** | The instance run by pkuinfo (not deployed yet). Off until the user opts in. |
+| **Self-hosted** | A base URL. **Test connection** shows the provider's `/v1/meta`: operator, services, limits. |
+| **Off** | No cloud. Plugins that require `cloud` are unavailable; optional ones keep working locally. |
+
+URLs must be HTTPS. Development builds also allow `http://10.0.2.2:*` and `http://localhost:*`.
+Switching provider doesn't move data: each provider is a separate identity and store.
+
+## What a provider implements
+
+Everything in the [API reference](/docs/cloud/api/meta), validated with the schemas from
+[`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package):
+
+- `GET /v1/meta` with `protocol: 1`, the services offered, limits, proof-of-work parameters, viewer
+  pages, functions and the operator (`name`, `contact`, optional `privacyURL`).
+- Device registration with proof of work, signed token minting (`aud` = your own origin, 5-minute
+  skew window, nonce replay protection), 10-minute tokens.
+- The services you list in `services` (a provider may offer a subset; plugins whose `uses` aren't
+  covered are marked unavailable).
+- The error body `{ error: { code, message, retryAfterS? } }`, `Retry-After` and `RateLimit-*`
+  headers.
+- Static viewer pages at `/w/<plugin>/<page>` with a strict CSP, and `GET /s/:id` redirects.
+
+## Reference server
+
+The open-source reference server is `packages/cloud-server` in
+[`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/packages/cloud-server):
+Bun + Hono + `bun:sqlite` (WAL), every request and response validated with the
+`@pku-harness/cloud-protocol` schemas. It offers `store` and `channels`; `fn` and `push` answer
+`501 unsupported` for now.
+
+```bash
+cd pku-harness-plugins/packages/cloud-server
+bun run dev        # http://localhost:8787, reloads on change, data in ./data/cloud.db
+bun test           # route tests + real WebSocket/SSE tests
+# or from the repo root: bun run --filter @pku-harness/cloud-server dev
+```
+
+In the Android emulator, point Settings → Cloud → Self-hosted at `http://10.0.2.2:8787`.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `PORT` / `HOST` | `8787` / `0.0.0.0` | Listen address |
+| `CLOUD_PUBLIC_URL` | `http://localhost:$PORT` | Origin clients use; the `aud` of token challenges |
+| `CLOUD_DB` | `./data/cloud.db` | SQLite file (`:memory:` for throwaway runs) |
+| `CLOUD_TOKEN_SECRET` | generated, stored in the DB | HMAC key for bearer tokens (≥ 32 chars) |
+| `CLOUD_POW_DIFFICULTY` | `16` | Proof-of-work difficulty |
+| `CLOUD_POW_ROTATE_S` | `21600` | Salt rotation; the previous salt stays valid one period |
+| `CLOUD_OPERATOR_NAME` / `CLOUD_OPERATOR_CONTACT` / `CLOUD_PRIVACY_URL` | self-hosted / empty | Shown by `GET /v1/meta` |
+| `CLOUD_PAGES_DIR` | `<plugins repo>/plugins` | Folder holding `<plugin>/web/dist` viewer pages |
+| `CLOUD_TRUST_PROXY` | off | `1`: client IP = last `X-Forwarded-For` hop (behind Caddy) |
+
+`deploy/` holds a Dockerfile, a Caddyfile and a Litestream config; see its `README.md`. Server
+functions are planned to run in time- and memory-limited workers (reviewed code only), with
+isolates for community code later.
+
+## Operating an instance
+
+- Publish who you are (`operator.name`, `contact`) and a privacy statement (`privacyURL`).
+- Keep logs free of payloads and tokens; payloads are ciphertext but IPs and timing are personal
+  data.
+- Hosting in mainland China requires ICP filing; the official instance is planned outside the
+  mainland, with a short dedicated domain for share links (WeChat may interstitial unknown
+  domains, so the app always offers a QR code and copy-link too).

@@ -1,0 +1,1391 @@
+openapi: 3.1.0
+info:
+  title: PKU Harness Cloud
+  version: "1"
+  summary: Wire protocol v1 of the PKU Harness Cloud plugin backend standard.
+  description: |
+    Every PKU Harness Cloud provider (the official instance, a self-hosted reference server, or any
+    URL the user enters) serves exactly these endpoints. The source of truth is
+    `@pku-harness/cloud-protocol` (`packages/cloud-protocol/src/schemas.ts` in
+    `pkuinfo/pku-harness-plugins`) and `docs/CLOUD.md` §2.3 in `pkuinfo/pku-harness`; this document
+    mirrors the zod schemas there.
+
+    Conventions:
+
+    - Binary values are base64url **without padding**. A 32-byte key is 43 characters, a 64-byte
+      signature 86, a 24-byte nonce 32, a 16-byte nonce 22.
+    - Times are Unix **milliseconds** unless the field name ends in `S` (seconds, for durations).
+    - Unknown object keys are stripped on parse, so a newer server may add fields.
+    - Every non-2xx response has the body `ErrorBody`. A 429 also carries `Retry-After` and
+      `RateLimit-*` headers.
+    - Plugins never call this API directly. The host app holds the device identity, mints tokens
+      and seals payloads; plugins use the SDK's `PluginCloud` client (`ctx.cloud`).
+
+    Status (2026-10-23): the protocol, the envelope crypto, the SDK types, the reference server
+    (`packages/cloud-server`) and the app's client are implemented; the reference server offers
+    `store` and `channels`. `push` and `functions` endpoints are **planned (stage 6)**, marked as
+    such, and answer `501 unsupported` until then.
+  license:
+    name: MIT
+    identifier: MIT
+  contact:
+    name: pkuinfo
+    url: https://github.com/pkuinfo/pku-harness-plugins
+servers:
+  - url: https://{provider}
+    description: Any conforming provider. The user picks it in Settings → Cloud (official, self-hosted or custom).
+    variables:
+      provider:
+        default: cloud.example.org
+        description: Host of the provider the user configured.
+  - url: http://localhost:8787
+    description: Reference server in development (`bun run cloud:dev`). Use `http://10.0.2.2:8787` from the Android emulator.
+tags:
+  - name: meta
+    x-displayName: Meta
+    description: Provider discovery. The host reads it when the user connects a provider and checks `protocol`, `services` and `limits`.
+  - name: devices
+    x-displayName: Devices and auth
+    description: |
+      A device's cloud identity is an Ed25519 signing key plus an X25519 box key, nothing else: no
+      student ID, no name. Registration costs a proof of work; plugin tokens are minted from a
+      signed challenge and live 10 minutes.
+  - name: store
+    x-displayName: Store
+    description: Key-value store namespaced by `(deviceId, plugin)` taken from the token, never from the path. Values are envelopes when the plugin declares `e2e`.
+  - name: channels
+    x-displayName: Channels (owner)
+    description: End-to-end encrypted relay channels opened by a device, used for live sharing with people who open a share link. The owner talks to its peers over a WebSocket; the server only forwards envelopes.
+  - name: peers
+    x-displayName: Channels (peer)
+    description: |
+      What a viewer (a web page or another app) calls after opening a share link
+      `https://<provider>/s/<id>#k=<secret>`. The fragment `k` never reaches the server; the viewer
+      derives `authKey` from it to join.
+  - name: functions
+    x-displayName: Functions (planned)
+    description: Server functions declared in a plugin's `CloudManifest.functions`. Planned for stage 6.
+  - name: push
+    x-displayName: Push (planned)
+    description: Push tokens and scheduled pushes with end-to-end encrypted payloads. Planned for stage 6.
+  - name: pages
+    x-displayName: Share links and pages
+    description: Public redirects and static viewer pages for people without the app.
+paths:
+  /v1/meta:
+    get:
+      tags: [meta]
+      operationId: getMeta
+      summary: Provider metadata
+      description: Protocol version, offered services, limits, proof-of-work parameters, viewer pages, server functions and the operator. No authentication.
+      security: []
+      responses:
+        "200":
+          description: Provider metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetaResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/devices:
+    post:
+      tags: [devices]
+      operationId: registerDevice
+      summary: Register a device
+      description: |
+        Registers a device identity. Authenticated by proof of work instead of a token: find a
+        decimal `nonce` such that `SHA-256(prefix ‖ UTF-8(nonce))` starts with at least
+        `pow.difficulty` zero bits (from `GET /v1/meta`), where
+
+        ```
+        prefix = UTF-8("pku-harness-cloud/v1/pow\n" + salt + "\n" + signPub + "\n" + boxPub + "\n")
+        ```
+
+        The server accepts its current salt and the previous one. Binding the keys into the prefix
+        means one solution registers exactly one identity. Clients refuse a difficulty above 28
+        (`MAX_POW_DIFFICULTY`); the default is 16 (about one second on a phone). Use `solvePow` from
+        `@pku-harness/cloud-protocol`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterDeviceRequest"
+      responses:
+        "200":
+          description: The server-generated device id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterDeviceResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/auth/token:
+    post:
+      tags: [devices]
+      operationId: createToken
+      summary: Mint a plugin token
+      description: |
+        Exchanges an Ed25519-signed challenge for a 10-minute bearer token bound to one device, one
+        plugin and a set of services (claims `sub = deviceId`, `plg = plugin`, `svc = services`).
+        The signed bytes are these lines joined by `\n` (no trailing newline):
+
+        ```
+        pku-harness-cloud/v1/auth
+        <aud>        provider origin, lowercase scheme://host[:port], no path
+        <deviceId>
+        <plugin>
+        <services>   deduplicated, sorted, joined by ","
+        <ts>         Unix ms, decimal
+        <nonce>      16 random bytes, base64url
+        ```
+
+        The server compares `aud` with its own origin, accepts `|now − ts| ≤ 5 min` and rejects a
+        reused nonce within that window. Use `signAuthChallenge` from
+        `@pku-harness/cloud-protocol`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthTokenRequest"
+      responses:
+        "200":
+          description: A bearer token for this plugin's requests.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/devices/me:
+    delete:
+      tags: [devices]
+      operationId: deleteDevice
+      summary: Delete this device and all its data
+      description: Wipes every record of the device (store, channels, push schedules). Any plugin token of the device works. The app calls it from Settings → 删除云端数据 and before a full reset.
+      security:
+        - pluginToken: []
+      responses:
+        "200":
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/store:
+    get:
+      tags: [store]
+      operationId: listStore
+      summary: List keys
+      description: Keys of the calling `(device, plugin)` namespace, optionally filtered by prefix. Values are not included.
+      security:
+        - pluginToken: []
+      parameters:
+        - name: prefix
+          in: query
+          required: false
+          description: Only keys starting with this string.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching keys.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreListResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/store/{key}:
+    parameters:
+      - $ref: "#/components/parameters/StoreKey"
+    get:
+      tags: [store]
+      operationId: getStoreValue
+      summary: Read a value
+      security:
+        - pluginToken: []
+      responses:
+        "200":
+          description: The value with its version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreGetResponse"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      tags: [store]
+      operationId: putStoreValue
+      summary: Write a value
+      description: |
+        Creates or replaces a value. Optimistic concurrency with `If-Match: <version>`: the write
+        fails with `409 conflict` unless the stored version matches; `If-Match: 0` means the key must
+        not exist yet. Default quotas: 1 MB and 1,000 keys per plugin per device, 64 KB per value
+        (`limits.store` in `GET /v1/meta`).
+      security:
+        - pluginToken: []
+      parameters:
+        - name: If-Match
+          in: header
+          required: false
+          description: Expected current version; `0` = the key must not exist.
+          schema:
+            type: string
+            pattern: "^[0-9]+$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StorePutRequest"
+      responses:
+        "200":
+          description: The new version (also sent as the `ETag` header).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorePutResponse"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [store]
+      operationId: deleteStoreValue
+      summary: Delete a value
+      security:
+        - pluginToken: []
+      responses:
+        "200":
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/channels:
+    post:
+      tags: [channels]
+      operationId: createChannel
+      summary: Open a channel
+      description: |
+        Opens a relay channel owned by the calling device and plugin. The client generates the share
+        secret `k`, derives `authKey = HKDF(k, "pku-harness-cloud/v1/join")` and
+        `encKey = HKDF(k, "pku-harness-cloud/v1/enc")`, and sends only `joinHash = base64url(sha256(authKey))`,
+        the channel's X25519 public key and `meta` sealed with `encKey`. The server can gate joins
+        but can't read anything. Limits: 5 open channels per device, TTL 60 s – 24 h (default 15 min).
+      security:
+        - pluginToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChannelRequest"
+      responses:
+        "200":
+          description: The channel id and expiry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateChannelResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/channels/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    patch:
+      tags: [channels]
+      operationId: extendChannel
+      summary: Extend a channel
+      description: Sets the expiry to now + `ttlS`, capped at `limits.channels.maxTtlS`. Owner only.
+      security:
+        - pluginToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchChannelRequest"
+      responses:
+        "200":
+          description: The new expiry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatchChannelResponse"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [channels]
+      operationId: closeChannel
+      summary: Close a channel
+      description: >-
+        Closes the channel; connected peers receive `{ t: "closed", reason: "owner" }`. Owner only.
+      security:
+        - pluginToken: []
+      responses:
+        "200":
+          description: Closed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/channels/{id}/ws:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    get:
+      tags: [channels]
+      operationId: ownerSocket
+      summary: Owner WebSocket
+      description: |
+        Upgrades to a WebSocket for the channel owner. Every frame is one JSON object.
+
+        - Server → owner: `OwnerInFrame` (`hello`, `join`, `leave`, `peer` presence, `msg`, `closed`, `error`, `pong`).
+        - Owner → server: `OwnerOutFrame` (`msg` to one peer, `kick` a peer and free its seat, `ping`).
+
+        Frames carry envelopes sealed with the per-peer key
+        `HKDF(X25519(chanPriv, peerPub) ‖ encKey, salt = chanPub ‖ peerPub, info = "pku-harness-cloud/v1/peer")`.
+        Limits: frames ≤ 4 KB of ciphertext, ≤ 60 frames per minute per party (the owner gets
+        60 × maxPeers); a violating frame is dropped with an `error` frame. A frame to an offline
+        party is dropped with `error: conflict` (use the mailbox for offline delivery).
+
+        The token may also be passed as `?t=` (WebSocket clients can't always set headers). Close
+        codes: `4003` kicked, `4009` replaced by a newer connection of the same party, `4010` channel
+        closed or expired (a `closed` frame comes first), `1001` server shutdown (reconnect).
+      security:
+        - pluginToken: []
+      responses:
+        "101":
+          description: Switching to the WebSocket protocol. Frames are described by the `OwnerInFrame` and `OwnerOutFrame` schemas.
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/channels/{id}/mailbox:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    delete:
+      tags: [channels]
+      operationId: clearMailbox
+      summary: Clear the mailbox
+      description: Removes every mailbox slot of the channel (`Channel.mailbox.clear()` in the SDK). Owner only.
+      security:
+        - pluginToken: []
+      responses:
+        "200":
+          description: Cleared.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/channels/{id}/mailbox/{slot}:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+      - $ref: "#/components/parameters/MailboxSlot"
+    put:
+      tags: [channels]
+      operationId: putMailboxSlot
+      summary: Put a sealed blob in a mailbox slot
+      description: Batch mode. Sealed blobs that peers can read while the owner is offline (at most `limits.channels.mailboxSlots` slots). Owner only.
+      security:
+        - pluginToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailboxPutRequest"
+      responses:
+        "200":
+          description: Stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [channels]
+      operationId: deleteMailboxSlot
+      summary: Delete a mailbox slot
+      security:
+        - pluginToken: []
+      responses:
+        "200":
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/c/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    get:
+      tags: [peers]
+      operationId: getChannelInfo
+      summary: Public channel info
+      description: What a viewer reads before joining. `meta` is sealed with `encKey`, so only someone holding the link can read it. Public and rate-limited (20 requests per IP per minute by default).
+      security: []
+      responses:
+        "200":
+          description: Channel status, sealed meta and the channel public key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelInfoResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/c/{id}/join:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    post:
+      tags: [peers]
+      operationId: joinChannel
+      summary: Join a channel
+      description: |
+        Claims a seat. The server checks `sha256(authKey)` against the channel's `joinHash` and
+        enforces `maxPeers`: when the channel is full the answer is `409 conflict`, so a forwarded
+        link is useless once the first viewer claimed it. `peerPub` is the viewer's ephemeral X25519
+        key.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinRequest"
+      responses:
+        "200":
+          description: The peer id and a peer token for the socket, SSE stream, send and mailbox endpoints.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/c/{id}/ws:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+      - $ref: "#/components/parameters/PeerTokenQuery"
+    get:
+      tags: [peers]
+      operationId: peerSocket
+      summary: Peer WebSocket
+      description: |
+        Upgrades to a WebSocket for a joined peer.
+
+        - Server → peer: `PeerInFrame` (`hello`, `owner` online state, `extended`, `msg`, `closed`, `error`, `pong`).
+        - Peer → server: `PeerOutFrame` (`msg`, `ping`).
+      security: []
+      responses:
+        "101":
+          description: Switching to the WebSocket protocol. Frames are described by the `PeerInFrame` and `PeerOutFrame` schemas.
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/c/{id}/events:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+      - $ref: "#/components/parameters/PeerTokenQuery"
+    get:
+      tags: [peers]
+      operationId: peerEvents
+      summary: Peer event stream (SSE)
+      description: Fallback for webviews without WebSocket (WeChat). Each `data:` line is one `PeerInFrame` as JSON. Send with `POST /v1/c/{id}/send`.
+      security: []
+      responses:
+        "200":
+          description: Server-sent events.
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/PeerInFrame"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/c/{id}/send:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    post:
+      tags: [peers]
+      operationId: peerSend
+      summary: Send a frame (SSE clients)
+      description: The body is one `PeerOutFrame`, as it would be sent on the WebSocket.
+      security:
+        - peerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PeerOutFrame"
+      responses:
+        "200":
+          description: Accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/c/{id}/mailbox:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    get:
+      tags: [peers]
+      operationId: peerMailbox
+      summary: Read the mailbox
+      description: Batch mode. The sealed blobs the owner left in the channel's mailbox.
+      security:
+        - peerToken: []
+      responses:
+        "200":
+          description: Mailbox slots.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailboxListResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/fn/{plugin}/{name}:
+    parameters:
+      - name: plugin
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/PluginId"
+      - name: name
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/FunctionName"
+    post:
+      tags: [functions]
+      operationId: invokeFunction
+      summary: Invoke a server function (planned)
+      description: |
+        **Planned (stage 6).** The reference server answers `501 unsupported` until then. Runs a function the plugin declared in `CloudManifest.functions`, on
+        the user's provider. A function is `name@version`; the server keeps the previous major for
+        90 days. Default limit: 60 calls per minute.
+      security:
+        - pluginToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FunctionRequest"
+      responses:
+        "200":
+          description: The function output.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FunctionResponse"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/push/tokens:
+    post:
+      tags: [push]
+      operationId: registerPushToken
+      summary: Register a push token (planned)
+      description: "**Planned (stage 6);** `501 unsupported` until then. UnifiedPush (ntfy) on Android, APNs on iOS, FCM optional."
+      security:
+        - pluginToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTokenRequest"
+      responses:
+        "200":
+          description: Registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/push/schedule:
+    post:
+      tags: [push]
+      operationId: schedulePush
+      summary: Schedule a push (planned)
+      description: "**Planned (stage 6);** `501 unsupported` until then. The payload is an envelope: the server learns the time only. At most 100 pending schedules."
+      security:
+        - pluginToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushScheduleRequest"
+      responses:
+        "200":
+          description: The schedule id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushScheduleResponse"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [push]
+      operationId: cancelPush
+      summary: Cancel a scheduled push (planned)
+      description: "**Planned (stage 6);** `501 unsupported` until then."
+      security:
+        - pluginToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushCancelRequest"
+      responses:
+        "200":
+          description: Cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ok"
+        default:
+          $ref: "#/components/responses/Error"
+  /s/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    get:
+      tags: [pages]
+      operationId: shareRedirect
+      summary: Open a share link
+      description: >-
+        Redirects to the viewer page the channel was opened with, `/w/<plugin>/<page>?c=<id>`. The
+        browser keeps the `#k=` fragment across the redirect; the server never sees it.
+      security: []
+      responses:
+        "302":
+          description: Redirect to the plugin's viewer page.
+          headers:
+            Location:
+              description: "`/w/<plugin>/<page>?c=<id>`"
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Error"
+  /w/{plugin}/{page}:
+    parameters:
+      - name: plugin
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/PluginId"
+      - name: page
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/PageName"
+    get:
+      tags: [pages]
+      operationId: viewerPage
+      summary: Static viewer page
+      description: A static page built from `plugins/<id>/web` and listed in `CloudManifest.pages`, served with a strict CSP (`connect-src 'self'`). It reads `#k` from `location.hash`, decrypts locally with `@pku-harness/cloud-protocol` and talks to `/v1/c/{id}/…`.
+      security: []
+      responses:
+        "200":
+          description: The page.
+          content:
+            text/html:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Error"
+components:
+  securitySchemes:
+    pluginToken:
+      type: http
+      scheme: bearer
+      description: Token from `POST /v1/auth/token` (10 minutes, one device + one plugin + services). Channel owner endpoints require the token of the device and plugin that opened the channel.
+    peerToken:
+      type: http
+      scheme: bearer
+      description: "`peerToken` from `POST /v1/c/{id}/join`, as `Authorization: Bearer`. The WebSocket and SSE endpoints take it as the `t` query parameter (any token may be passed that way)."
+  parameters:
+    StoreKey:
+      name: key
+      in: path
+      required: true
+      description: Path-like key (`/` allowed, each segment URL-encoded), no `.` or `..` segments.
+      schema:
+        $ref: "#/components/schemas/StoreKey"
+    ChannelId:
+      name: id
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/ChannelId"
+    MailboxSlot:
+      name: slot
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/MailboxSlot"
+    PeerTokenQuery:
+      name: t
+      in: query
+      required: true
+      description: The `peerToken` from `POST /v1/c/{id}/join`.
+      schema:
+        type: string
+        minLength: 16
+  responses:
+    Error:
+      description: |
+        Any error. `error.code` maps to HTTP statuses as usual (`bad_request` 400, `unauthorized`
+        401, `forbidden` 403, `not_found` 404, `conflict` 409, `gone` 410, `payload_too_large` 413,
+        `rate_limited` 429). A 429 carries `Retry-After` and `RateLimit-*` headers; the SDK turns it
+        into `CloudError('rate_limited', retryAfterS)`.
+      headers:
+        Retry-After:
+          description: Seconds to wait (429 only).
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+  schemas:
+    B64url:
+      type: string
+      description: base64url without padding (canonical).
+      pattern: "^[A-Za-z0-9_-]*$"
+    Key32:
+      type: string
+      description: 32 bytes, base64url (Ed25519 or X25519 public key, hash).
+      pattern: "^[A-Za-z0-9_-]{43}$"
+    Sig64:
+      type: string
+      description: 64-byte Ed25519 signature, base64url.
+      pattern: "^[A-Za-z0-9_-]{86}$"
+    Nonce24:
+      type: string
+      description: 24 bytes, base64url.
+      pattern: "^[A-Za-z0-9_-]{32}$"
+    Nonce16:
+      type: string
+      description: 16 bytes, base64url.
+      pattern: "^[A-Za-z0-9_-]{22}$"
+    Ms:
+      type: integer
+      minimum: 0
+      description: Unix time in milliseconds.
+    CloudService:
+      type: string
+      enum: [store, channels, push, files, functions]
+    PluginId:
+      type: string
+      description: Registry id rule, plus `mcp-…` host ids for remote plugins.
+      pattern: "^[a-z0-9][a-z0-9-]{1,63}$"
+    DeviceId:
+      type: string
+      description: Server-generated, base64url.
+      pattern: "^[A-Za-z0-9_-]{8,64}$"
+    ChannelId:
+      type: string
+      description: Server-generated, base64url (16 random bytes → 22 characters).
+      pattern: "^[A-Za-z0-9_-]{8,64}$"
+    PeerId:
+      type: string
+      pattern: "^[A-Za-z0-9_-]{4,64}$"
+    StoreKey:
+      type: string
+      description: Path-like key; no `.` or `..` segments.
+      pattern: "^[A-Za-z0-9._:/-]{1,256}$"
+    MailboxSlot:
+      type: string
+      pattern: "^[A-Za-z0-9._:-]{1,64}$"
+    PageName:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9-]{0,40}$"
+    FunctionName:
+      type: string
+      pattern: "^[a-zA-Z][a-zA-Z0-9_]{0,63}$"
+    Envelope:
+      type: object
+      description: XChaCha20-Poly1305 sealed JSON. `n` = 24-byte random nonce, `c` = ciphertext ‖ 16-byte tag. Open it with `open()` from `@pku-harness/cloud-protocol` and validate the result.
+      required: [v, n, c]
+      properties:
+        v:
+          type: integer
+          const: 1
+        n:
+          $ref: "#/components/schemas/Nonce24"
+        c:
+          type: string
+          minLength: 22
+          pattern: "^[A-Za-z0-9_-]*$"
+    Ok:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          const: true
+    WireErrorCode:
+      type: string
+      enum:
+        - bad_request
+        - unauthorized
+        - forbidden
+        - not_found
+        - gone
+        - conflict
+        - payload_too_large
+        - rate_limited
+        - quota
+        - pow_invalid
+        - unsupported
+        - server
+      description: |
+        `unauthorized`: missing or expired token, bad signature. `forbidden`: the token lacks the
+        service, not the owner, wrong `authKey`. `gone`: channel closed or expired. `conflict`:
+        `If-Match` mismatch, or the channel is full (`maxPeers`). `unsupported`: service not
+        offered by this provider.
+    ErrorBody:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              $ref: "#/components/schemas/WireErrorCode"
+            message:
+              type: string
+            retryAfterS:
+              type: number
+              minimum: 0
+    Limits:
+      type: object
+      description: "Defaults (`DEFAULT_LIMITS`): store 1,000,000 bytes / 1,000 keys / 64,000 bytes per value; channels 5 open, TTL 60–86,400 s (default 900), 5 peers, 4,096-byte frames, 60 frames/min, 64 mailbox slots; push 100 pending; functions 60 calls/min; 20 joins per IP per minute."
+      required: [store, channels, joinsPerIpPerMin]
+      properties:
+        store:
+          type: object
+          required: [maxBytes, maxKeys, maxValueBytes]
+          properties:
+            maxBytes: { type: integer }
+            maxKeys: { type: integer }
+            maxValueBytes: { type: integer }
+        channels:
+          type: object
+          required: [maxOpen, minTtlS, maxTtlS, defaultTtlS, maxPeers, frameBytes, framesPerMin, mailboxSlots]
+          properties:
+            maxOpen: { type: integer }
+            minTtlS: { type: integer }
+            maxTtlS: { type: integer }
+            defaultTtlS: { type: integer }
+            maxPeers: { type: integer }
+            frameBytes: { type: integer }
+            framesPerMin: { type: integer }
+            mailboxSlots: { type: integer }
+        push:
+          type: object
+          required: [maxPending]
+          properties:
+            maxPending: { type: integer }
+        functions:
+          type: object
+          required: [callsPerMin]
+          properties:
+            callsPerMin: { type: integer }
+        joinsPerIpPerMin:
+          type: integer
+    MetaResponse:
+      type: object
+      required: [protocol, services, limits, pow, pages, functions, operator]
+      properties:
+        protocol:
+          type: integer
+          const: 1
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/CloudService"
+        limits:
+          $ref: "#/components/schemas/Limits"
+        pow:
+          type: object
+          description: Proof of work for `POST /v1/devices`.
+          required: [difficulty, salt]
+          properties:
+            difficulty:
+              type: integer
+              minimum: 0
+              maximum: 64
+            salt:
+              type: string
+              pattern: "^[A-Za-z0-9_-]{1,64}$"
+        pages:
+          type: array
+          description: Static viewer pages served at `/w/<plugin>/<page>`.
+          items:
+            type: object
+            required: [plugin, page]
+            properties:
+              plugin:
+                $ref: "#/components/schemas/PluginId"
+              page:
+                $ref: "#/components/schemas/PageName"
+        functions:
+          type: array
+          items:
+            type: object
+            required: [plugin, name, version]
+            properties:
+              plugin:
+                $ref: "#/components/schemas/PluginId"
+              name:
+                $ref: "#/components/schemas/FunctionName"
+              version:
+                type: integer
+                minimum: 1
+        operator:
+          type: object
+          required: [name, contact]
+          properties:
+            name:
+              type: string
+              minLength: 1
+            contact:
+              type: string
+            privacyURL:
+              type: string
+              format: uri
+    RegisterDeviceRequest:
+      type: object
+      required: [signPub, boxPub, pow]
+      properties:
+        signPub:
+          $ref: "#/components/schemas/Key32"
+        boxPub:
+          $ref: "#/components/schemas/Key32"
+        pow:
+          type: object
+          required: [salt, nonce]
+          properties:
+            salt:
+              type: string
+              pattern: "^[A-Za-z0-9_-]{1,64}$"
+            nonce:
+              type: string
+              description: Decimal integer, no sign, no leading zeros, at most 15 digits.
+              pattern: "^(0|[1-9][0-9]{0,14})$"
+    RegisterDeviceResponse:
+      type: object
+      required: [deviceId]
+      properties:
+        deviceId:
+          $ref: "#/components/schemas/DeviceId"
+    AuthTokenRequest:
+      type: object
+      required: [aud, deviceId, plugin, services, ts, nonce, sig]
+      properties:
+        aud:
+          type: string
+          description: The provider origin, lowercase, no path or trailing slash.
+          pattern: '^https?:\/\/[a-z0-9.\-:[\]]+$'
+        deviceId:
+          $ref: "#/components/schemas/DeviceId"
+        plugin:
+          $ref: "#/components/schemas/PluginId"
+        services:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/CloudService"
+        ts:
+          $ref: "#/components/schemas/Ms"
+        nonce:
+          $ref: "#/components/schemas/Nonce16"
+        sig:
+          $ref: "#/components/schemas/Sig64"
+    AuthTokenResponse:
+      type: object
+      required: [token, expiresAt]
+      properties:
+        token:
+          type: string
+          minLength: 16
+          description: Opaque to clients.
+        expiresAt:
+          $ref: "#/components/schemas/Ms"
+    StoreGetResponse:
+      type: object
+      required: [key, version, updatedAt]
+      properties:
+        key:
+          $ref: "#/components/schemas/StoreKey"
+        value:
+          description: Any JSON value; an `Envelope` when the plugin declares `e2e`.
+        version:
+          type: integer
+          minimum: 1
+        updatedAt:
+          $ref: "#/components/schemas/Ms"
+        expiresAt:
+          $ref: "#/components/schemas/Ms"
+    StorePutRequest:
+      type: object
+      properties:
+        value:
+          description: Any JSON value; an `Envelope` when the plugin declares `e2e`.
+        ttlS:
+          type: integer
+          minimum: 1
+          description: Expire the value after this many seconds.
+    StorePutResponse:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          minimum: 1
+    StoreListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [key, version, updatedAt]
+            properties:
+              key:
+                $ref: "#/components/schemas/StoreKey"
+              version:
+                type: integer
+                minimum: 1
+              updatedAt:
+                $ref: "#/components/schemas/Ms"
+        cursor:
+          type: string
+          description: Present when there are more keys.
+    CreateChannelRequest:
+      type: object
+      required: [ttlS, joinHash, meta, chanPub]
+      properties:
+        ttlS:
+          type: integer
+          minimum: 1
+        maxPeers:
+          type: integer
+          minimum: 1
+          default: 1
+        joinHash:
+          $ref: "#/components/schemas/Key32"
+        meta:
+          $ref: "#/components/schemas/Envelope"
+        chanPub:
+          $ref: "#/components/schemas/Key32"
+        page:
+          $ref: "#/components/schemas/PageName"
+    CreateChannelResponse:
+      type: object
+      required: [id, expiresAt]
+      properties:
+        id:
+          $ref: "#/components/schemas/ChannelId"
+        expiresAt:
+          $ref: "#/components/schemas/Ms"
+    PatchChannelRequest:
+      type: object
+      required: [ttlS]
+      properties:
+        ttlS:
+          type: integer
+          minimum: 1
+    PatchChannelResponse:
+      type: object
+      required: [expiresAt]
+      properties:
+        expiresAt:
+          $ref: "#/components/schemas/Ms"
+    MailboxPutRequest:
+      type: object
+      required: [env, ttlS]
+      properties:
+        env:
+          $ref: "#/components/schemas/Envelope"
+        ttlS:
+          type: integer
+          minimum: 1
+    CloseReason:
+      type: string
+      enum: [owner, expired, revoked, locked, server]
+    ChannelStatus:
+      type: string
+      enum: [open, closed, expired]
+    ChannelInfoResponse:
+      type: object
+      required: [status, meta, chanPub, expiresAt, ownerOnline]
+      properties:
+        status:
+          $ref: "#/components/schemas/ChannelStatus"
+        meta:
+          $ref: "#/components/schemas/Envelope"
+        chanPub:
+          $ref: "#/components/schemas/Key32"
+        expiresAt:
+          $ref: "#/components/schemas/Ms"
+        ownerOnline:
+          type: boolean
+    JoinRequest:
+      type: object
+      required: [authKey, peerPub]
+      properties:
+        authKey:
+          $ref: "#/components/schemas/Key32"
+        peerPub:
+          $ref: "#/components/schemas/Key32"
+    JoinResponse:
+      type: object
+      required: [peerId, peerToken, expiresAt]
+      properties:
+        peerId:
+          $ref: "#/components/schemas/PeerId"
+        peerToken:
+          type: string
+          minLength: 16
+        expiresAt:
+          $ref: "#/components/schemas/Ms"
+    MailboxListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [slot, env, expiresAt]
+            properties:
+              slot:
+                $ref: "#/components/schemas/MailboxSlot"
+              env:
+                $ref: "#/components/schemas/Envelope"
+              expiresAt:
+                $ref: "#/components/schemas/Ms"
+    OwnerInFrame:
+      description: Server → owner WebSocket frame.
+      oneOf:
+        - type: object
+          title: hello
+          required: [t, id, expiresAt, peers]
+          properties:
+            t: { type: string, const: hello }
+            id: { $ref: "#/components/schemas/ChannelId" }
+            expiresAt: { $ref: "#/components/schemas/Ms" }
+            peers:
+              type: array
+              items:
+                type: object
+                required: [peerId, peerPub, joinedAt, online]
+                properties:
+                  peerId: { $ref: "#/components/schemas/PeerId" }
+                  peerPub: { $ref: "#/components/schemas/Key32" }
+                  joinedAt: { $ref: "#/components/schemas/Ms" }
+                  online: { type: boolean }
+        - type: object
+          title: join
+          required: [t, peerId, peerPub, at]
+          properties:
+            t: { type: string, const: join }
+            peerId: { $ref: "#/components/schemas/PeerId" }
+            peerPub: { $ref: "#/components/schemas/Key32" }
+            at: { $ref: "#/components/schemas/Ms" }
+        - type: object
+          title: leave
+          required: [t, peerId, at]
+          properties:
+            t: { type: string, const: leave }
+            peerId: { $ref: "#/components/schemas/PeerId" }
+            at: { $ref: "#/components/schemas/Ms" }
+        - type: object
+          title: peer
+          description: A claimed peer's connection came up or went away (its seat stays claimed until a kick).
+          required: [t, peerId, online, at]
+          properties:
+            t: { type: string, const: peer }
+            peerId: { $ref: "#/components/schemas/PeerId" }
+            online: { type: boolean }
+            at: { $ref: "#/components/schemas/Ms" }
+        - type: object
+          title: msg
+          required: [t, peerId, env]
+          properties:
+            t: { type: string, const: msg }
+            peerId: { $ref: "#/components/schemas/PeerId" }
+            env: { $ref: "#/components/schemas/Envelope" }
+        - type: object
+          title: closed
+          required: [t, reason]
+          properties:
+            t: { type: string, const: closed }
+            reason: { $ref: "#/components/schemas/CloseReason" }
+        - type: object
+          title: error
+          required: [t, code, message]
+          properties:
+            t: { type: string, const: error }
+            code: { $ref: "#/components/schemas/WireErrorCode" }
+            message: { type: string }
+        - type: object
+          title: pong
+          required: [t, at]
+          properties:
+            t: { type: string, const: pong }
+            at: { $ref: "#/components/schemas/Ms" }
+    OwnerOutFrame:
+      description: Owner → server WebSocket frame. `kick` drops a peer and frees its seat (重置查看者).
+      oneOf:
+        - type: object
+          title: msg
+          required: [t, to, env]
+          properties:
+            t: { type: string, const: msg }
+            to: { $ref: "#/components/schemas/PeerId" }
+            env: { $ref: "#/components/schemas/Envelope" }
+        - type: object
+          title: kick
+          required: [t, peerId]
+          properties:
+            t: { type: string, const: kick }
+            peerId: { $ref: "#/components/schemas/PeerId" }
+        - type: object
+          title: ping
+          required: [t]
+          properties:
+            t: { type: string, const: ping }
+    PeerInFrame:
+      description: Server → peer frame (WebSocket message or SSE `data:` line).
+      oneOf:
+        - type: object
+          title: hello
+          required: [t, peerId, ownerOnline, expiresAt]
+          properties:
+            t: { type: string, const: hello }
+            peerId: { $ref: "#/components/schemas/PeerId" }
+            ownerOnline: { type: boolean }
+            expiresAt: { $ref: "#/components/schemas/Ms" }
+        - type: object
+          title: owner
+          required: [t, online]
+          properties:
+            t: { type: string, const: owner }
+            online: { type: boolean }
+        - type: object
+          title: extended
+          description: The owner extended the channel; update countdowns.
+          required: [t, expiresAt]
+          properties:
+            t: { type: string, const: extended }
+            expiresAt: { $ref: "#/components/schemas/Ms" }
+        - type: object
+          title: msg
+          required: [t, env]
+          properties:
+            t: { type: string, const: msg }
+            env: { $ref: "#/components/schemas/Envelope" }
+        - type: object
+          title: closed
+          required: [t, reason]
+          properties:
+            t: { type: string, const: closed }
+            reason:
+              anyOf:
+                - $ref: "#/components/schemas/CloseReason"
+                - type: string
+                  const: kicked
+        - type: object
+          title: error
+          required: [t, code, message]
+          properties:
+            t: { type: string, const: error }
+            code: { $ref: "#/components/schemas/WireErrorCode" }
+            message: { type: string }
+        - type: object
+          title: pong
+          required: [t, at]
+          properties:
+            t: { type: string, const: pong }
+            at: { $ref: "#/components/schemas/Ms" }
+    PeerOutFrame:
+      description: Peer → server frame (WebSocket message, or the body of `POST /v1/c/{id}/send`).
+      oneOf:
+        - type: object
+          title: msg
+          required: [t, env]
+          properties:
+            t: { type: string, const: msg }
+            env: { $ref: "#/components/schemas/Envelope" }
+        - type: object
+          title: ping
+          required: [t]
+          properties:
+            t: { type: string, const: ping }
+    FunctionRequest:
+      type: object
+      properties:
+        input:
+          description: Any JSON value, validated by the function's `input` schema.
+        version:
+          type: integer
+          minimum: 1
+    FunctionResponse:
+      type: object
+      properties:
+        output:
+          description: Any JSON value, shaped by the function's `output` schema.
+    PushTokenRequest:
+      type: object
+      required: [kind, token]
+      properties:
+        kind:
+          type: string
+          enum: [unifiedpush, apns, fcm]
+        token:
+          type: string
+          minLength: 1
+          maxLength: 2048
+    PushScheduleRequest:
+      type: object
+      required: [at, payload]
+      properties:
+        at:
+          $ref: "#/components/schemas/Ms"
+        payload:
+          $ref: "#/components/schemas/Envelope"
+    PushScheduleResponse:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          minLength: 1
+    PushCancelRequest:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          minLength: 1

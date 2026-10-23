@@ -10,8 +10,10 @@ import { createRelativeLink } from 'fumadocs-ui/mdx';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/components/mdx';
+import { openapi } from '@/lib/openapi';
 import { getPageImageUrl, getPageMarkdownUrl, gitConfig } from '@/lib/shared';
 import { source } from '@/lib/source';
+import { OpenAPIPage } from '../api-page';
 
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params;
@@ -37,6 +39,10 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
           components={getMDXComponents({
             // this allows you to link to other pages with relative file paths
             a: createRelativeLink(source, page),
+            // generated Cloud API pages (content/docs/cloud/api), as in the Fumadocs OpenAPI docs: a server
+            // component rendered once per request, so a per-page wrapper is fine here.
+            // biome-ignore lint/correctness/noComponentHookFactories: needs this page's preloaded document
+            OpenAPIPage: async (props) => <OpenAPIPage {...(await openapi.preloadOpenAPIPage(page))} {...props} />,
           })}
         />
       </DocsBody>

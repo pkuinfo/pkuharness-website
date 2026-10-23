@@ -1,0 +1,67 @@
+---
+title: Permissions and consent
+description: Users set per plugin and per effect whether the agent may act directly, must ask first, or may not act; scheduled runs only read.
+icon: ShieldCheck
+---
+
+After a user accepts the terms during onboarding, the agent may operate enabled plugins on their
+behalf. Each plugin then has one **mode per effect**, which the user can change in
+Settings → Plugins → *plugin* → AI permissions.
+
+## Modes
+
+| Mode | Agent calls with this effect |
+| --- | --- |
+| `auto` | Run directly |
+| `ask` | Show an approval prompt (plugin, tool, effect, inputs) with **Allow**, **Deny** and **Always allow** |
+| `off` | Refused; the agent is told the tool is blocked |
+
+## Defaults
+
+| Plugin kind | read | write | money | public |
+| --- | --- | --- | --- | --- |
+| Bundled, no `defaultModes` | auto | auto | auto | auto |
+| Bundled with `defaultModes` | as declared, e.g. `{ money: 'ask' }` | | | |
+| Remote (MCP) | auto | ask | ask | ask |
+
+Declare stricter defaults for anything a user would want to confirm:
+
+```ts
+definePlugin({
+  // …
+  defaultModes: { money: 'ask', public: 'ask' },
+});
+```
+
+## Who is asked, and when
+
+The decision is made in one place (the host's invoke path), in this order:
+
+1. The tool exists and its plugin is **available** (capabilities met) and **enabled**.
+2. `userOnly` tools are refused unless `actor === 'user'`.
+3. The input is validated against the tool's zod schema.
+4. Mode `off` → refused.
+5. `actor === 'scheduler'` and the effect isn't `read` → refused (unattended runs only read).
+6. Mode `ask` and `actor === 'scheduler'` → declined (there is nobody to ask).
+7. Mode `ask` and `actor === 'agent'` → approval prompt; deny → the agent gets a "declined" error.
+8. `actor === 'user'` never prompts: a tap on a button is the user's intent.
+
+## Consent beyond tools
+
+| What | Where consent is given |
+| --- | --- |
+| Campus services | Signing in to the campus account; plugins declare `scopes` (hosts/services) and `requires: ['campus-session']`, shown on the plugin page |
+| PKU Harness Cloud | A per-plugin **Allow cloud** switch with the plugin's plain-language `disclosure` lines; unconsented calls throw `CloudError('consent_required')` ([Cloud](/docs/cloud/plugin-guide#consent)) |
+| Files | Only the user can pick files (`services.files.pick` from a screen, never from an agent tool) |
+| Notifications, exact alarms | System prompts, through `services.notify.fix(kind)` from a tap |
+| Memory written after untrusted content | Saved as *pending*; the user approves it on the memory screen |
+
+## Rules for plugin authors
+
+- **MUST** declare each tool's effect honestly. `money` and `public` exist so users can keep
+  those behind a confirmation.
+- **MUST NOT** hide a write inside a `read` tool (no "read and mark as seen").
+- **SHOULD** set `defaultModes` to `ask` for `money` and `public` unless the action is trivially
+  reversible.
+- **SHOULD** split a tool that both reads and writes into two tools.
+- **MUST** use `userOnly` for gates the agent must not open itself (e.g. approving its own memory).

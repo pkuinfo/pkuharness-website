@@ -1,0 +1,112 @@
+---
+title: Build a plugin
+description: Choose between a remote (MCP) and a bundled (SDK) plugin, set up the repositories, and follow the path from first tool to marketplace listing.
+icon: Hammer
+---
+
+A plugin connects PKU Harness to a campus service or adds a capability. The agent and the user use
+it through the same typed tools, so the work is mostly: find the service's API, wrap it in good
+tools, and (for bundled plugins) add native UI.
+
+## Choose the kind
+
+| | Remote plugin | Bundled plugin |
+| --- | --- | --- |
+| Use for | Most contributions: public data, your own service, anything heavy | Things that need the device or the user's campus session: notifications, on-device data, authenticated campus APIs, native screens and widgets |
+| Language | Any (MCP over Streamable HTTP) | TypeScript + zod + React Native |
+| Release | Deploy your server; no app release | Ships with app releases (open an issue first) |
+| Start from | [`templates/remote-plugin`](/docs/build/remote-plugin) | [`definePlugin`](/docs/build/bundled-plugin) |
+
+## The path
+
+<Steps>
+<Step>
+
+### Read the concepts
+
+[Plugins](/docs/concepts/plugins), [Tools and effects](/docs/concepts/tools-and-effects),
+[Permissions](/docs/concepts/permissions), [Security](/docs/concepts/security). They define the
+rules every plugin follows.
+
+</Step>
+<Step>
+
+### Find the protocol
+
+If [`pkucli`](https://github.com/pkuinfo/pkucli) already talks to the service, port it from there
+and credit the file. See [Porting from pkucli](/docs/build/porting-from-pkucli).
+
+</Step>
+<Step>
+
+### Write the tools
+
+One tool per operation, honest effects, zod (or JSON Schema) inputs, descriptions written for the
+model. See [Tools and schemas](/docs/build/tools).
+
+</Step>
+<Step>
+
+### Add UI (bundled only)
+
+Screens, Settings rows, dashboard widgets, slash commands. See [UI contributions](/docs/build/ui)
+and [Languages](/docs/build/i18n).
+
+</Step>
+<Step>
+
+### Test
+
+`bun test` for pure logic, the mock model for the agent loop, the demo remote plugin for MCP.
+See [Testing](/docs/build/testing).
+
+</Step>
+<Step>
+
+### Publish
+
+Register in the marketplace. See [Publishing](/docs/build/publishing) and the marketplace's
+[manifest reference](/docs/marketplace/manifest) and [submit flow](/docs/marketplace/publishing).
+
+</Step>
+</Steps>
+
+## Repositories you need
+
+| Repository | You need it for |
+| --- | --- |
+| [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) | The SDK, every bundled plugin, the registry, the remote template and examples. Start here. |
+| [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness) | The app, to run your bundled plugin on a device or emulator. |
+| [`pkuinfo/pkucli`](https://github.com/pkuinfo/pkucli) | Reference implementations of PKU service protocols (Rust). |
+
+```bash
+mkdir pku-info && cd pku-info
+git clone https://github.com/pkuinfo/pku-harness-plugins.git     # SDK, plugins, registry, template
+git clone --recurse-submodules https://github.com/pkuinfo/pku-harness.git   # only to run bundled plugins in the app
+cd pku-harness-plugins && bun install && bun test
+```
+
+<Callout title="No npm packages">
+  The SDK and plugins are consumed from the GitHub repository, not npm. You work inside a checkout of
+  `pku-harness-plugins` (its bun workspace and `tsconfig.json` resolve `@pku-harness/sdk` to
+  `packages/sdk/src`); the app includes that repository as the git submodule `plugins/`. Remote
+  plugins don't need the SDK at all.
+</Callout>
+
+<Callout type="info" title="Coming: declarative plugins">
+  A third way, a plugin shared as a folder or link that the app interprets without an app release,
+  is being designed. See [Declarative plugins (preview)](/docs/build/declarative-plugins).
+</Callout>
+
+## Ground rules (from CONTRIBUTING.md)
+
+1. **Tools are the API.** Clear Chinese `title` (shown to users) and a `description` written for
+   the model: when and how to use it. Validate input (zod for bundled, JSON Schema for MCP).
+2. **Declare effects honestly.** Read-only tools set `readOnlyHint: true` (MCP) or `effect: 'read'`.
+   Anything that changes state, spends money or posts publicly must say so.
+3. **Never ask for campus passwords.** Credentials stay on the user's phone.
+4. **Return data, not instructions.** Tool results are shown to the model as data.
+5. **Declare `requires`.** Don't depend on a shell or filesystem on the phone.
+6. **Port campus protocols from pkucli** where it already implements them, and credit the source.
+7. **Be bilingual** (bundled plugins): English overlay for every user-facing manifest string, a
+   `src/strings.ts` table for screen and widget text.

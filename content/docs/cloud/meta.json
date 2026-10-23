@@ -1,0 +1,5 @@
+{
+  "title": "Cloud",
+  "icon": "Cloud",
+  "pages": ["index", "plugin-guide", "security", "providers", "protocol-package", "api"]
+}

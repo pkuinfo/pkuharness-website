@@ -1,0 +1,100 @@
+---
+title: Languages (i18n)
+description: Bundled plugins are bilingual. Manifest strings get an English overlay in `i18n.en`, screen and widget text lives in a `defineStrings` table, dates use the SDK formatters; model-facing text is never translated.
+icon: Languages
+---
+
+The app has two languages: Simplified Chinese (`zh-Hans`, the source) and English (`en`). Users
+pick 跟随系统 / 简体中文 / English in Settings. Every bundled plugin **MUST** be complete in both;
+`plugins/i18n.test.ts` in the plugins repository checks coverage for every bundled plugin.
+
+## What gets translated
+
+| Text | Where | Translate? |
+| --- | --- | --- |
+| Plugin `name`, `description` | `definePlugin` (Chinese) + `i18n.en` | Yes |
+| Tool `title`s | `tools.<name>.title` + `i18n.en.tools.<name>.title` | Yes |
+| Widget titles and descriptions | `contributes.widgets` + `i18n.en.widgets` | Yes |
+| Screen titles | `contributes.screens` + `i18n.en.screens` | Yes |
+| Settings rows | `contributes.settings` + `i18n.en.settings.<screen>` | Yes |
+| Commands | `contributes.commands` + `i18n.en.commands.<name>` (`description`, `argHint`, `aliases`, `prompt`) | Yes |
+| Data source titles | `dataSources` + `i18n.en.dataSources` | Yes |
+| Provider names, hints, model names | `providers` + `i18n.en.providers` | Yes |
+| Screen and widget text | `src/strings.ts` (`defineStrings`) | Yes |
+| Tool `description`, `instructions`, `context`, tool results | For the model | **No** |
+
+## Manifest overlay
+
+```ts
+definePlugin({
+  id: 'shuttle',
+  name: '校车',
+  description: '燕园—新燕园（昌平）通勤班车和新燕园—地铁北安河快速公交时刻表，算出下一班车。',
+  i18n: {
+    en: {
+      name: 'Shuttle bus',
+      description: 'Timetables for the Yanyuan–Xinyanyuan (Changping) commuter shuttle and the Xinyanyuan–Bei’anhe metro express bus, with the next departure worked out for you.',
+      tools: { next: { title: 'Next shuttle' }, timetable: { title: 'Shuttle timetable' } },
+      widgets: { next: { title: 'Next shuttle', description: '…' } },
+      commands: { shuttle: { description: 'Next shuttle (works offline)', argHint: 'e.g. Yanyuan to Xinyanyuan', aliases: ['bus'] } },
+      dataSources: { next: { title: 'Next shuttle' } },
+    },
+  },
+  // …
+});
+```
+
+Anything missing in `en` falls back to Chinese, but the test fails, so fill everything.
+
+## String tables
+
+```ts title="src/strings.ts"
+import { defineStrings } from '@pku-harness/sdk';
+
+type Strings = {
+  none: string;
+  later: (list: string) => string;
+};
+
+export const strings = defineStrings<Strings>({
+  'zh-Hans': { none: '今明两天没有班次', later: (list) => `之后 ${list}` },
+  en: { none: 'No buses today or tomorrow', later: (list) => `Then ${list}` },
+});
+```
+
+```tsx
+const s = strings[host.useLocale()];
+<Text>{s.none}</Text>
+```
+
+`defineStrings` type-checks `en` against `zh-Hans`: same keys, same value types. Use functions for
+strings with parameters; never concatenate translated fragments into sentences.
+
+## Dates and numbers
+
+Hermes (the app's JavaScript engine) ignores `Intl` locales, so use the SDK formatters:
+
+| Function | zh-Hans | en |
+| --- | --- | --- |
+| `formatClock(d)` | `21:04` | `21:04` |
+| `formatWeekday(d, l)` | `周一` | `Mon` |
+| `formatLocalDate(d, l)` | `10月18日` | `Oct 18` |
+| `formatLocalDateTime(d, l)` | `10月18日 21:04` | `Oct 18, 21:04` |
+| `formatRelative(ms, l)` | `刚刚`, `3 分钟前`, `昨天 21:04` | `Just now`, `3 min ago`, `Yesterday 21:04` |
+| `formatDay(d, l)` | `今天`, `明天`, `周三` | `Today`, `Tomorrow`, `Wed` |
+| `formatCountdown(ms, l)` | `2小时10分` | `2h 10m` |
+| `plural(n, one)` | — | `1 book`, `3 books` |
+
+See [SDK → format](/docs/sdk/format).
+
+## English copy rules
+
+The coverage test also checks style:
+
+- No Chinese outside a parenthesised gloss or quotes: `Treehole (树洞)` is fine.
+- Curly apostrophes (`’`), not straight ones (`'`).
+- No exclamation marks.
+- Sentence case, short. Campus proper nouns use the official English or pinyin: Peking University,
+  Treehole (树洞), Course (教学网 / Blackboard), Campus Card.
+
+Chinese copy: short, no exclamation marks.

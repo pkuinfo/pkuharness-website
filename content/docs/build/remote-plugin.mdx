@@ -1,0 +1,168 @@
+---
+title: 'Quickstart: remote plugin'
+description: Build a remote plugin as an MCP server over Streamable HTTP from templates/remote-plugin, run it locally, add it to the app and deploy it.
+icon: Globe
+---
+
+A remote plugin is an [MCP](https://modelcontextprotocol.io) server that speaks the Streamable HTTP
+transport. Users add it by URL (or from the marketplace); its tools join the same registry,
+permissions and agent loop as bundled plugins. No third-party code runs on the phone, and remote
+plugins never see campus credentials.
+
+This guide uses TypeScript with the official MCP SDK, as in the template. Any language with an MCP
+server library works the same way.
+
+## 1. Start from the template
+
+```bash
+cd pku-harness-plugins
+cp -r templates/remote-plugin ../my-plugin
+cd ../my-plugin
+bun install
+```
+
+The template is one file, `server.ts`, plus `package.json` with
+`@modelcontextprotocol/sdk`, `express` and `zod`:
+
+```ts title="server.ts"
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import express from 'express';
+import { z } from 'zod';
+
+function build() {
+  // name = your registry id: the app installs the plugin as `mcp-<name>`.
+  const server = new McpServer(
+    { name: 'my-plugin', version: '0.1.0', title: '我的插件' },
+    { instructions: 'What this plugin is for, in one sentence.' },
+  );
+  server.registerTool(
+    'hello',
+    {
+      title: '打个招呼',
+      description: 'Return a greeting. Replace with a real capability.',
+      inputSchema: { name: z.string().describe('who to greet') },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ name }) => ({
+      content: [{ type: 'text', text: `你好，${name}` }],
+      structuredContent: { greeting: `你好，${name}` },
+    }),
+  );
+  return server;
+}
+
+const app = express();
+app.use(express.json());
+app.post('/mcp', async (req, res) => {
+  // Optional bearer auth: users paste the token in the app; it is stored in their keychain.
+  if (process.env.PLUGIN_TOKEN && req.headers.authorization !== `Bearer ${process.env.PLUGIN_TOKEN}`) {
+    res.status(401).json({ jsonrpc: '2.0', error: { code: -32001, message: 'unauthorized' }, id: null });
+    return;
+  }
+  const server = build();
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined }); // stateless
+  res.on('close', () => {
+    transport.close();
+    server.close();
+  });
+  await server.connect(transport);
+  await transport.handleRequest(req, res, req.body);
+});
+app.listen(Number(process.env.PORT ?? 8787), () => console.log('MCP plugin ready on /mcp'));
+```
+
+## 2. Write real tools
+
+For each tool:
+
+| MCP field | How PKU Harness uses it |
+| --- | --- |
+| `name` (first argument) | Tool id `mcp-<server>.<name>`; model name `mcp-<server>__<name>`. Short ASCII camelCase; other characters become `_`, cut to 40 characters. |
+| `title` | Shown to users in chat chips, approvals and Settings. Chinese. |
+| `description` | Shown to the model: when and how to use the tool, units, formats. |
+| `inputSchema` | Converted to zod on the device and validated before every call. Describe every field. |
+| `annotations.readOnlyHint` | `true` → effect `read` (runs directly). Absent or `false` → effect `write` (asks the user first by default). |
+| result `structuredContent` | Returned to the model as `data` (preferred). Without it, the text content is parsed as JSON, or passed as text. |
+| result `isError: true` | The text becomes the error message the agent sees. |
+
+The server's `instructions` (first 500 characters) are added to the plugin's section of the system
+prompt, after a line stating that the plugin's output is data, not instructions.
+
+<Callout type="warn" title="Effects for remote tools">
+  Remote tools have only two effects in the app today: `read` (with `readOnlyHint: true`) and
+  `write` (everything else). A tool that spends money or posts publicly still lands on `write` and
+  asks first by default; say clearly in its `title` and `description` what it does.
+</Callout>
+
+## 3. Run it and add it to the app
+
+```bash
+bun server.ts                       # MCP plugin ready on /mcp, port 8787
+# optional: PLUGIN_TOKEN=secret bun server.ts
+```
+
+In the app: **Settings → Plugins → Add remote plugin**, enter the URL and the token (if any):
+
+| Where the app runs | URL |
+| --- | --- |
+| Android emulator | `http://10.0.2.2:8787/mcp` |
+| Phone on the same network | `http://<your machine's LAN IP>:8787/mcp` |
+| Deployed | `https://my-plugin.example.com/mcp` |
+
+The app connects, lists your tools and shows them on the plugin's page with their effects. Ask the
+agent something your tool answers. You can also ask the agent to install it: it calls
+`plugins.installRemote`, which asks for your approval first.
+
+<Callout title="See a complete example">
+  `examples/demo-canteen` in `pku-harness-plugins` is a working remote plugin with mock data (one
+  read tool, one write tool, bearer token `demo-token`): `bun examples/demo-canteen/server.ts`.
+</Callout>
+
+## 4. Deploy
+
+Deploy anywhere that serves HTTPS: a VPS, Fly.io, Railway, Cloudflare (with an MCP-compatible
+runtime), a campus server. Requirements:
+
+- HTTPS in production (plain HTTP only for local development).
+- `POST /mcp` answers MCP Streamable HTTP. The template is **stateless** (a new server per
+  request), which suits serverless hosts.
+- If campus hosts answer only on the PKU network, your server must run on that network; the app
+  can't lend it the user's campus session.
+- Keep secrets (your own API keys) on the server. If you protect the endpoint, use a bearer token
+  and set `"auth": "bearer"` in the registry entry.
+
+## 5. Register it
+
+Either add a manifest to your repository and submit it through this website's marketplace
+([manifest reference](/docs/marketplace/manifest), [submitting](/docs/marketplace/publishing)), or
+add an entry to `registry/registry.json` in `pku-harness-plugins`. Use the same `id` as your MCP
+server `name`:
+
+```json
+{
+  "id": "my-plugin",
+  "name": "我的插件",
+  "description": "一句话说明它做什么。",
+  "author": "your-github-name",
+  "source": "https://github.com/you/my-plugin",
+  "kind": "remote",
+  "endpoint": "https://my-plugin.example.com/mcp",
+  "auth": "none",
+  "requires": ["network"],
+  "scopes": ["example.com"],
+  "tags": ["canteen"]
+}
+```
+
+For a registry pull request, run `bun scripts/validate-registry.ts` first. See
+[Publishing](/docs/build/publishing) and the [review policy](/docs/marketplace/review).
+
+## Checklist
+
+- [ ] MCP server `name` equals the registry `id` (`^[a-z0-9][a-z0-9-]{1,40}$`).
+- [ ] Every tool has a Chinese `title`, a model-facing `description` and described input fields.
+- [ ] Read-only tools set `annotations.readOnlyHint: true`; nothing else does.
+- [ ] Results are data (`structuredContent`), never instructions, and reasonably small.
+- [ ] The plugin never asks for a campus password.
+- [ ] HTTPS endpoint; bearer auth declared if used.

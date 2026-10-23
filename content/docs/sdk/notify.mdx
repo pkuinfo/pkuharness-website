@@ -1,0 +1,52 @@
+---
+title: notify
+description: NotifyReadiness and deliveryBlocker, for screens that check whether reminders and scheduled checks can fire on the minute.
+---
+
+Source: `packages/sdk/src/notify.ts`. Used with `services.notify.readiness()` and
+`services.notify.fix(kind)`.
+
+```ts
+type NotifyPermission = 'granted' | 'undetermined' | 'denied';
+
+interface NotifyReadiness {
+  /** 'denied' = the system won't ask again; only system settings can turn it on. */
+  notifications: NotifyPermission;
+  /** Exact alarms allowed (always true where the OS has no such permission). */
+  exactAlarms: boolean;
+  /** The OS may defer the app's background work (battery optimisation on). */
+  batteryOptimized: boolean;
+}
+
+/** Something the user can fix: shows the system prompt or opens the matching system screen. */
+type NotifyFixKind = 'notifications' | 'exactAlarms' | 'battery';
+
+/**
+ * The first thing that stops reminders from arriving on the minute, or null when nothing does.
+ * Battery optimisation is advisory (exact alarms still fire), so it never blocks.
+ */
+function deliveryBlocker(r: NotifyReadiness): 'notifications' | 'exactAlarms' | null;
+```
+
+```tsx
+import { deliveryBlocker, type NotifyReadiness, type PluginScreenProps } from '@pku-harness/sdk';
+import { useEffect, useState } from 'react';
+
+export function ReminderBanner({ host, services }: PluginScreenProps) {
+  const { Button } = host.components;
+  const [r, setR] = useState<NotifyReadiness | null>(null);
+  useEffect(() => void services.notify.readiness().then(setR), [services]);
+  const blocker = r && deliveryBlocker(r);
+  if (!blocker) return null;
+  return (
+    <Button
+      title={blocker === 'notifications' ? '允许通知' : '允许准时提醒'}
+      variant="secondary"
+      onPress={() => void services.notify.fix(blocker).then(setR)}
+    />
+  );
+}
+```
+
+System screens may return before the user changes anything: re-read readiness when the app is
+back in the foreground too.

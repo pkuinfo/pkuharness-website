@@ -1,0 +1,52 @@
+---
+title: Publishing
+description: Get a plugin to users. Remote plugins are listed in the marketplace registry; bundled plugins are merged into pku-harness-plugins and reach users with the next app release.
+icon: Send
+---
+
+## Remote plugins
+
+1. Deploy your MCP server over HTTPS ([Quickstart](/docs/build/remote-plugin#4-deploy)).
+2. Make sure your MCP server `name` equals the registry `id` you will use.
+3. List it in the marketplace: add a manifest to your repository and submit it on this website
+   ([manifest reference](/docs/marketplace/manifest), [submitting](/docs/marketplace/publishing)),
+   or open a pull request that adds an entry to `registry/registry.json` in
+   [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins). Review and the
+   `verified` badge: [Review policy](/docs/marketplace/review).
+4. Users install it from Settings → Plugins → Marketplace, or add your URL by hand.
+
+Updates are live: when you deploy a new version, the app sees the new tool list the next time it
+refreshes the plugin. Keep tool names stable; renaming a tool breaks users' widgets and scheduled
+checks that reference it.
+
+## Bundled plugins
+
+1. Open an issue in `pku-harness-plugins` first (what it does, why it must be bundled).
+2. Pull request with `plugins/<id>/`, the `builtinPlugins` entry in `plugins/index.ts` and a
+   `"kind": "builtin"` registry entry.
+3. CI and reviewers run:
+
+   ```bash
+   bun test
+   bunx tsc --noEmit -p .
+   bun scripts/validate-registry.ts
+   ```
+
+4. After merge, the app bumps its `plugins/` submodule to the new commit, and users get the plugin
+   with the next app release (or a signed over-the-air update for JS-only changes, once that
+   channel exists).
+
+Nothing is published to npm: the SDK and plugins are consumed from the GitHub repository.
+
+## Renaming or merging
+
+Never reuse or silently rename ids users may have stored (widgets, checks, settings). Use
+`PluginDef.legacy` to map old plugin ids, tool ids and widget keys to the new ones
+([SDK → plugin](/docs/sdk/plugin#pluginlegacy)).
+
+## Using PKU Harness Cloud
+
+If the plugin declares `PluginDef.cloud`, copy its `cloud` declaration (`uses`, `e2e`,
+`disclosure`, optional `backend`) into the registry entry. The marketplace shows it before
+install, and `disclosure.zh` must say in plain words what leaves the device. See
+[Cloud → plugin guide](/docs/cloud/plugin-guide#registry-entry).

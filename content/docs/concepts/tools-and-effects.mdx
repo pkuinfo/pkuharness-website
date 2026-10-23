@@ -1,0 +1,105 @@
+---
+title: Tools and effects
+description: Tools are the only API surface of a plugin. Each has an id, a title, a model-facing description, a zod input schema and one effect (read, write, money, public).
+icon: Wrench
+---
+
+A **tool** is one typed operation. The agent calls it during a conversation, a screen calls it
+when the user taps (`invoke`), a widget reads it (`host.useToolData`), a scheduled check runs it.
+There is no other way into a plugin's capabilities, so a tool's definition is its API.
+
+## Anatomy
+
+```ts
+import { defineTool } from '@pku-harness/sdk';
+import { z } from 'zod';
+
+const cardBalance = defineTool({
+  title: '校园卡余额',                       // shown to users (chat chips, approvals, Settings)
+  description: 'Campus card balance in CNY, today\'s spending and the daily limit. Use when the user asks how much money is left on the card.',
+  input: z.object({}),                      // validated before execute runs
+  effect: 'read',                           // what it changes: read | write | money | public
+  execute: async (_input, ctx) => {
+    const res = await ctx.services.campus.request('card', { url: '/berserker-app/ykt/tsm/queryCard?synAccessSource=h5' });
+    return parseBalance(res.body);          // plain JSON data, never instructions
+  },
+});
+```
+
+| Field | Rule |
+| --- | --- |
+| `title` | Chinese, short, shown to users. Add the English title in `i18n.en.tools.<name>.title`. |
+| `description` | For the model: **when** and **how** to use the tool, units, formats, limits. English or Chinese. Never translated. May be a function of host services (`Dynamic<string>`). |
+| `input` | A zod schema. Use `.describe()` on fields; the model sees the JSON Schema. |
+| `effect` | Exactly one of the four effects below. Be honest. |
+| `untrusted` | `true` when the result contains text written by third parties (forum posts, notices, event blurbs). |
+| `userOnly` | `true` for gates the agent must not open itself; the tool is hidden from the model and refused for agent and scheduler calls. |
+| `execute` | `(input, ctx) => Promise<output>`. Throw an `Error` with a clear, user-readable message on failure. |
+
+## Ids and names
+
+- Tool id: `<plugin id>.<tool name>`, e.g. `wallet.cardBalance`, `scheduler.create`. Use ids in
+  code: `invoke('memory.list')`, `host.useToolData('wallet.cardBalance')`, check jobs, widget
+  bindings.
+- Model-facing name: the id with the first `.` replaced by `__`, e.g. `wallet__cardBalance`,
+  because model APIs don't allow dots. Use this form when your `instructions` or descriptions
+  mention a tool (`"use canteen__openNow for …"`).
+- Remote plugins: `mcp-<server>.<tool>` / `mcp-<server>__<tool>`.
+
+## Effects
+
+| Effect | Means | Examples |
+| --- | --- | --- |
+| `read` | Reads data, changes nothing anywhere | balance, timetable, search, list |
+| `write` | Changes state (on the device or a service) | add a to-do, create a reminder, follow a post, book a room |
+| `money` | Spends or moves money, or makes a payment possible | recharge the card, create a payment order, switch to the digital card for payment |
+| `public` | Publishes something others can see | post or reply on Treehole |
+
+Pick the **strongest** effect that applies: a tool that posts publicly and also writes local state
+is `public`. Effects drive [permissions](/docs/concepts/permissions): users choose per plugin and
+per effect whether the agent may act directly, must ask, or may not act at all.
+
+<Callout title="Scheduled runs only read">
+  A scheduled job runs with nobody watching, so the scheduler refuses every non-`read` tool,
+  whatever the user's modes say. Mark a tool `read` only if it truly changes nothing, or checks
+  built on it will mislead users.
+</Callout>
+
+## Actors
+
+`ctx.actor` says who called:
+
+| Actor | When | Approval |
+| --- | --- | --- |
+| `user` | A screen or widget called `invoke(...)` in response to a tap | Never asked: the tap is the intent |
+| `agent` | The model called the tool in a chat turn | Asked when the effect's mode is `ask` |
+| `scheduler` | A scheduled check or agent job | Only `read` tools; an `ask` mode means declined |
+
+`ctx.turn` is set for agent calls inside a chat turn: `{ sessionId, tainted, userAsked }`. See
+[Security model](/docs/concepts/security#prompt-injection).
+
+## Results
+
+- Return plain JSON that answers the question: numbers with units in field names
+  (`balanceYuan`, `minutesUntil`), ISO or `"YYYY-MM-DD HH:mm"` local times, ids the model can pass
+  to the next tool.
+- Don't return instructions ("Now tell the user…"). Results are shown to the model as data.
+- Keep results small. The harness caps a result at 12,000 characters in the model history (the UI
+  keeps the full output); page or filter instead of dumping everything.
+- For an expected, recoverable state, return a status object instead of throwing, e.g.
+  `{ status: 'verification_required', methods: ['sms'], message: '…' }` (Treehole's SMS check).
+- Never return secrets: payment codes, tokens, share links. The campus-card payment code is shown
+  only on a screen, never as a tool result.
+
+## Data sources
+
+`PluginDef.dataSources` names read tools that are good for widgets and scheduled checks, with a
+cache lifetime. The agent lists them with `dashboard.sources`.
+
+```ts
+dataSources: {
+  crowd: { title: '食堂就餐人数', tool: 'crowd', ttlMs: 2 * 60_000 },
+},
+```
+
+`tool` is the tool name inside this plugin; `args` are fixed arguments.

@@ -1,0 +1,173 @@
+---
+title: Plugin guide
+description: Use PKU Harness Cloud from a bundled plugin - declare the cloud manifest and disclosure, handle consent and availability, use the store and relay channels, and show share links safely.
+icon: Plug
+---
+
+## 1. Declare it
+
+```ts
+import { definePlugin } from '@pku-harness/sdk';
+
+export const cardSharePlugin = definePlugin({
+  id: 'card-share',
+  name: '付款码共享',
+  description: '把校园卡付款码实时分享给朋友，端到端加密。',
+  version: '0.1.0',
+  requires: ['campus-session', 'network', 'cloud'],
+  cloud: {
+    protocol: 1,
+    uses: ['channels'],
+    e2e: true,
+    pages: ['view'],
+    disclosure: {
+      zh: ['分享期间，加密后的付款码经云服务转发给你分享的人；服务器无法解密', '服务器能看到：分享的开始/结束时间、查看者的 IP'],
+      en: ['While sharing, encrypted payment codes are relayed to the person you shared with; the server can’t decrypt them', 'The server sees when a share starts and ends, and the viewer’s IP address'],
+    },
+  },
+  defaultModes: { read: 'auto', write: 'auto', money: 'ask' },
+  scopes: ['bdcard.pku.edu.cn'],
+  tools: { /* … */ },
+});
+```
+
+| Field | Rule |
+| --- | --- |
+| `protocol` | `1` |
+| `uses` | Only the services you call. The host refuses calls to others. |
+| `disclosure.zh` | **Required** when `uses` is non-empty. Plain words: exactly what leaves the device and what the server can see. One line per fact. `en` must translate every line. |
+| `e2e` | `true` makes the host refuse plaintext store writes. Declare it whenever you can. |
+| `optional` | `true` if the plugin works without the cloud (then don't list `'cloud'` in `requires`, and check `ctx.cloud?.available`). |
+| `pages` | Static viewer pages from `plugins/<id>/web`, served at `/w/<plugin>/<page>` for people without the app. |
+| `functions`, `backend` | Server functions (planned) or an external backend URL (shown to the user before consent). |
+
+## 2. Consent
+
+Each plugin needs the user's consent: on the plugin's page in Settings there is a **Cloud** section
+with the provider host, your disclosure lines, an E2E badge, the services used, usage against
+quota, an **Allow cloud** switch and **Clear this plugin's cloud data**.
+
+Until the user allows it, calls throw `CloudError('consent_required')`. In a screen, ask first
+with `cloud.requestConsent()` (shows the host's consent sheet; resolves `true` at once when already
+allowed, `false` when declined). Agent tool calls never prompt: let the error through, and the
+agent tells the user where to allow it.
+
+```tsx
+const start = async () => {
+  if (!(await props.cloud?.requestConsent())) return; // declined, or no cloud on this host
+  const channel = await props.cloud!.channels.open({ ttlS: 30 * 60, maxPeers: 1, page: 'view' });
+  // …
+};
+```
+
+```ts
+import { isCloudError } from '@pku-harness/sdk';
+
+try {
+  await ctx.cloud?.store.put('prefs', prefs);
+} catch (e) {
+  if (isCloudError(e, 'consent_required')) return { status: 'cloud_consent_required' };
+  if (isCloudError(e, 'offline')) throw new Error('网络不可用，稍后再试');
+  throw e;
+}
+```
+
+## 3. Availability
+
+```ts
+const cloud = ctx.cloud;
+if (!cloud?.available) {
+  // provider not configured, no consent, or unreachable
+  return { status: 'cloud_unavailable', provider: cloud?.status().provider ?? 'off' };
+}
+```
+
+`status()` returns `{ provider: 'official' | 'custom' | 'off', baseURL?, consented, online }`.
+Offline behaviour: store reads fall back to a local mirror; writes and functions fail fast with
+`offline` (there is no silent outbox); channels reconnect with backoff.
+
+## 4. Store
+
+```ts
+const cur = await ctx.cloud!.store.get<{ count: number }>('counter');
+await ctx.cloud!.store.put('counter', { count: (cur?.value.count ?? 0) + 1 }, { ifVersion: cur?.version ?? 0 });
+const keys = await ctx.cloud!.store.list('history/');
+```
+
+- Namespaced to `(device, plugin)` by the provider; another plugin can't read it.
+- `ifVersion` is optimistic concurrency (`0` = must not exist yet); a mismatch is a conflict error.
+- `ttlS` expires a value. Default quotas: 1 MB, 1,000 keys, 64 KB per value.
+
+## 5. Channels
+
+A channel relays end-to-end encrypted frames between the owner's phone and people who open a
+share link. The provider forwards ciphertext and gates joins; only link holders can decrypt.
+
+```ts
+const channel = await cloud.channels.open({
+  ttlS: 30 * 60,          // 60 s – 24 h, default 15 min
+  maxPeers: 1,            // first joiner claims the seat; a forwarded link is useless
+  page: 'view',           // viewer page for people without the app
+  meta: { nameHint: '王_明', pinRequired: true },  // sealed; viewers read it before joining
+});
+
+const off = channel.on('message', (e) => {
+  if (e.type !== 'message') return;
+  const msg = frameSchema.safeParse(e.msg);  // always validate peer frames
+  if (!msg.success) return;
+  // …
+});
+channel.on('join', (e) => e.type === 'join' && void channel.send(e.peerId, { t: 'hello' }));
+
+// later
+await channel.extend(15 * 60);
+await channel.close();
+off();
+```
+
+- `send(peerId | '*', msg)` seals per peer. Frames ≤ 4 KB, ≤ 60 per minute.
+- `mailbox.put(slot, msg, ttlS)` leaves sealed blobs peers can read while you're offline.
+- `kick(peerId)` drops a viewer and frees the seat; the same link works for a new viewer.
+- `channels.get(id)` / `list()` survive app restarts (keys are in the keystore).
+- Long-running shares on Android: keep the app alive with `services.ongoing.start({ title, until, onStop })`.
+
+### Showing the link
+
+`channel.link` is a `SecretLink`: you can't read the URL, and it serialises as `"[secret link]"`.
+
+```tsx
+const { QRCode, Button } = host.components;
+<QRCode link={channel.link} size={220} />
+<Button title="分享给朋友" onPress={() => void host.shareLink?.(channel.link, { message: '我的付款码' })} />
+```
+
+**MUST NOT** return links from tools or put them in logs; tools return `{ status: 'awaiting_user' }`
+and open a screen instead.
+
+## 6. Registry entry
+
+Copy the cloud declaration into your `registry.json` entry so the marketplace shows "uses cloud"
+before install:
+
+```json
+{
+  "id": "card-share",
+  "cloud": {
+    "uses": ["channels"],
+    "e2e": true,
+    "disclosure": { "zh": ["分享期间，加密后的付款码经云服务转发给你分享的人；服务器无法解密", "服务器能看到：分享的开始/结束时间、查看者的 IP"] }
+  }
+}
+```
+
+The registry validator checks that `disclosure.zh` is present when `uses` is non-empty, that `en`
+(if given) translates every line, and that an external `backend.url` is HTTPS.
+
+## Viewer pages
+
+People without the app open `https://<provider>/s/<id>#k=…`, which redirects to
+`/w/<plugin>/<page>?c=<id>#k=…` (the fragment survives the redirect). Build the page in `plugins/<id>/web` (static, e.g. Vite + Preact), read
+`k` from `location.hash`, and use [`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package) to
+derive keys, join and decrypt. Pages must work in the WeChat webview: no WebCrypto dependency (the
+package uses pure-JS noble crypto) and an SSE fallback for WebSockets. See
+`plugins/card-share/web` for a complete viewer.

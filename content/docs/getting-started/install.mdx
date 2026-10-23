@@ -1,0 +1,85 @@
+---
+title: Install the app
+description: Download PKU Harness for Android, or build it from source, and walk through first-run onboarding.
+icon: Download
+---
+
+PKU Harness runs on **Android** today. iOS is being prepared (the app launches on iOS, but the
+native campus HTTP module still needs its Swift port), so campus sign-in works only on Android for
+now.
+
+## Download
+
+Get the latest APK from the [download page](/download). It reads the latest release of
+[`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness/releases). Install it like any APK
+(allow installing from your browser when Android asks).
+
+<Callout type="warn" title="Only install builds you trust">
+  The app holds your IAAA password in the device keystore. Install release builds from the official
+  repository or build from source yourself.
+</Callout>
+
+## First run
+
+The welcome flow is resumable: if you leave it, the app continues where you stopped.
+
+<Steps>
+<Step>
+
+### Accept the terms
+
+After you accept, the agent may use plugins on your behalf without asking each time. You can
+require a confirmation per plugin and per effect later (see [Permissions](/docs/concepts/permissions)).
+
+</Step>
+<Step>
+
+### Connect an AI model
+
+DeepSeek is the default; any OpenAI-compatible endpoint works. See [Connect a model](/docs/getting-started/ai-model).
+
+</Step>
+<Step>
+
+### Sign in with your campus account
+
+Student ID and password, checked against IAAA. See [Campus account](/docs/getting-started/campus-account).
+
+</Step>
+<Step>
+
+### Pick plugins
+
+Choose which bundled plugins to enable. Everything can be changed later in Settings → Plugins.
+
+</Step>
+<Step>
+
+### Allow on-time reminders
+
+Notifications, exact alarms and (optionally) no battery optimisation, so reminders and scheduled
+checks fire on the minute. You can skip this step; the Schedule tab then shows what is missing.
+
+</Step>
+</Steps>
+
+## The four tabs
+
+| Tab | What it does |
+| --- | --- |
+| **Chat** | The agent. Streams answers, calls plugin tools, renders native UI (forms, pickers, cards) inside the conversation. Multiple sessions, `/` commands, attachments. |
+| **Dashboard** | Widgets the agent builds and edits for you (balances, next class, canteen crowds…), refreshed automatically. Filled by the `dashboard` plugin. |
+| **Schedule** | Timetable, to-dos and reminders with free-form recurrence ("every 3 days, 16 times"). Filled by the `schedule` plugin. |
+| **Settings** | Campus account, AI service, plugins and their permissions, marketplace, memory, notifications, appearance, data. |
+
+## Build from source
+
+```bash
+git clone --recurse-submodules https://github.com/pkuinfo/pku-harness.git   # plugins/ is a submodule
+cd pku-harness
+bun install
+bun run android        # dev build on an emulator or device (JDK 17 + Android SDK)
+```
+
+See the app's `README.md` and `AGENTS.md` for the full toolchain. To work on plugins against your
+build, see [Bundled plugin → Run it in the app](/docs/build/bundled-plugin#run-it-in-the-app).

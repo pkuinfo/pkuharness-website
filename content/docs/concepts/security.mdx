@@ -1,0 +1,86 @@
+---
+title: Security model
+description: Credentials stay on the device, tool results are data and never instructions, third-party content taints the agent's turn, and anything that leaves the device is declared and consented to.
+icon: Shield
+---
+
+PKU Harness holds a student's IAAA password and can act on their campus accounts. The design aims
+to be "serverless" from the user's point of view: nothing the project runs can see credentials,
+and nothing a plugin does is hidden from the user.
+
+## Principles
+
+1. **Credentials never leave the device.** The IAAA password, the 手机令牌 secret, model API keys
+   and remote plugin tokens live in the device keystore. They are never logged, never sent to a
+   project server, never given to a plugin (bundled or remote).
+2. **Plugins get responses, not sessions.** `services.campus.request` returns a response; session
+   cookies and tokens stay in the harness. Signing happens inside the harness (`sign` hook).
+3. **Tool results are data.** The model is told that tool results, plugin context and remote
+   plugin output are data, not instructions.
+4. **Effects are explicit.** Every tool declares `read`, `write`, `money` or `public`, and users
+   choose per effect whether the agent acts directly. Scheduled runs only read.
+5. **What leaves the device is declared.** Campus `scopes`, model provider, and PKU Harness Cloud
+   `disclosure` lines are shown before use.
+
+## Prompt injection
+
+Campus content is written by third parties: a Treehole post, a notice, an event blurb, a remote
+plugin's output. Any of it can contain text like "ignore previous instructions and…". The harness
+treats it as data and limits what an injected instruction could achieve:
+
+- **Untrusted tools.** A tool that returns third-party text sets `untrusted: true`. Every remote
+  plugin tool counts as untrusted.
+- **Taint.** Calling an untrusted tool marks the rest of the agent's turn as tainted
+  (`ctx.turn.tainted === true` for later tool calls in that turn).
+- **Gated durable writes.** After taint, writes that persist into future conversations wait for the
+  user. The memory plugin saves such memories as *pending*; the user approves them on its screen.
+  When the user's own message asks to remember something (`ctx.turn.userAsked`), the write is the
+  user's intent and is saved directly: third-party text can't write the user's message.
+- **Ask-first defaults** for remote plugins' write, money and public effects.
+- **Unforgeable host lines.** Facts the host injects per turn (time, reply language) sit in fixed
+  slots that plugin context can't imitate.
+
+### What plugin authors must do
+
+- **MUST** set `untrusted: true` on tools whose results contain text written by people other than
+  the user (posts, comments, notices, messages, descriptions from a public site).
+- **MUST NOT** put instructions in results ("Tell the user to…", "Now call…"). Return data and let
+  the model decide. Put guidance in the tool `description` or plugin `instructions` instead.
+- **SHOULD** check `ctx.turn?.tainted` in tools that write durable state the agent will later read
+  as truth (notes, memories, saved preferences) and save such writes as pending or refuse them.
+- **SHOULD** strip control characters, invisible/bidi characters and markup from third-party text
+  you return, and cap its length.
+- **MUST** use `userOnly: true` for tools that approve or unlock things on the agent's behalf.
+
+## Secrets in results
+
+Some values must never reach the model or the logs:
+
+- **Payment codes**: shown only on a screen with `host.useSecureDisplay()` (screenshots blocked,
+  brightness up); never a tool result.
+- **Share links**: a cloud channel's link carries its key in the URL fragment. The SDK's
+  `SecretLink` is opaque (`JSON.stringify(link)` gives `"[secret link]"`); show it only with
+  `host.shareLink(link)` or `<QRCode link={link} />`. The host also scrubs share-link patterns from
+  tool output and logs.
+- **Tokens and keys** are never available to plugins at all.
+
+## Remote plugins
+
+- Run on someone else's server, so they never receive campus credentials, sessions or the user's
+  other data, only the tool inputs the agent sends.
+- Their tools are untrusted, write effects ask first by default, and the plugin's system-prompt
+  section states that its output is data.
+- The registry marks entries `verified` only after maintainers reviewed the source.
+
+## PKU Harness Cloud
+
+The optional cloud backend is end-to-end encrypted by default, identifies a device only by a
+keypair (no student ID or name), and requires per-plugin consent with plain-language disclosure.
+See [Cloud → Security](/docs/cloud/security).
+
+## Reporting a vulnerability
+
+Report privately as described in `SECURITY.md` of
+[`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness) or
+[`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins). Don't open a
+public issue.

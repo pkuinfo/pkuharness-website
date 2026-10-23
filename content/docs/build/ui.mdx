@@ -1,0 +1,142 @@
+---
+title: UI contributions
+description: Bundled plugins add screens, Settings rows, tab content, dashboard widgets and slash commands through `contributes`, built from the harness's HostUI components.
+icon: PanelsTopLeft
+---
+
+Bundled plugins can add native UI. They never import app code: screens and widgets receive
+`HostUI` (the harness's components, theme tokens, haptics, navigation and data hooks) as props, so
+plugin UI looks native and keeps working as the app evolves.
+
+```ts
+contributes: {
+  screens:  { main: { title: '专注', component: FocusScreen } },
+  settings: [{ screen: 'main', title: '专注', subtitle: '专注时段', icon: 'clock' }],
+  widgets:  { today: { title: '今日专注', description: '…', sizes: ['sm', 'md'], component: FocusWidget } },
+  commands: { focus: { description: '打开专注', aliases: ['专注'], run: (_i, { navigate }) => navigate('/p/focus/main') } },
+  tabs:     [{ slot: 'schedule', screen: 'main' }],   // only for plugins that own a tab
+},
+```
+
+## Screens
+
+```ts
+interface ScreenContribution {
+  title: string;
+  component: ComponentType<PluginScreenProps>;
+  presentation?: 'push' | 'modal';   // modal → /m/<plugin>/<screen> (forms); default push → /p/<plugin>/<screen>
+}
+```
+
+`PluginScreenProps`: `host`, `services`, `kv`, `invoke(toolId, input?)`, `params` (route query
+parameters), `cloud?`.
+
+```tsx
+import type { PluginScreenProps } from '@pku-harness/sdk';
+import { useState } from 'react';
+
+export function EditScreen({ host, params, invoke }: PluginScreenProps) {
+  const { SheetScreen, Field } = host.components;
+  const [text, setText] = useState(params.text ?? '');
+  return (
+    <SheetScreen title="编辑" primary="保存" onPrimary={async () => { await invoke('memory.update', { id: params.id, text }); host.dismiss(); }}>
+      <Field label="内容" value={text} onChangeText={setText} multiline />
+    </SheetScreen>
+  );
+}
+```
+
+Navigate with `host.navigate('/p/<plugin>/<screen>')` or `host.navigate('/m/<plugin>/<screen>?id=…')`;
+close a modal with `host.dismiss()`. Use `host.components.Screen` as the root of push screens and
+`SheetScreen` for modal forms.
+
+## Settings rows
+
+```ts
+interface SettingsContribution { screen: string; title: string; subtitle?: string; icon?: string }
+```
+
+Each row opens one of your screens. The plugin's page in Settings → Plugins also lists its screens,
+widgets, tools and permissions.
+
+## Widgets
+
+```ts
+interface WidgetContribution {
+  title: string;
+  description: string;                 // for the agent: what it shows and what config does
+  sizes?: ('sm' | 'md' | 'lg')[];
+  defaultSize?: 'sm' | 'md' | 'lg';
+  configSchema?: z.ZodType<Record<string, unknown>>;
+  component: ComponentType<PluginWidgetProps>;  // host, services, kv, invoke, size, config, cloud?
+}
+```
+
+- The dashboard draws the card chrome (title, background, freshness, long-press menu). Draw only
+  the content, and adapt to `size` (`sm` half-width tile, `md` full width, `lg` hero).
+- Load data with `host.useToolData(tool, args, { ttlMinutes })` (see
+  [Dashboard](/docs/concepts/dashboard#refresh-owned-by-the-host)). Don't poll.
+- Handle `status: 'loading'` (skeleton), missing value (error text + retry with `data.refresh()`)
+  and signed-out states.
+- `config` is chosen by the agent or the user and validated by `configSchema`. Describe each field
+  with `.describe()`; mention them in `description` ("config.names limits it to certain canteens").
+- Widgets are mounted in an error boundary; a crash shows a notice instead of breaking the
+  dashboard.
+
+## Slash commands
+
+```ts
+type CommandContribution = {
+  description: string;       // one line in the / menu
+  aliases?: string[];        // e.g. Chinese names: ['余额']
+  argHint?: string;          // placeholder; present = the command takes input
+} & (
+  | { prompt: string }       // sent as the user's message; {{input}} is replaced
+  | { run: (input: string, ctx: { services: HostServices; navigate: (href: string) => void; locale: AppLocale }) => Promise<string | void> | string | void }
+);
+```
+
+Command names are lowercase (`^[a-z][a-z0-9-]*$`); on a collision the harness namespaces them as
+`/plugin:name`. A `prompt` command sends text to the agent; a `run` command runs locally and its
+returned string is shown as a notice in the chat, never sent to the model.
+
+```ts
+commands: {
+  canteen: { description: '现在去哪个食堂', aliases: ['食堂', '吃饭'], argHint: '想吃什么 / 在哪（可空）', prompt: '现在哪些食堂还开着、人少？帮我挑一个{{input}}' },
+  shuttle: { description: '下一班校车（本地计算）', aliases: ['校车'], argHint: '如 燕园到新燕园', run: (input, { locale }) => quickAnswer(input, Date.now(), locale) },
+},
+```
+
+## Tabs
+
+The harness has two tab slots, `dashboard` and `schedule`, filled by whichever enabled plugin
+contributes them (today the `dashboard` and `schedule` plugins). Chat and Settings belong to the
+harness. Only contribute a tab if you are replacing one of those plugins.
+
+## HostUI essentials
+
+| Member | Use |
+| --- | --- |
+| `host.components` | `Screen`, `SheetScreen`, `Text`, `Button`, `IconButton`, `ListGroup`, `ListRow`, `Chip`, `Surface`, `Glass`, `Stat`, `Ring`, `Sparkline`, `Field`, `DateTimeField`, `Switch`, `Checkbox`, `Segmented`, `Stepper`, `WeekdayPicker`, `SortableList`, `EmptyState`, `Skeleton`, `FadeIn`, `Icon`, `QRCode`, `GenUI`, `PluginWidget`, `Row`, `Column`, `Pressable`, `Hourglass` |
+| `host.useTheme()` | Tokens: `colors`, `spacing`, `radius`, `typography`, `glass`, `courseColor(i)`, `contentWidth` |
+| `host.useToolData`, `useWidgetData`, `useBindings`, `refreshAll` | Live data with the shared cache |
+| `host.useLocale()` | `'zh-Hans'` or `'en'` |
+| `host.navigate`, `back`, `dismiss`, `ask(text)` | Navigation; `ask` switches to chat and sends a message |
+| `host.haptics` | `tap`, `select`, `success`, `warning` (respects user settings) |
+| `host.useNow(ms)`, `formatAgo(ms)` | Ticking time, relative time |
+| `host.useSecureDisplay({ brightness })` | Block screenshots while mounted (payment codes) |
+| `host.useStoreVersion()` | Re-render when jobs, to-dos, widgets or the timetable change |
+| `host.clipboard?`, `host.shareLink?` | Optional; check before use |
+
+Full signatures: [SDK → ui](/docs/sdk/ui).
+
+## Design rules
+
+- **MUST** use `host.components` and theme tokens; no hard-coded colours, font sizes or spacing.
+- **MUST** keep all user-facing text in your `strings.ts` table, picked with `host.useLocale()`.
+- **MUST** use icon names from the host's icon set: `card`, `wifi`, `book`, `bell`, `clock`,
+  `location`, `sparkles`, `key`, `person`, `qr`, `warning`, `check`, `calendar`, `bus`, `food`,
+  `wallet`, `library`, `room`, `school`, `ticket`, `medal`, `chart`, `search`, `globe`, `lock`, … (the
+  full list is `src/components/icon.tsx` in the app).
+- **SHOULD** give tappable custom content an `accessibilityLabel`.
+- Copy: Chinese, short, no exclamation marks; English in sentence case with curly apostrophes (’).

@@ -1,0 +1,38 @@
+---
+title: todo
+description: The Todo and TodoInput types used by services.todos.
+---
+
+Source: `packages/sdk/src/todo.ts`.
+
+```ts
+type Todo = {
+  id: string;
+  title: string;
+  notes: string | null;
+  dueAt: number | null;
+  doneAt: number | null;
+  /** Reminder job in the scheduler, if any. */
+  jobId: string | null;
+  createdAt: number;
+};
+
+type TodoInput = {
+  title: string;
+  notes?: string | null;
+  dueAt?: number | null;
+  /** When to remind; null = no reminder. A trigger allows repeating reminders. */
+  remind?: Trigger | null;
+};
+```
+
+```ts
+// a to-do due Friday 23:59 with a reminder the evening before
+const due = new Date(2026, 9, 30, 23, 59).getTime();
+await ctx.services.todos.add(
+  { title: '交高数作业', dueAt: due, remind: { type: 'at', at: new Date(2026, 9, 29, 20, 0).getTime() } },
+  'plugin',
+);
+```
+
+Marking a to-do done (`setDone(id, true)`) pauses its reminder.

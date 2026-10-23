@@ -1,0 +1,20 @@
+{
+  "title": "SDK reference",
+  "icon": "Braces",
+  "pages": [
+    "index",
+    "plugin",
+    "host-services",
+    "ui",
+    "genui",
+    "dashboard",
+    "scheduler",
+    "notify",
+    "campus",
+    "cloud",
+    "timetable",
+    "todo",
+    "format",
+    "pointer"
+  ]
+}
