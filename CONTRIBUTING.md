@@ -47,9 +47,17 @@ Then, in the pull request:
 
 ## Writing docs
 
-Docs live in `content/docs/` as MDX. They have two readers: a student developer and an AI agent
-that reads the Markdown version (`/docs/<page>.md`, `/llms-full.txt`).
-- **English, precise, runnable.** Use complete, copy-pasteable examples. Name exact types, fields and
+Docs live in `content/docs/` as MDX, in two languages (Fumadocs i18n, dot parser): `page.mdx` is
+Simplified Chinese (served at `/docs/...`), `page.en.mdx` is English (`/en/docs/...`). A page
+without a Chinese file falls back to English. Change both languages in the same pull request, or
+say in the PR that a translation is pending.
+
+They have two readers: a student developer and an AI agent that reads the Markdown version
+(`/en/docs/<page>.md`, `/llms-full.txt`).
+- **Write like a person.** Short, concrete sentences, "you", active voice. No filler intros or
+  marketing words ("seamless", "powerful", "leverage"). The Chinese should read like native docs
+  (全角标点, a space between Chinese and Latin text, no 翻译腔), not a translation.
+- **Precise and runnable.** Use complete, copy-pasteable examples. Name exact types, fields and
   commands.
 - **Only document what exists.** Every claim must match the source in
   [pku-harness](https://github.com/pkuinfo/pku-harness) or
@@ -57,6 +65,8 @@ that reads the Markdown version (`/docs/<page>.md`, `/llms-full.txt`).
   planned.
 - **Verify examples.** For plugin examples, run them through the author CLI in the plugins repo:
   `bun run plugin validate|test <dir>`.
+- **Links:** in `.en.mdx` files, link to `/en/docs/...` (and `/en/marketplace`); Chinese pages use
+  `/docs/...`. UI strings outside the docs go in `src/lib/messages/<area>.ts`, never inline.
 - **Self-contained pages.** Every page needs a `title` and a one-sentence `description` in its
   frontmatter, because the description shows up in `llms.txt`.
 - **New pages** go in the folder's `meta.json`. Use Fumadocs components (`Callout`, `Steps`, `Tabs`,

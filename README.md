@@ -34,8 +34,8 @@ Every docs page is also served as Markdown, so coding agents can read the docs d
 | URL                                                                                                                                                          | Content                                 |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
 | [`/llms.txt`](https://harness.novadiffusion.com/llms.txt)                                                                                                    | Index of all pages                      |
-| [`/llms-full.txt`](https://harness.novadiffusion.com/llms-full.txt)                                                                                          | All docs in one file                    |
-| `/docs/<page>.md`, or `Accept: text/markdown`                                                                                                                | One page                                |
+| [`/llms-full.txt`](https://harness.novadiffusion.com/llms-full.txt), [`/llms-full.zh.txt`](https://harness.novadiffusion.com/llms-full.zh.txt)               | All docs in one file (English, Chinese) |
+| `/en/docs/<page>.md`, `/docs/<page>.md` (Chinese), or `Accept: text/markdown`                                                                                | One page                                |
 | [`/marketplace.json`](https://harness.novadiffusion.com/marketplace.json), [`/marketplace/llms.txt`](https://harness.novadiffusion.com/marketplace/llms.txt) | The marketplace index                   |
 | [`/schema/plugin-manifest.v1.json`](https://harness.novadiffusion.com/schema/plugin-manifest.v1.json)                                                        | JSON Schema for remote-plugin manifests |
 
@@ -81,12 +81,12 @@ Optional environment variables (`.env.local`):
 ## Project structure
 
 ```
-content/docs/          Documentation (MDX). marketplace/ holds the manifest spec and submit flow
+content/docs/          Documentation (MDX): page.mdx = Chinese, page.en.mdx = English
 openapi/               OpenAPI 3.1 spec of the PKU Harness Cloud wire protocol
 data/sources.json      Community repos indexed by the marketplace (edited by the submission bot)
 scripts/marketplace.ts Marketplace CLI: scan, add, check (used by CI)
-src/app/(home)/        Landing, download and marketplace routes
-src/app/docs/          Docs routes; llms*/ serve Markdown for agents
+src/app/[lang]/        All pages, per language (zh at /, en at /en); llms*/ serve Markdown for agents
+src/lib/messages/      UI strings for non-docs pages (en defines the shape, zh mirrors it)
 src/components/        landing/, marketplace/, ui/ (adapted 21st.dev components), brand/
 src/lib/marketplace/   Repo scanner, PLUGIN.md and JSON manifest schemas, index builder
 deploy/                Production: Docker Compose, Caddy, deploy script (see deploy/README.md)

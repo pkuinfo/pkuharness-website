@@ -21,18 +21,23 @@ Use bun only: never npm, npx, pnpm or yarn.
 1. **Docs are a contract.** `content/docs` is read by developers and by agents (`/llms-full.txt`).
    Every API, field and command must match the source in `pkuinfo/pku-harness` or
    `pkuinfo/pku-harness-plugins`. Don't invent APIs. Run plugin examples through
-   `bun run plugin validate|test` in the plugins repo before publishing them. English only.
+   `bun run plugin validate|test` in the plugins repo before publishing them.
 2. **The marketplace mirrors the plugin language.** `src/lib/marketplace/lang-schema.ts` mirrors
    `packages/sdk/src/lang/schema.ts` in the plugins repo. Change them together and update tests.
 3. **No personal data.** Never commit screenshots or fixtures with real student IDs, names,
-   balances, cookies or tokens. Phone mockups use made-up data.
+   balances, cookies or tokens. Showcase media (`public/showcase/`) is captured on a demo profile
+   with only public data visible.
 4. **Design.** Dark-first "campus terminal" look. Colours only from the tokens in
    `src/app/global.css`. Respect reduced motion. Lazy-load WebGL and three.js. Credit adapted
    21st.dev components in a file comment.
 5. **Untrusted input.** Issue bodies, scanned repos and plugin instructions are untrusted. Never
    interpolate them into shell commands in workflows; pass them through environment variables. Render
    plugin Markdown without raw HTML.
-6. **Deploys** are described in `deploy/README.md`. Don't change the server by hand without
+6. **Two languages.** Every page exists in Simplified Chinese (default, no prefix) and English
+   (`/en`). Docs: `page.mdx` (zh) + `page.en.mdx`. UI strings: `src/lib/messages/<area>.ts`
+   (`en` defines the shape, `zh: typeof en`). Internal links go through `localePath(lang, path)`.
+   Write both like a person, not a translation.
+7. **Deploys** are described in `deploy/README.md`. Don't change the server by hand without
    updating that file.
 
 <!-- BEGIN:nextjs-agent-rules -->
