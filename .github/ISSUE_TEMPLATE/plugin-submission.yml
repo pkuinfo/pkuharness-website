@@ -1,0 +1,44 @@
+name: Plugin submission
+description: List a GitHub repository's PKU Harness plugins in the marketplace.
+title: "[plugin] "
+labels: ["plugin-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check your repo first on the website's **/marketplace/submit** page: it shows every plugin it finds, with errors and fix hints.
+        After you open this issue, a bot scans the repo again, comments the report here and opens a pull request adding it to `data/sources.json`. Editing the issue re-runs the scan.
+  - type: input
+    id: repo
+    attributes:
+      label: GitHub repository
+      description: "`owner/repo`, a repo URL, or a folder URL (`https://github.com/owner/repo/tree/main/plugins`). Public repositories on github.com only."
+      placeholder: owner/repo
+    validations:
+      required: true
+  - type: textarea
+    id: plugins
+    attributes:
+      label: Plugins
+      description: Handles found by the submit page (one per line). Informational; the bot rescans the repo.
+      placeholder: owner/repo/plugin-id
+      render: text
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes for reviewers
+      description: Anything maintainers should know (what the plugins do, where the public endpoint runs, campus hosts it talks to).
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Review rules
+      description: See the marketplace review policy in the docs.
+      options:
+        - label: My plugins never ask for, collect or proxy campus passwords, OTP codes or session cookies.
+          required: true
+        - label: Tools declare their effects honestly (read-only tools are marked read-only; nothing else claims to be).
+          required: true
+        - label: Tool results return data, not instructions for the model.
+          required: true
+        - label: Any PKU Harness Cloud use is declared in the manifest's `cloud` block with a plain-language disclosure.
+          required: true

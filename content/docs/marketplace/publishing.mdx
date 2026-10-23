@@ -1,0 +1,65 @@
+---
+title: Publishing
+description: Submit a repository, publish many plugins from one monorepo, update by pushing, and remove a listing.
+icon: Send
+---
+
+## Before you submit
+
+- Your MCP server is deployed over HTTPS (or you document how to self-host it), and its `name`
+  equals the manifest `id`. Start from
+  [`templates/remote-plugin`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/templates/remote-plugin)
+  and the [remote plugin guide](/docs/build/remote-plugin).
+- The repository is **public** on github.com.
+- You follow the [review rules](/docs/marketplace/review): no campus passwords, honest effects,
+  data not instructions, cloud disclosure.
+
+## Submit
+
+1. Open [/marketplace/submit](/marketplace/submit) and paste `owner/repo`, a repo URL, or a
+   folder URL (`https://github.com/owner/repo/tree/main/plugins`).
+2. Fix every error the preview shows. Re-run the check after each push (results are cached for
+   about a minute).
+3. Click **Submit for listing**. It opens a prefilled issue in
+   [`pkuinfo/pkuharness-website`](https://github.com/pkuinfo/pkuharness-website/issues) with the
+   `plugin-submission` label.
+4. A GitHub Action scans the repo again, comments the report on the issue and, if it passes,
+   opens a pull request adding the repo to `data/sources.json`. Editing the issue re-runs it.
+5. A maintainer merges the pull request; the plugins appear in the marketplace on the next deploy.
+
+You can also do it locally and open the pull request yourself:
+
+```bash
+bun scripts/marketplace.ts scan owner/repo   # print the report (exit 1 on errors)
+bun scripts/marketplace.ts add owner/repo    # scan, then add it to data/sources.json
+```
+
+Set `GITHUB_TOKEN` (e.g. `GITHUB_TOKEN=$(gh auth token)`) for 5000 GitHub API requests per hour
+instead of 60.
+
+## Many plugins in one repo
+
+Nothing special is needed: every manifest in the repo is picked up, each with its own handle
+`owner/repo/<id>`. For big monorepos, add a root `pku-harness.json` listing the plugin folders.
+It makes scans faster, fixes the order, and keeps example or test manifests out:
+
+```json title="pku-harness.json"
+{ "plugins": ["services/canteen", "services/library-seat", "services/bus"] }
+```
+
+## Updating
+
+Push. The marketplace rescans listed repositories about once an hour from their default branch.
+Adding a plugin folder lists it; deleting one removes it. Keep `id`s stable: users' installs,
+widgets and scheduled checks refer to them.
+
+If a push introduces an error, only that plugin drops out; the repo page shows the scan problem
+so you can fix it.
+
+## Removal
+
+- **By you:** delete the manifests (or the repo, or make it private). The listing disappears on
+  the next rescan. To remove the repo entry too, open a pull request deleting it from
+  `data/sources.json`.
+- **By maintainers:** plugins that break the [review rules](/docs/marketplace/review) are removed
+  by deleting the repo from `data/sources.json`, and may be blocked from resubmitting.

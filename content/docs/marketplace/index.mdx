@@ -1,0 +1,76 @@
+---
+title: Overview
+description: How the plugin marketplace finds, checks and lists plugins, what "verified" means, and how the app installs them.
+icon: Store
+---
+
+The [marketplace](/marketplace) lists every PKU Harness plugin: the official ones that ship in
+the app and the community ones that run as remote MCP servers. Like
+[skills.sh](https://skills.sh), it is **indexed from GitHub repositories**: you don't upload a
+package, you point the marketplace at a public repo and it finds every plugin in it.
+
+## How listing works
+
+<Steps>
+<Step>
+
+**Describe each plugin with a manifest.** Put a `pku-harness.plugin.json` in the plugin's
+folder (any depth), or add a `"pkuHarness"` object to its `package.json`. One repo can hold one
+plugin or a hundred. See the [manifest reference](/docs/marketplace/manifest).
+
+</Step>
+<Step>
+
+**Check and submit the repo.** Paste the repo on [/marketplace/submit](/marketplace/submit): the
+site scans it live and shows every plugin with its errors, warnings and a preview of its card.
+"Submit for listing" opens a prefilled GitHub issue; a bot scans again and opens a pull request
+adding the repo to `data/sources.json`. A maintainer merges it.
+
+</Step>
+<Step>
+
+**Push to update.** The marketplace rescans every listed repo about once an hour. Edit a
+manifest, add a plugin folder or delete one, and the listing follows. Nothing to resubmit.
+
+</Step>
+</Steps>
+
+## Handles
+
+Every plugin has a handle `owner/repo/id`, e.g. `alice/campus-tools/canteen-menu`. It is the
+plugin's URL on this site (`/marketplace/alice/campus-tools/canteen-menu`) and how agents refer
+to it. The `id` part must still be **unique across the whole marketplace**: the app installs a
+remote plugin as the MCP server `mcp-<id>`, so two plugins with the same id would collide on a
+phone. The repo that was listed first keeps an id; official ids are reserved.
+
+## Official, verified and community
+
+| Badge | Meaning |
+|---|---|
+| **官方 Official** | Maintained by pkuinfo in [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) and listed from its `registry/registry.json`. |
+| **已审核 Verified** | A community plugin whose source a maintainer has read. Recorded per plugin id in `data/sources.json`. |
+| **社区 Community** | Listed automatically after passing the scanner's checks. Nobody has read the source yet. |
+
+Unverified plugins work the same way. The badge only tells students how much review a plugin
+has had. The [review policy](/docs/marketplace/review) describes what gets a plugin verified or
+removed.
+
+## How the app installs a plugin
+
+- **Built-in** plugins are already in the app. Users enable them in 设置 → 插件.
+- **Remote** plugins are MCP servers (Streamable HTTP). Users add them from 设置 → 插件 → 插件市场,
+  or paste the endpoint URL by hand. The app connects to the endpoint and registers its tools as
+  `mcp-<id>`. With `"auth": "bearer"` the user pastes a token, which stays in the phone's keychain.
+- **Self-hosted** plugins (no `endpoint`) are listed with their source; users deploy their own
+  instance and paste their URL.
+
+Third-party code never runs on the phone, and remote plugins never receive campus credentials.
+
+## For the app and for agents
+
+| URL | What |
+|---|---|
+| [`/marketplace.json`](/marketplace.json) | The full index (`MarketplaceIndex`: `plugins[]` + `sources[]`), CORS-enabled, refreshed hourly. |
+| [`/marketplace/llms.txt`](/marketplace/llms.txt) | The same list as Markdown, for language models. |
+| [`/schema/plugin-manifest.v1.json`](/schema/plugin-manifest.v1.json) | JSON Schema of the manifest. |
+| `POST /api/marketplace/scan` | `{ "repo": "owner/repo" }` → a scan report (rate limited; what the submit page uses). |

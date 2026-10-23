@@ -1,0 +1,145 @@
+---
+title: Manifest reference
+description: The pku-harness.plugin.json format (v1), where the scanner looks for it, and every field.
+icon: FileJson
+---
+
+A plugin is discovered by a **manifest**. It has the same fields as an entry of the official
+[`registry.json`](https://github.com/pkuinfo/pku-harness-plugins/blob/main/registry/registry.json)
+(`registry/schema.ts` is the source of truth), minus what the marketplace derives itself
+(`source`, `verified`), plus a few optional package fields.
+
+```json title="campus-tools/canteen/pku-harness.plugin.json"
+{
+  "$schema": "https://<this site>/schema/plugin-manifest.v1.json",
+  "id": "canteen-menu",
+  "name": "食堂菜单",
+  "description": "今天各食堂的菜单和营业时间。",
+  "endpoint": "https://canteen.example.com/mcp",
+  "requires": ["network"],
+  "scopes": ["dining.pku.edu.cn"],
+  "tags": ["food"],
+  "license": "MIT",
+  "i18n": { "en": { "name": "Canteen menu", "description": "Today's menus and opening hours." } }
+}
+```
+
+Point `$schema` at [`/schema/plugin-manifest.v1.json`](/schema/plugin-manifest.v1.json) and
+VS Code, Zed or JetBrains validate the file as you type.
+
+## Where the scanner looks
+
+The scanner reads the repository's default branch through the GitHub API:
+
+1. If the repo root has a **`pku-harness.json`**, only the folders it lists are checked, in that
+   order. Use this in large monorepos:
+
+   ```json title="pku-harness.json"
+   { "plugins": ["plugins/canteen", "plugins/library-seat"] }
+   ```
+
+   `"."` means the repo root. A listed folder without a manifest is an error.
+
+2. Otherwise every **`pku-harness.plugin.json`** at any depth is a plugin, and so is every
+   **`package.json` whose `"pkuHarness"` object has an `"id"`**. Folders named `node_modules` or
+   starting with `.` are skipped. If a folder has both, the `pku-harness.plugin.json` wins.
+
+A submission can also point at a sub-folder (`https://github.com/owner/repo/tree/main/plugins`);
+then only that folder is scanned.
+
+### In package.json
+
+```json title="package.json"
+{
+  "name": "@campus-tools/library-seat",
+  "version": "0.3.0",
+  "description": "图书馆座位查询与预约提醒。",
+  "license": "MIT",
+  "pkuHarness": {
+    "id": "library-seat",
+    "name": "图书馆座位",
+    "endpoint": "https://seat.example.com/mcp",
+    "requires": ["network"],
+    "scopes": ["seat.lib.pku.edu.cn"]
+  }
+}
+```
+
+`description`, `version`, `license` and `homepage` default to the package's own fields; anything
+inside `pkuHarness` overrides them. A `pkuHarness` object **without an `id`** is treated as SDK
+metadata (the bundled plugins use `{ "builtin": true }`) and is not listed.
+
+## Fields
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | string | yes | `^[a-z0-9][a-z0-9-]{1,40}$`. Unique across the marketplace. **Use it as your MCP server `name`**: the app installs the plugin as `mcp-<id>` and uses that to show it as installed. |
+| `name` | string | yes | Display name, Chinese first (≤ 40 chars). |
+| `description` | string | yes | One sentence, 4–200 chars, saying what it does for students. |
+| `author` | string | | Defaults to the GitHub owner of the repo. |
+| `kind` | `"remote"` \| `"builtin"` | | Defaults to `"remote"`. `"builtin"` is reserved for plugins bundled in the app. |
+| `endpoint` | https URL \| null | | Public MCP endpoint (Streamable HTTP). Omit or `null` for **self-hosted** plugins. Must be `https://`, a public host, no credentials or query string. |
+| `auth` | `"none"` \| `"bearer"` | | Defaults to `"none"`. `"bearer"`: users paste a token in the app. |
+| `icon` | string | | An icon name from the app's set (`wallet`, `food`, `library`, `bus`, …) or an `https://` URL to a square image. |
+| `requires` | capability[] | | What the plugin needs. See below. |
+| `scopes` | string[] | | Host names the plugin talks to (`"dining.pku.edu.cn"`, `"*.example.com"`). Shown to users. |
+| `tags` | string[] | | Lowercase search tags. |
+| `cloud` | object | | PKU Harness Cloud use, copied from `PluginDef.cloud`. See below. |
+| `version` | string | | Shown on the plugin page. |
+| `license` | string | | SPDX id, e.g. `"MIT"`. |
+| `homepage` | https URL | | Docs or project page. |
+| `i18n.en` | `{ name?, description? }` | | English strings. |
+| `$schema` | string | | Ignored by the scanner. |
+
+Unknown fields are ignored with a warning (so a typo doesn't silently drop data).
+
+### Capabilities (`requires`)
+
+| Value | Meaning shown to users |
+|---|---|
+| `network` | Talks to servers on the internet. |
+| `campus-network` | Some hosts only answer on the PKU campus network. |
+| `campus-session` | Acts with the user's logged-in campus session. Remote plugins **do not** get campus sessions yet (scoped session grants are on the roadmap), so the scanner warns. |
+| `notifications` | Sends local notifications. |
+| `background` | Runs scheduled checks while the app is closed. |
+| `shell`, `filesystem` | Phones have neither; the app hides plugins that need them. Warned. |
+| `cloud` | Uses PKU Harness Cloud; requires a `cloud` block. |
+| `ongoing` | Shows a live, ongoing activity. |
+
+A remote plugin runs on your server, so only declare what the **phone** has to provide.
+
+### Cloud disclosure
+
+```json
+"cloud": {
+  "uses": ["store"],
+  "e2e": true,
+  "disclosure": { "zh": ["你的收藏列表会加密存到云端，用于多设备同步。"], "en": ["Your favourites are stored encrypted in the cloud to sync devices."] }
+}
+```
+
+The same rules as `cloudIssues()` in the registry apply: no duplicate `uses`; non-empty `uses`
+needs at least one `disclosure.zh` line saying in plain words what leaves the device; no empty
+lines; `disclosure.en`, if present, translates every `zh` line; an external `backend.url` must be
+`https`.
+
+## What the scanner checks
+
+Errors keep a plugin out of the marketplace; warnings are shown on its page under **Checks**.
+
+| Check | Level |
+|---|---|
+| Invalid JSON, schema violations | error |
+| Duplicate `id` in the repo, an official id, or an id another listed repo already uses | error |
+| `kind: "builtin"` outside `pkuinfo/pku-harness-plugins` | error |
+| `endpoint` not https, private/local host or IP, credentials or query string | error |
+| `cloud` disclosure rules above | error |
+| No `endpoint` | info (listed as self-hosted) |
+| `campus-session`, `shell`, `filesystem` on a remote plugin | warning |
+| `requires: cloud` without a `cloud` block (or the reverse) | warning |
+| `scopes` that aren't host names, or none while requiring network | warning |
+| Unknown fields | warning |
+| No `i18n.en`, no `license` | info |
+
+Limits: 100 plugins and 300 `package.json` files per repo, 256 KB per manifest, 10 s per GitHub
+request. A repo too big for one GitHub tree call gets a warning; add `pku-harness.json`.

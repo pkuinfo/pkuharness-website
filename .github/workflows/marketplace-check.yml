@@ -1,0 +1,32 @@
+name: Marketplace check
+
+# Validates data/sources.json and rescans every listed repo: weekly (catches repos that broke or
+# disappeared) and on pull requests that touch the marketplace data or scanner.
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - data/**
+      - src/lib/marketplace/**
+      - scripts/marketplace.ts
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun test src/lib/marketplace
+      - run: bun scripts/marketplace.ts check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

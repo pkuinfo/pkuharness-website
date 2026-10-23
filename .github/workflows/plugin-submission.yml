@@ -1,0 +1,87 @@
+name: Plugin submission
+
+# Scans a repo submitted through the plugin-submission issue form, comments the report and opens
+# a pull request adding it to data/sources.json. The issue body is untrusted: it only reaches the
+# scanner through an environment variable and is parsed in TypeScript, never by the shell.
+
+on:
+  issues:
+    types: [opened, edited, labeled, reopened]
+
+permissions: {}
+
+concurrency:
+  group: plugin-submission-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    if: github.event.issue.state == 'open' && contains(github.event.issue.labels.*.name, 'plugin-submission')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Scan and add to data/sources.json
+        id: scan
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          GITHUB_TOKEN: ${{ github.token }}
+          REPORT_FILE: ${{ runner.temp }}/report.md
+        run: bun scripts/marketplace.ts issue --report "$REPORT_FILE"
+        continue-on-error: true
+
+      - name: Open pull request
+        id: pr
+        if: steps.scan.outputs.ok == 'true' && steps.scan.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: ${{ steps.scan.outputs.branch }}
+          base: ${{ github.event.repository.default_branch }}
+          add-paths: data/sources.json
+          commit-message: "feat(marketplace): list ${{ steps.scan.outputs.repo }}"
+          title: "feat(marketplace): list ${{ steps.scan.outputs.repo }}"
+          body: |
+            Adds `${{ steps.scan.outputs.repo }}` to `data/sources.json`.
+
+            Closes #${{ github.event.issue.number }}
+
+            The scan report is on the issue. Before merging, skim the repo against the review policy
+            (docs/marketplace/review); add plugin ids to `verified` only after reading their source.
+          labels: plugin-submission
+          delete-branch: true
+
+      - name: Comment the report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+          REPORT_FILE: ${{ runner.temp }}/report.md
+          OK: ${{ steps.scan.outputs.ok }}
+          CHANGED: ${{ steps.scan.outputs.changed }}
+          PR_URL: ${{ steps.pr.outputs.pull-request-url }}
+        run: |
+          {
+            echo "<!-- plugin-submission-report -->"
+            if [ -f "$REPORT_FILE" ]; then cat "$REPORT_FILE"; else echo "The scan did not run. A maintainer will take a look."; fi
+            echo
+            if [ "$OK" = "true" ] && [ -n "$PR_URL" ]; then
+              echo "Opened $PR_URL. A maintainer will review and merge it."
+            elif [ "$OK" = "true" ] && [ "$CHANGED" != "true" ]; then
+              echo "Nothing to add."
+            else
+              echo "Fix the errors above and push, then edit this issue (any change) to scan again."
+            fi
+          } > "$RUNNER_TEMP/comment.md"
+          gh issue comment "$ISSUE" --body-file "$RUNNER_TEMP/comment.md" --edit-last --create-if-none
