@@ -125,6 +125,44 @@ describe('validatePluginMd', () => {
     expect(r.issues.filter((i) => i.field === 'tags')).toHaveLength(1);
   });
 
+  test('shared: names a file that must exist', () => {
+    const text = (DOC_PLUGINS['classrooms/PLUGIN.md'] as string).replace(
+      'icon: building',
+      'icon: building\nshared: shared.yaml',
+    );
+    const opts = { ...ctx, dir: 'classrooms', manifestPath: 'classrooms/PLUGIN.md' };
+    const missing = validatePluginMd(text, opts);
+    expect(missing.issues.some((i) => i.field === 'shared' && i.message.includes('does not exist'))).toBe(true);
+    const ok = validatePluginMd(text, { ...opts, files: new Map(files).set('classrooms/shared.yaml', 100) });
+    expect(ok.issues.filter((i) => i.level === 'error')).toEqual([]);
+  });
+
+  test('abilities match the SDK, including cloud', () => {
+    const text = (DOC_PLUGINS['classrooms/PLUGIN.md'] as string).replace(
+      'abilities: [scheduler]',
+      'abilities: [scheduler, cloud]',
+    );
+    const r = validatePluginMd(text, { ...ctx, dir: 'classrooms', manifestPath: 'classrooms/PLUGIN.md' });
+    expect(r.issues.filter((i) => i.level === 'error')).toEqual([]);
+    expect(r.issues.some((i) => i.field === 'abilities' && i.message.includes('cloud.call'))).toBe(true);
+  });
+
+  test('server: needs a disclosure, derives cloud functions and warns that it is off', () => {
+    const base = DOC_PLUGINS['classrooms/PLUGIN.md'] as string;
+    const server = 'icon: building\nserver:\n  functions:\n    crowd: { effect: read, access: public, return: "1" }';
+    const opts = { ...ctx, dir: 'classrooms', manifestPath: 'classrooms/PLUGIN.md' };
+    const bare = validatePluginMd(base.replace('icon: building', server), opts);
+    expect(bare.issues.some((i) => i.level === 'error' && i.field === 'server')).toBe(true);
+    const disclosed = validatePluginMd(
+      base.replace('icon: building', `${server}\ncloud: { disclosure: { zh: ['人流上报会发到服务器。'] } }`),
+      opts,
+    );
+    expect(disclosed.issues.filter((i) => i.level === 'error')).toEqual([]);
+    expect(disclosed.plugin?.cloud?.uses).toEqual(['functions']);
+    expect(disclosed.plugin?.requires).toContain('cloud');
+    expect(disclosed.plugin?.warnings?.some((w) => w.includes('off on the official server'))).toBe(true);
+  });
+
   test('ids stay unique across the marketplace', () => {
     const r = validatePluginMd(DOC_PLUGINS['classrooms/PLUGIN.md'] as string, {
       ...ctx,

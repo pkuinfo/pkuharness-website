@@ -39,7 +39,7 @@ export const cardSharePlugin = definePlugin({
 | `e2e` | `true` makes the host refuse plaintext store writes. Declare it whenever you can. |
 | `optional` | `true` if the plugin works without the cloud (then don't list `'cloud'` in `requires`, and check `ctx.cloud?.available`). |
 | `pages` | Static viewer pages from `plugins/<id>/web`, served at `/w/<plugin>/<page>` for people without the app. |
-| `functions`, `backend` | Server functions (planned) or an external backend URL (shown to the user before consent). |
+| `functions`, `backend` | Server functions or an external backend URL (shown to the user before consent). Server functions are off on the official server for now; see [below](#server-functions). |
 
 ## 2. Consent
 
@@ -162,6 +162,21 @@ before install:
 
 The registry validator checks that `disclosure.zh` is present when `uses` is non-empty, that `en`
 (if given) translates every line, and that an external `backend.url` is HTTPS.
+
+## Server functions
+
+<Callout type="warn" title="Off on the official server for now">
+  Keep plugins phone-side or use your own backend.
+</Callout>
+
+A `PLUGIN.md` plugin declares server functions in a `server:` section (same steps and expressions
+as its tools) and calls them with the `cloud.call { fn, input }` ability; widgets can bind
+`{ fn }`. The section implies `uses: [functions]` and requires `disclosure`. The reference server
+runs `access: user` functions at `POST /v1/fn/<plugin>/<name>` and `access: public` ones at
+`/v1/p/<plugin>/<name>`, with server KV, crypto and HTTPS to declared hosts. See
+[Cloud → Server functions](/docs/cloud#server-functions) and
+[`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)
+(on hold).
 
 ## Viewer pages
 

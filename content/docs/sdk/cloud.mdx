@@ -14,8 +14,9 @@ tokens, keys or provider credentials, and the agent never sees share links.
 
 <Callout title="Host support">
   The app implements this client. `ctx.cloud` stays typed optional (`PluginCloud | undefined`) for
-  hosts without cloud support, so check `ctx.cloud?.available`. `push` and `functions` are not
-  offered by providers yet.
+  hosts without cloud support, so check `ctx.cloud?.available`. `push` is not offered yet, and
+  server functions are off on the official server for now: keep plugins phone-side or use your own
+  backend.
 </Callout>
 
 ## CloudManifest

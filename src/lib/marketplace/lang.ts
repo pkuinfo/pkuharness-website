@@ -121,7 +121,7 @@ export function deriveCapabilities(m: LangManifest): Capability[] {
     const c = ABILITIES[a]?.capability;
     if (c) caps.add(c);
   }
-  if (m.cloud?.uses.length) caps.add('cloud');
+  if (m.cloud?.uses.length || m.server) caps.add('cloud');
   return [...caps];
 }
 
@@ -251,6 +251,7 @@ export function validatePluginMd(
     }
     tools.push(tool);
   }
+  if (m.shared) checkFile('shared', m.shared);
   for (const [name, path] of Object.entries(m.widgets)) checkFile(`widgets.${name}`, path);
   for (const [name, path] of Object.entries(m.screens)) checkFile(`screens.${name}`, path);
   if (bytes > MAX_PLUGIN_BYTES)
@@ -311,6 +312,22 @@ export function validatePluginMd(
     for (const msg of cloudIssues(m.cloud)) err('cloud', msg);
   } else if (m.requires.includes('cloud'))
     warn('cloud', 'requires "cloud" but there is no "cloud" block: users cannot see what leaves the device.');
+  // SDK load.ts: a server: section needs a disclosure of what leaves the device.
+  if (m.server) {
+    if (!m.cloud?.disclosure?.zh?.length)
+      err(
+        'server',
+        'A plugin with server: must say what leaves the device.',
+        "Add cloud: { disclosure: { zh: ['…'], en: ['…'] } }.",
+      );
+    warn(
+      'server',
+      'Server functions are off on the official server for now; users of the official instance cannot run them.',
+      'Keep the plugin phone-side, or use your own backend.',
+    );
+  }
+  if (m.abilities.includes('cloud') && !m.cloud && !m.server)
+    warn('abilities', 'abilities: cloud without a cloud or server block: cloud.call fails at run time.');
 
   const body = parsed.body.trim();
   if (!body)
@@ -349,7 +366,13 @@ export function validatePluginMd(
     requires: deriveCapabilities(m),
     scopes: m.network,
     tags: [],
-    cloud: m.cloud ? { uses: m.cloud.uses, e2e: m.cloud.e2e, disclosure: m.cloud.disclosure } : undefined,
+    cloud: m.cloud
+      ? {
+          uses: m.server ? [...new Set([...m.cloud.uses, 'functions' as const])] : m.cloud.uses,
+          e2e: m.cloud.e2e,
+          disclosure: m.cloud.disclosure,
+        }
+      : undefined,
     verified: ctx.verified?.includes(m.id) ?? false,
     official,
     version: m.version,

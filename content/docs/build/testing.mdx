@@ -7,6 +7,22 @@ icon: FlaskConical
 Most campus plugins are three layers: an HTTP call, a parser, and a tool that shapes the result.
 Test the parser and the shaping with `bun test`, then try the whole thing in the app.
 
+## Plugin documents (PLUGIN.md)
+
+A `PLUGIN.md` plugin is tested with the author CLI in the plugins repository, against recorded
+responses in its `tests/*.yaml`:
+
+```bash
+bun run plugin validate plugins/classrooms   # the checks the app runs
+bun run plugin test plugins/classrooms       # replay tests/*.yaml
+bun run plugin run plugins/classrooms overview '{}'   # live, public hosts only
+```
+
+`bun test` includes `plugins/documents.test.ts`, which loads every `plugins/<id>/PLUGIN.md` and
+replays all of its recorded tests, so CI fails when a document or its fixtures break. The test
+format is in the [quickstart](/docs/build/quickstart#record-a-test). The rest of this page is
+about TypeScript plugins.
+
 ## Unit tests (bun test)
 
 Run in the plugins repository:

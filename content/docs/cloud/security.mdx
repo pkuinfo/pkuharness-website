@@ -104,7 +104,7 @@ to `CloudError('rate_limited', retryAfterS)`. Defaults:
 | Channels | 5 open per device, TTL 60 s – 24 h (default 15 min), 5 peers max, 4 KB frames, 60 frames/min, 64 mailbox slots |
 | Joins | 20 per IP per minute |
 | Push (planned) | 100 pending schedules |
-| Functions (planned) | 60 calls per minute |
+| Functions (off on the official server) | 60 calls per minute |
 
 ## Residual risks, stated honestly
 
@@ -114,5 +114,6 @@ to `CloudError('rate_limited', retryAfterS)`. Defaults:
   Mitigations: pages are static, built reproducibly from the plugins repository, served with a
   strict CSP (`connect-src 'self'`); app viewers decrypt natively through a deep link and never run
   provider JavaScript.
-- **Server functions** (planned) process plaintext by design; they must be declared and approved,
-  and are reviewed in the plugins repository.
+- **Server functions** process plaintext by design; they must be declared in `PLUGIN.md`, disclosed
+  and approved, and the server runs only the document version the user consented to. They are
+  off on the official server for now.

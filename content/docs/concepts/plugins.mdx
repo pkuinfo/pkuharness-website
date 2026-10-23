@@ -1,51 +1,57 @@
 ---
 title: Plugins
-description: Bundled plugins are TypeScript modules shipped in the app; remote plugins are MCP servers added by URL. Both join the same registry, permissions and agent loop.
+description: Plugin documents (PLUGIN.md) are interpreted by the app and installed by link; bundled TypeScript plugins ship in the app; remote plugins are MCP servers added by URL. All join the same registry, permissions and agent loop.
 icon: Puzzle
 ---
 
-Every capability of PKU Harness is a plugin, and every plugin is equal. "Bundled" only means the
-code ships inside the app binary; "remote" means it runs behind an MCP endpoint. The agent, the
-permission system and the marketplace treat them the same.
+Every capability of PKU Harness is a plugin, and every plugin is equal. A plugin is a
+**document** the app interprets, a **TypeScript** module bundled in the app, or a **remote** MCP
+server. The agent, the permission system and the marketplace treat them the same.
 
-## Two kinds, one contract
+## Three kinds, one contract
 
-| | Bundled | Remote |
-| --- | --- | --- |
-| What it is | A TypeScript module built on `@pku-harness/sdk` (`definePlugin`) | An MCP server over Streamable HTTP, in any language |
-| Where it runs | On the phone, inside the app | On any HTTPS server you control |
-| How it ships | With an app release (or a signed OTA update) | Deploy your server; users add its URL or install it from the marketplace |
-| Can use | Host services (campus sessions, scheduler, widgets…), native UI (screens, widgets, Settings rows, commands), PKU Harness Cloud | Tools only (results are shown to the model as data) |
-| Sees campus credentials | No: it gets responses through `services.campus.request` | No, never |
-| Trust | Reviewed in the plugins repository | Third party: write effects ask first by default; every result taints the turn |
-| Tool ids | `<plugin id>.<tool>`, e.g. `wallet.cardBalance` | `mcp-<server name>.<tool>`, e.g. `mcp-demo-canteen.menu` |
+| | Document (`PLUGIN.md`) | Bundled TypeScript | Remote |
+| --- | --- | --- | --- |
+| What it is | A folder: YAML manifest + agent instructions + tools as YAML steps, widgets as generative-UI JSON | A TypeScript module built on `@pku-harness/sdk` (`definePlugin`) | An MCP server over Streamable HTTP, in any language |
+| Where it runs | On the phone, interpreted by the app (no plugin code runs) | On the phone, inside the app | On any HTTPS server you control |
+| How it ships | A link (GitHub folder or any `PLUGIN.md` URL); updates are a `git push`. Official documents are also bundled with the app and update from their link | With an app release (or a signed OTA update) | Deploy your server; users add its URL or install it from the marketplace |
+| Can use | Declared campus services (with the user's session), public hosts and [host abilities](/docs/build/declarative-plugins#host-abilities); widgets, screens, Settings rows, commands | Host services, native UI (screens, widgets, Settings rows, commands, tabs), PKU Harness Cloud | Tools only (results are shown to the model as data) |
+| Sees campus credentials | No: the harness signs its campus requests | No: it gets responses through `services.campus.request` | No, never |
+| Trust | Official (bundled or from `pkuinfo/pku-harness-plugins`) or community; community tools ask before `write` / `money` / `public` and their results are untrusted | Reviewed in the plugins repository | Third party: write effects ask first by default; every result taints the turn |
+| Tool ids | `<plugin id>.<tool>`, e.g. `classrooms.free` | `<plugin id>.<tool>`, e.g. `wallet.cardBalance` | `mcp-<server name>.<tool>`, e.g. `mcp-demo-canteen.menu` |
 
-App stores forbid downloading executable code, so **community plugins are remote**. Bundled plugins
-are for capabilities that need the device itself (notifications, on-device data, authenticated
-campus sessions) or that every user needs. Open an issue before writing one.
+App stores forbid downloading executable code. Documents are data, not code, so community
+plugins can run on the phone as documents, or remotely over MCP. The official campus
+integrations classrooms, campus-events, grades, canteen and shuttle are documents; TypeScript is
+for the harness's own features (UI, dashboard, scheduler, schedule, to-dos, memory, model
+providers…) and integrations the language can't express yet.
 
 ## Choosing
 
 ```
-Does it need the user's authenticated campus session, the device (notifications,
-timetable, widgets), or native UI?
-├─ no  → remote plugin (most contributions). Start from templates/remote-plugin.
-└─ yes → bundled plugin. Open an issue in pku-harness-plugins first.
+Is it campus or public requests plus extraction (with the user's campus session if needed)?
+├─ yes → plugin document (PLUGIN.md). Start from the quickstart, or ask the AI in the app.
+└─ no  → Does it need general code or a server of your own?
+         ├─ yes → remote plugin. Start from templates/remote-plugin.
+         └─ no, it needs the device or native UI the language lacks
+              → bundled TypeScript plugin (open an issue first), or propose a host ability.
 ```
-
-A public, unauthenticated campus page (a canteen menu, a notice board) can be either; remote is
-faster to ship, bundled can add a native widget.
 
 ## Lifecycle in the app
 
-1. **Registered**: bundled plugins at start-up (`builtinPlugins`); remote plugins when the user
-   installs them (the app connects, lists the tools, caches the manifest).
+1. **Registered**: bundled plugins and bundled documents at start-up; documents installed by
+   link once the user accepts the review sheet (the files and a content hash are stored on the
+   device); remote plugins when the user installs them (the app connects, lists the tools,
+   caches the manifest).
 2. **Available**: the device meets its `requires` [capabilities](/docs/concepts/capabilities).
    Unavailable plugins are hidden from the agent and explained in Settings.
 3. **Enabled**: on by default; the user can turn any non-core plugin off. Core plugins (`core: true`,
    e.g. generative UI, memory) can't be disabled.
 4. **Called**: every call goes through one path that validates input (zod), checks the
    per-effect mode, asks for approval if needed, runs the tool and returns the result.
+5. **Updated** (documents): the app re-fetches the link at most daily. New content with the same
+   declarations applies; wider declarations wait for the user. See
+   [Declarative plugins → Updates](/docs/build/declarative-plugins#updates).
 
 ## Remote plugins in detail
 
@@ -71,5 +77,6 @@ to the new ones, and carries the user's settings over once. See
 ## Next
 
 - [Tools and effects](/docs/concepts/tools-and-effects)
+- [Your first plugin](/docs/build/quickstart) and [Declarative plugins](/docs/build/declarative-plugins)
 - [Quickstart: remote plugin](/docs/build/remote-plugin)
 - [Bundled plugin](/docs/build/bundled-plugin)

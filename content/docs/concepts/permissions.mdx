@@ -22,6 +22,8 @@ Settings → Plugins → *plugin* → AI permissions.
 | --- | --- | --- | --- | --- |
 | Bundled, no `defaultModes` | auto | auto | auto | auto |
 | Bundled with `defaultModes` | as declared, e.g. `{ money: 'ask' }` | | | |
+| Document (`PLUGIN.md`), official | as in its `defaultModes`, else auto | | | |
+| Document, community | auto | ask | ask | ask (stricter `defaultModes` win) |
 | Remote (MCP) | auto | ask | ask | ask |
 
 Declare stricter defaults for anything a user would want to confirm:

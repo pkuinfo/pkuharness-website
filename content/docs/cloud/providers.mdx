@@ -10,7 +10,7 @@ Settings → Cloud offers:
 
 | Option | Meaning |
 | --- | --- |
-| **Official** | The instance run by pkuinfo (not deployed yet). Off until the user opts in. |
+| **Official** | The instance run by pkuinfo (not deployed yet). Kept minimal: the relay for live shares, the small end-to-end-encrypted store and viewer pages. Off until the user opts in. |
 | **Self-hosted** | A base URL. **Test connection** shows the provider's `/v1/meta`: operator, services, limits. |
 | **Off** | No cloud. Plugins that require `cloud` are unavailable; optional ones keep working locally. |
 
@@ -37,8 +37,10 @@ Everything in the [API reference](/docs/cloud/api/meta), validated with the sche
 The open-source reference server is `packages/cloud-server` in
 [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/packages/cloud-server):
 Bun + Hono + `bun:sqlite` (WAL), every request and response validated with the
-`@pku-harness/cloud-protocol` schemas. It offers `store` and `channels`; `fn` and `push` answer
-`501 unsupported` for now.
+`@pku-harness/cloud-protocol` schemas. It offers `store` and `channels`; `push` answers `501 unsupported`.
+Plugin server functions (`/v1/fn`, `/v1/p`) are implemented but governed by `CLOUD_FN_POLICY`
+(`allowlist` with an empty list by default in production), and are off on the official server
+for now.
 
 ```bash
 cd pku-harness-plugins/packages/cloud-server
@@ -62,8 +64,8 @@ In the Android emulator, point Settings → Cloud → Self-hosted at `http://10.
 | `CLOUD_TRUST_PROXY` | off | `1`: client IP = last `X-Forwarded-For` hop (behind Caddy) |
 
 `deploy/` holds a Dockerfile, a Caddyfile and a Litestream config; see its `README.md`. Server
-functions are planned to run in time- and memory-limited workers (reviewed code only), with
-isolates for community code later.
+function variables (`CLOUD_FN_POLICY`, `CLOUD_FN_ALLOW`, `CLOUD_FN_VERIFIED`, `CLOUD_FN_LOCAL`,
+`CLOUD_SECRET_<PLUGIN>__<NAME>`) are documented in the server's `README.md`.
 
 ## Operating an instance
 

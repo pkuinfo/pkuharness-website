@@ -70,13 +70,15 @@ then only that folder is scanned.
 | `icon`, `homepage` | | Icon from the harness set; a URL. |
 | `campus` | | Campus services called **with the user's session**: `card`, `its`, `treehole`, `blackboard`, `elective`, `cwfw`, `cwpay`, `bdkj`, `library`, `library-space`, `portal`, … |
 | `network` | | Public hosts it calls (`dining.pku.edu.cn`, `*.example.com`). HTTPS only. |
-| `abilities` | | Host abilities: `verify`, `otp`, `todos`, `timetable`, `scheduler`, `browser`, `campusPage`, `sms`, `files`, `crypto`. Any other name is an error (the app refuses it). |
+| `abilities` | | Host abilities: `verify`, `otp`, `todos`, `timetable`, `scheduler`, `browser`, `campusPage`, `sms`, `files`, `crypto`, `cloud` ([operations and effects](/docs/build/declarative-plugins#host-abilities)). Any other name is an error (the app refuses it). |
+| `shared` | | A YAML file of `constants` and `functions` every tool sees (`shared.yaml`). |
 | `tools` | | Map of tool name → file (`tools/menu.yaml`) or an inline tool. Every tool has `title`, `description` and an honest `effect`: `read`, `write`, `money` or `public`. |
 | `dataSources` | | Read tools that widgets and scheduled checks poll: `{ tool, args?, ttl }`. |
 | `widgets`, `screens` | | Map of name → JSON file (generative-UI spec + bindings). |
 | `settings`, `commands`, `defaultModes` | | Settings rows, slash commands, suggested per-effect permission modes. |
 | `requires` | | Optional: it is **derived** from the declarations (below). |
 | `cloud` | | PKU Harness Cloud use with a plain-language disclosure ([below](#cloud-disclosure)). |
+| `server` | | Server functions ([CLOUD-FUNCTIONS.md](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)). Needs `cloud.disclosure`; implies `cloud.uses: [functions]`. **Off on the official server for now**: keep plugins phone-side or use your own backend. |
 | `i18n.en` | | English `name`, `description` and other overlay strings. |
 | `remote` | | `{ mcp: https URL, auth?: none \| bearer }` turns the folder into a [remote MCP plugin](#remote-mcp-plugins). |
 
@@ -86,7 +88,7 @@ prompt, so keep it to when to use which tool and what the numbers mean.
 
 ### Files
 
-Every file the app loads is named in the frontmatter (`tools`, `widgets`, `screens`); the app
+Every file the app loads is named in the frontmatter (`tools`, `shared`, `widgets`, `screens`); the app
 never lists folders. The scanner checks that each path:
 
 - is relative to `PLUGIN.md`, with no `..`, no leading `/` and no URL scheme;
@@ -107,8 +109,7 @@ declarations imply:
 | `campus: [cwfw]` | also `campus-network` (cwfw only answers on the campus network) |
 | `network` hosts, or `remote` | `network` |
 | `abilities: [scheduler]` | `background` |
-| `abilities: [scheduler]` | `background` |
-| `cloud.uses` not empty | `cloud` |
+| `cloud.uses` not empty, or `server` | `cloud` |
 
 ### Install links
 
@@ -247,14 +248,17 @@ Errors keep a plugin out of the marketplace; warnings are shown on its page unde
 | `dataSources` pointing at an undeclared tool, `settings` at an undeclared screen | error |
 | `network` entries that aren't host names | error |
 | Endpoint (`remote.mcp`, `endpoint`) not https, a private/local host or IP, credentials or a query string | error |
-| `cloud` disclosure rules above | error |
+| `cloud` disclosure rules above; `server` without `cloud.disclosure.zh` | error |
+| Unknown `abilities` | error |
 | `kind: "builtin"` outside `pkuinfo/pku-harness-plugins` (JSON) | error |
-| Unknown `campus` services or `abilities` | warning |
+| Unknown `campus` services | warning |
+| `server` (off on the official server for now); `abilities: [cloud]` without a `cloud` or `server` block | warning |
 | `campus` on a remote plugin (`campus-session` on a JSON manifest) | warning |
 | `shell`, `filesystem` in `requires` | warning |
 | `requires: cloud` without a `cloud` block | warning |
 | Empty or very long Markdown body; no tools, commands or widgets | warning |
-| Unknown fields | warning |
+| Unknown top-level fields in `PLUGIN.md` (the app parses strictly) | error |
+| Unknown fields in a JSON manifest | warning |
 | No `i18n.en`; JSON: no `endpoint` (self-hosted), no `license` | info |
 
 Limits: 100 plugins and 300 `package.json` files per repo, 40 tool files per plugin, 256 KB per

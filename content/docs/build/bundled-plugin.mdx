@@ -7,7 +7,17 @@ icon: Package
 A bundled plugin is a TypeScript module in `pku-harness-plugins/plugins/<id>` built only on
 `@pku-harness/sdk`. It runs on the phone, reaches the app only through host services, and can add
 native UI. Bundled plugins ship with app releases, so **open an issue first** describing what the
-plugin does and why it can't be remote.
+plugin does and why it can't be a plugin document or remote.
+
+<Callout title="Most campus integrations are documents now">
+  TypeScript is for the harness's own features (UI, dashboard, scheduler, to-dos, schedule,
+  timetable, memory, plugin management, model providers, the authenticator, the payment-code
+  screen) and for integrations the plugin language can't express yet. The official campus
+  integrations classrooms, campus-events, grades, canteen and shuttle are
+  [plugin documents](/docs/build/declarative-plugins) bundled with the app, and others are being
+  ported. If your plugin is campus or public requests plus extraction, write a `PLUGIN.md`
+  instead; if it needs something the language lacks, propose a host ability.
+</Callout>
 
 This page builds a complete plugin, `focus` (track focus sessions, see today's total), that uses
 no external service, so you can run it as is. For campus services, swap the storage calls for

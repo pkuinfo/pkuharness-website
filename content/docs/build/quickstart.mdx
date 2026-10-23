@@ -129,7 +129,8 @@ bun run plugin run path/to/my-classrooms overview '{}'
 ```
 
 `validate` checks the manifest, tool schemas, expressions and file paths, the same checks the app
-and the marketplace run. `run` makes the real requests.
+and the marketplace run. `run` makes the real requests (public hosts only; campus requests need
+the app, so record those in tests).
 
 </Step>
 
@@ -144,7 +145,9 @@ https://github.com/<you>/<repo>/tree/main/my-classrooms
 ```
 
 Students paste it in the app, scan its QR code, or open
-`pkuharness://plugin?src=<url-encoded link>`. To list it in the marketplace,
+`pkuharness://plugin?src=<url-encoded link>`. The app shows a review sheet first: community or
+official, the websites it can reach (here `portal.pku.edu.cn`) and each tool with its effect.
+Every `git push` becomes an update. To list it in the marketplace,
 [submit the repo](/marketplace/submit). One repo can hold any number of plugins. See
 [Publishing](/docs/marketplace/publishing).
 
@@ -154,6 +157,7 @@ Students paste it in the app, scan its QR code, or open
 
 ## Next
 
-- Inputs, steps, expressions and errors: [Declarative plugins](/docs/build/declarative-plugins)
+- Inputs, steps, expressions, abilities and errors: [Declarative plugins](/docs/build/declarative-plugins)
+- Let the agent in the app draft, validate and try a plugin with you: [Write a plugin with the AI](/docs/build/ai-authoring)
 - Calls that need the student's campus session: declare `campus` (see the spec, §4 and §9)
 - What reviewers check: [Review and safety](/docs/marketplace/review)

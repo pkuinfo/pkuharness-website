@@ -16,7 +16,7 @@ UI            routes · screens · design system (tokens, components, motion) ·
 Core runtime  plugin registry + permissions · agent loop · dashboard · scheduler · storage
               campus session manager (IAAA, per-service sessions)
                    │
-Plugins       @pku-harness/plugins (bundled)  ·  remote MCP plugins  ·  provider plugins
+Plugins       PLUGIN.md documents (interpreted)  ·  bundled TypeScript  ·  remote MCP  ·  providers
                    │
 Native        campus-http module (redirect control, per-session cookie jars, HTTP/1.1, no proxy)
 ```
@@ -44,8 +44,8 @@ itself goes through **host services** (`ctx.services`) and, for UI, through **`H
 
 ## Plugins
 
-A plugin is a TypeScript object built with `definePlugin` (bundled) or an MCP server (remote).
-Either way the harness turns it into the same thing: a set of tools with ids `<plugin>.<tool>`,
+A plugin is a `PLUGIN.md` document the app interprets, a TypeScript object built with
+`definePlugin` (bundled) or an MCP server (remote). The harness turns each into the same thing: a set of tools with ids `<plugin>.<tool>`,
 effects and input schemas, plus optional UI.
 
 ```ts
@@ -70,7 +70,9 @@ export const helloPlugin = definePlugin({
 });
 ```
 
-See [Plugins](/docs/concepts/plugins) for bundled vs remote.
+The same plugin as a document is a `PLUGIN.md` with `tools: { greet: … }` and the tool written as
+YAML steps; see [Declarative plugins](/docs/build/declarative-plugins). See
+[Plugins](/docs/concepts/plugins) for the three kinds.
 
 ## Where data lives
 
@@ -87,13 +89,14 @@ conversation; campus services receive the requests they would get from a browser
 
 | What changed | How it reaches users |
 | --- | --- |
+| A plugin document (`PLUGIN.md`), including the official ones bundled with the app | The app re-fetches its link (at most daily); same declarations apply, wider ones wait for the user |
 | A remote (MCP) plugin | Its server updates; the app calls it live |
 | A marketplace listing (`registry.json`) | Fetched live by the app |
-| App JavaScript, SDK, bundled plugins | App release, or a signed over-the-air update (planned: self-hosted, code-signed expo-updates) |
+| App JavaScript, SDK, bundled TypeScript plugins | App release, or a signed over-the-air update (planned: self-hosted, code-signed expo-updates) |
 | Native code (modules, permissions) | New app release |
 
 ## Next
 
-- [Plugins](/docs/concepts/plugins): bundled vs remote, and how to choose.
+- [Plugins](/docs/concepts/plugins): documents, bundled and remote, and how to choose.
 - [Tools and effects](/docs/concepts/tools-and-effects): the single API surface.
 - [Security model](/docs/concepts/security): credentials, prompt injection, consent.

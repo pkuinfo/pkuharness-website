@@ -62,11 +62,13 @@ removed.
 
 - **Declarative** plugins (`PLUGIN.md`) are installed **by link**: the plugin page has an
   *Open in app* button (`pkuharness://plugin?src=…`), a QR code and the install link (the GitHub
-  folder URL) to paste in 设置 → 插件. The app fetches the files, shows the permission sheet
-  (campus services, hosts, abilities, tool effects) and stores the plugin on the phone. It
+  folder URL) to paste in 设置 → 插件. The app fetches the files, shows the review sheet (Official
+  or Community, campus services, websites, app features, and each tool with its effect) and
+  stores the plugin on the phone. It
   re-fetches the link later: an update that asks for nothing new applies silently, one that asks
   for more waits for the user.
-- **Built-in** plugins are already in the app. Users enable them in 设置 → 插件.
+- **Built-in** plugins are already in the app. Users enable them in 设置 → 插件. The official
+  plugin documents among them update from their GitHub link like any other document.
 - **Remote** plugins are MCP servers (Streamable HTTP). Users add them from 设置 → 插件 → 插件市场,
   or paste the endpoint URL by hand. The app connects to the endpoint and registers its tools as
   `mcp-<id>`. With `"auth": "bearer"` the user pastes a token, which stays in the phone's keychain.

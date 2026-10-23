@@ -35,24 +35,28 @@ Everything is open source under the [`pkuinfo`](https://github.com/pkuinfo) GitH
 
 | Folder | Contents |
 | --- | --- |
-| `packages/sdk` | `@pku-harness/sdk`: plugin contract + pure helpers |
+| `packages/sdk` | `@pku-harness/sdk`: plugin contract, pure helpers and the plugin language (`src/lang`: schemas, interpreter, abilities, loader) |
 | `packages/cloud-protocol` | `@pku-harness/cloud-protocol`: Cloud wire schemas, envelope crypto, share links |
 | `packages/cloud-server` | Reference PKU Harness Cloud server (Bun + Hono + SQLite) |
-| `plugins/<id>` | Every bundled plugin (`builtinPlugins` in `plugins/index.ts`) |
+| `plugins/<id>/PLUGIN.md` | Official plugin documents, bundled with the app (`bun run bundle`) and updated from their link |
+| `plugins/<id>/src` | Bundled TypeScript plugins (`builtinPlugins` in `plugins/index.ts`) |
+| `scripts` | `plugin.ts` (author CLI: `bun run plugin validate\|test\|run`), `bundle-docs.ts`, `validate-registry.ts` |
 | `plugins/shared` | Code shared by bundled plugins |
 | `registry` | Marketplace schema + `registry.json` |
 | `templates/remote-plugin`, `examples/*` | Remote plugin template, demo-canteen, mock-llm |
 
 These are private workspace packages: nothing is published to npm. The app includes the repository
-as its git submodule `plugins/`. Plugins are meant to become shareable like skills (a folder or
-link the app interprets); see [Declarative plugins (preview)](/docs/build/declarative-plugins).
+as its git submodule `plugins/`. Plugin documents are shared like skills, as a folder or link the
+app interprets; see [Declarative plugins](/docs/build/declarative-plugins).
 
 ## Bundled plugins today
 
-`ui` (generative UI), `dashboard`, `scheduler`, `todo`, `schedule`, `timetable`, `course-sync`,
-`authenticator` (手机令牌), `calendar` (校历), `wallet` (campus card, network fee, utilities),
-`card-share` (share a payment code through the Cloud),
-`courses` (Blackboard), `course-catalog`, `grades`, `treehole`, `campus-events`, `elective`,
-`finance`, `library`, `room-booking`, `classrooms`, `canteen`, `shuttle`, `notices`, `memory`,
-`plugins` (plugin management), `deepseek`, `openai-compatible`. See the [marketplace](/marketplace)
+Plugin documents: `classrooms`, `campus-events`, `grades`, `canteen`, `shuttle`.
+
+TypeScript: `ui` (generative UI), `dashboard`, `scheduler`, `todo`, `schedule`, `timetable`,
+`course-sync`, `authenticator` (手机令牌), `calendar` (校历), `wallet` (campus card, network fee,
+utilities), `card-share` (share a payment code through the Cloud), `courses` (Blackboard),
+`course-catalog`, `treehole`, `elective`, `finance`, `library`, `room-booking`, `notices` (being
+ported to a document), `memory`, `plugins` (plugin management and AI authoring), `deepseek`,
+`openai-compatible`. See the [marketplace](/marketplace)
 for descriptions.

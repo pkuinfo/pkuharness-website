@@ -4,7 +4,7 @@ description: What is done, what is in progress and what is planned for PKU Harne
 icon: Map
 ---
 
-Summarised from `docs/PLAN.md` and `docs/CLOUD.md` in [`pku-harness`](https://github.com/pkuinfo/pku-harness)
+Summarised from `docs/PLAN.md`, `docs/CLOUD.md`, `docs/PLUGIN-LANGUAGE.md` and `docs/CLOUD-FUNCTIONS.md` in [`pku-harness`](https://github.com/pkuinfo/pku-harness)
 (as of 2026-10-23). The plan file is the source of truth and is updated as work lands.
 
 ## Done
@@ -21,13 +21,15 @@ Summarised from `docs/PLAN.md` and `docs/CLOUD.md` in [`pku-harness`](https://gi
 | Scheduler | Recurrence engine, exact notifications, background and killed-app exact checks on Android, agent-driven scheduled tasks, unattended-run policy, delivery-permission onboarding |
 | Schedule tab | Timetable with odd/even weeks and class reminders, to-dos, reminders with free-form recurrence |
 | Plugin ecosystem | Plugins repository with SDK, registry and validator, remote MCP plugins with approvals, in-app marketplace, plugin UI contributions (screens, Settings rows, tabs, widgets, commands) |
+| Plugin language (spec 1) | Plugins as shareable `PLUGIN.md` folders interpreted by the app: SDK interpreter, abilities (incl. `verify.treehole`), author CLI (`bun run plugin validate\|test\|run`) with every document's recorded tests in CI; install by link or `pkuharness://plugin` with a review sheet, daily updates (wider access waits), rollback; official documents bundled and updated from their link; [AI authoring](/docs/build/ai-authoring) tools (`plugins.reference / validate / tryTool / source / install`) |
+| Official documents | classrooms, campus-events, grades, canteen and shuttle ported from TypeScript (parity-tested, TS removed) |
 | PKU Harness Cloud | Wire protocol v1 and envelope crypto, SDK cloud types, registry `cloud` field, reference server (Bun + Hono + SQLite), host client (identity, consent, E2E store and channels, Settings → Cloud), Android foreground service (`services.ongoing`), `card-share` with a web viewer and `pkuharness://share` links |
 
 ## In progress
 
-- **Declarative plugin format**: plugins shared like skills (a folder or link the app interprets,
-  no app release), replacing the earlier plan to publish npm packages. See
-  [Declarative plugins (preview)](/docs/build/declarative-plugins).
+- **Porting integrations to documents**: notices next, then course catalog, elective, library
+  reads and Treehole tools; integrations that need new host abilities after that. See
+  [Declarative plugins](/docs/build/declarative-plugins).
 - **iOS**: launch-safe build, keychain and notification work done; the Swift port of the campus
   HTTP module is pending.
 - **Plugin batch 2**: utilities and finance depth, Blackboard submission and 智云课堂, library
@@ -37,15 +39,21 @@ Summarised from `docs/PLAN.md` and `docs/CLOUD.md` in [`pku-harness`](https://gi
 
 ## Planned
 
-- **PKU Harness Cloud**: deployment of the official instance; push (UnifiedPush/APNs, exact-time
-  wakes for iOS) and server functions; then isolates for community functions, files and
-  multi-device pairing.
+- **PKU Harness Cloud**: deployment of the official instance, kept minimal (the relay for live
+  shares, the small end-to-end-encrypted store and viewer pages); multi-device pairing.
 - **Self-hosted, code-signed over-the-air updates** (expo-updates, signed in CI from a public
   commit, rollback).
 - **Host capabilities requested by plugins**: scoped public HTTP for plugins, more binary/multipart
   support.
 - **Scoped session grants** so remote plugins can act on a campus service without credentials.
 - A hosted model option.
+
+## On hold
+
+- **Plugin server functions** (`server:` in `PLUGIN.md`, `docs/CLOUD-FUNCTIONS.md`): what exists
+  stays in the reference server, but they are off on the official server for now, and
+  collections, schedules, push, groups and webhooks are not being built. Keep plugins phone-side
+  or use your own backend.
 
 ## Non-goals for now
 

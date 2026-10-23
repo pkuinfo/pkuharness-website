@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { capability, pluginId, registryCloud } from './schema';
+import { capability, cloudService, pluginId, registryCloud } from './schema';
 
 /*
  * PLUGIN.md frontmatter, plugin language spec v1 (pku-harness docs/PLUGIN-LANGUAGE.md §4).
@@ -50,6 +50,8 @@ export const ABILITIES: Record<
   sms: { effect: 'read' },
   files: { effect: 'read' },
   crypto: { effect: 'read' },
+  /** `cloud.call { fn, input }`: this plugin's server functions (needs a `cloud` or `server` block). */
+  cloud: { effect: 'read' },
 };
 
 const campusName = z.string().regex(/^[a-z][a-z0-9-]{1,30}$/, 'lowercase letters, digits and dashes');
@@ -103,6 +105,8 @@ export const langManifest = z.strictObject({
   campus: z.array(campusName).default([]),
   network: z.array(z.string()).default([]),
   abilities: z.array(z.string()).default([]),
+  /** A YAML file of `constants` and `functions` every tool sees (a tool's own definitions win). */
+  shared: relPath.optional(),
   tools: z.record(toolName, z.union([relPath, langTool])).default({}),
   dataSources: z
     .record(
@@ -142,7 +146,11 @@ export const langManifest = z.strictObject({
     .object({ read: permissionMode, write: permissionMode, money: permissionMode, public: permissionMode })
     .partial()
     .optional(),
-  cloud: registryCloud.optional(),
+  /**
+   * As in the registry, but `uses` and `e2e` may be left out: the SDK derives them for a plugin
+   * with `server:` (uses + functions, e2e false), which then only needs the disclosure.
+   */
+  cloud: registryCloud.extend({ uses: z.array(cloudService).default([]), e2e: z.boolean().default(false) }).optional(),
   i18n: z
     .object({ en: z.looseObject({ name: z.string().optional(), description: z.string().optional() }).optional() })
     .optional(),

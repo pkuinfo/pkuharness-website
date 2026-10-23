@@ -4,9 +4,10 @@
   "pages": [
     "index",
     "quickstart",
+    "declarative-plugins",
+    "ai-authoring",
     "remote-plugin",
     "bundled-plugin",
-    "declarative-plugins",
     "tools",
     "ui",
     "i18n",

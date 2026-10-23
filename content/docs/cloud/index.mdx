@@ -5,7 +5,7 @@ icon: Cloud
 ---
 
 Some plugin features need a server: sharing something live with a friend who doesn't have the app,
-keeping a small piece of state across devices, exact-time pushes on iOS. **PKU Harness Cloud** is
+or keeping a small piece of state across devices. **PKU Harness Cloud** is
 the standard for that, designed so the user still doesn't have to trust the server:
 
 - **A blind router and store by default.** Payloads are encrypted on the phone; the server forwards
@@ -23,8 +23,13 @@ the standard for that, designed so the user still doesn't have to trust the serv
   (`packages/cloud-server`), the host client (device identity, per-plugin binding and consent,
   E2E store and channels, Settings → Cloud with a connection test) and the first plugin,
   `card-share` (share a campus-card payment code live, end to end encrypted). Not yet: the official
-  hosted instance (Settings offers self-hosted URLs meanwhile), and `push` / `functions` (the
-  reference server answers `501 unsupported` until a later stage).
+  hosted instance (Settings offers self-hosted URLs meanwhile) and `push` (the reference server
+  answers `501 unsupported`).
+
+  The official instance is kept minimal: the blind relay for live shares (channels + mailbox), the
+  small end-to-end-encrypted store and static viewer pages. Plugin
+  [server functions](#server-functions) exist in the reference server but are **off on the
+  official server for now**.
 </Callout>
 
 ## Three parts
@@ -41,9 +46,9 @@ the standard for that, designed so the user still doesn't have to trust the serv
 | --- | --- | --- |
 | `store` | Key-value store per `(device, plugin)`, versions (`If-Match`), TTLs | Values sealed when the plugin declares `e2e` |
 | `channels` | Relay channels for live sharing: a device opens a channel, viewers join with a share link, frames are relayed | Always end to end: per-peer keys derived from the link secret |
-| `push` | Push tokens and scheduled pushes (planned) | Payloads sealed; the server learns the time only |
+| `push` | Push tokens and scheduled pushes (planned; not on the official instance) | Payloads sealed; the server learns the time only |
 | `files` | File storage (planned) | |
-| `functions` | Server functions a plugin declares, run on the user's provider (planned) | Declared and approved; the one place plaintext may be processed |
+| `functions` | Server functions a `PLUGIN.md` declares in `server:` ([below](#server-functions)); off on the official server for now | Declared and approved; the one place plaintext may be processed |
 
 `GET /v1/meta` tells the app which services a provider offers. A plugin whose `uses` aren't all
 offered is marked unavailable, with the reason.
@@ -66,11 +71,49 @@ plugin ──ctx.cloud.store.put(key, value)──► host (bound client for thi
 
 1. **Standard services** (store, channels, mailbox, push, files): implemented by every conforming
    server, no plugin code on it. Prefer this tier.
-2. **Provider functions**: code in `plugins/<id>/server/*.ts`, reviewed in the plugins repository,
-   run in time- and memory-limited workers on the user's provider (planned; unreviewed community
-   code later moves to isolates).
+2. **Plugin server functions**: a `server:` section in a `PLUGIN.md`, run by the server with the
+   same interpreter as the app. Off on the official server for now.
 3. **External backends**: any URL speaking the protocol, declared in the manifest
    (`backend: { kind: 'external', url }`) and approved by the user.
+
+## Server functions
+
+<Callout type="warn" title="Off on the official server for now">
+  Keep plugins phone-side or use your own backend. The design,
+  [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md),
+  is on hold: what exists stays, but collections, schedules, push, groups and webhooks are not
+  being built.
+</Callout>
+
+A plugin document can declare server functions in the same steps and expressions as its tools:
+
+```yaml title="PLUGIN.md (frontmatter excerpt)"
+cloud:
+  disclosure: { zh: ['你输入的名字会发到云端服务器。'], en: ['The name you enter is sent to the cloud server.'] }
+server:
+  network: [api.example.org]        # hosts server steps may call (HTTPS)
+  secrets: [API_KEY]                # held by the operator; usable only in request templates
+  functions:
+    stats:
+      effect: read
+      access: public                # user (default) | public served today; peer, group, webhook are not
+      cache: 30s
+      steps:
+        - let: c
+          request: { url: 'https://api.example.org/v1/count', headers: { authorization: 'Bearer ${secrets.API_KEY}' } }
+          as: json
+      return: "{ count: c.count }"
+```
+
+- A `server:` section implies `cloud.uses: [functions]` and requires `cloud.disclosure`.
+- Server steps get a server ability set: per-user server KV (`kv.get/set/delete`) and
+  `crypto.sha256`, `crypto.hmacSha256` (with a secret by name) and `crypto.randomId`. They never
+  reach campus services; `caller.id` is a per-plugin pseudonym of the device.
+- The phone calls a function with the `cloud.call { fn, input }` ability, and widgets can bind
+  `{ fn }` instead of `{ tool }`.
+- The token carries the consented document version (link + content hash), and the server runs
+  exactly that version, subject to the operator's policy (`CLOUD_FN_POLICY`: `verified`,
+  `allowlist` or `open`). See the reference server's README for its environment variables.
 
 ## Next
 

@@ -12,7 +12,7 @@ and nothing a plugin does is hidden from the user.
 
 1. **Credentials never leave the device.** The IAAA password, the 手机令牌 secret, model API keys
    and remote plugin tokens live in the device keystore. They are never logged, never sent to a
-   project server, never given to a plugin (bundled or remote).
+   project server, never given to a plugin (document, bundled or remote).
 2. **Plugins get responses, not sessions.** `services.campus.request` returns a response; session
    cookies and tokens stay in the harness. Signing happens inside the harness (`sign` hook).
 3. **Tool results are data.** The model is told that tool results, plugin context and remote
@@ -63,6 +63,19 @@ Some values must never reach the model or the logs:
   `host.shareLink(link)` or `<QRCode link={link} />`. The host also scrubs share-link patterns from
   tool output and logs.
 - **Tokens and keys** are never available to plugins at all.
+
+## Plugin documents
+
+- The app interprets a `PLUGIN.md`'s declared steps; no plugin code runs. A document reaches only
+  the campus services, public hosts and host abilities it declares, within fixed time, size and
+  operation limits.
+- Campus requests are signed by the harness: a document never sees a password, cookie or token,
+  or another plugin's storage.
+- Before install (and before an update that asks for more) the user sees the review sheet:
+  official or community, campus services, websites, app features and every tool's effect.
+- Community documents' `write`, `money` and `public` tools ask first, and their results are
+  untrusted data. The agent can draft a plugin but can't install one: `plugins.install` only
+  opens the sheet.
 
 ## Remote plugins
 
