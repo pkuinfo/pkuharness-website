@@ -238,9 +238,9 @@ function Requirements() {
           <li className="flex gap-3">
             <FileCheck2 className="mt-0.5 size-4 shrink-0 text-fd-primary" aria-hidden="true" />
             <p className="text-fd-muted-foreground text-sm leading-[1.75]">
-              <span className="font-medium text-fd-foreground">签名的热更新（建设中）。</span>
-              界面和插件的更新将从我们自己的服务器推送，由 CI 从公开提交构建、用维护者私钥签名；App
-              只接受签名正确的更新，拒绝其他一切。
+              <span className="font-medium text-fd-foreground">签名的热更新。</span>
+              App 界面的更新从我们自己的服务器推送，由 CI 从公开提交构建、用维护者私钥签名；App
+              只接受签名正确的更新，拒绝其他一切。插件则从各自的链接更新。
             </p>
           </li>
           <li className="flex gap-3">

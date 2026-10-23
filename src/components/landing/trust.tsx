@@ -27,7 +27,7 @@ const POINTS = [
   {
     icon: FileCheck2,
     title: '签名的更新',
-    body: 'App 的热更新将由维护者私钥签名、从公开提交构建，App 拒绝任何未签名的包。这条通道正在建设中。',
+    body: 'App 的热更新由维护者私钥签名、从公开提交构建，App 拒绝任何未签名或签错的包。更新服务器上没有私钥，也不运行任何程序。',
   },
   {
     icon: ShieldCheck,
