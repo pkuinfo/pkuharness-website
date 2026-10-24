@@ -54,6 +54,7 @@ say in the PR that a translation is pending.
 
 They have two readers: a student developer and an AI agent that reads the Markdown version
 (`/en/docs/<page>.md`, `/llms-full.txt`).
+- **Follow [STYLE.md](STYLE.md).** It is the writing standard for docs and page text in both languages.
 - **Write like a person.** Short, concrete sentences, "you", active voice. No filler intros or
   marketing words ("seamless", "powerful", "leverage"). The Chinese should read like native docs
   (全角标点, a space between Chinese and Latin text, no 翻译腔), not a translation.

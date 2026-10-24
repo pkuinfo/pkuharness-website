@@ -36,7 +36,7 @@ Use bun only: never npm, npx, pnpm or yarn.
 6. **Two languages.** Every page exists in Simplified Chinese (default, no prefix) and English
    (`/en`). Docs: `page.mdx` (zh) + `page.en.mdx`. UI strings: `src/lib/messages/<area>.ts`
    (`en` defines the shape, `zh: typeof en`). Internal links go through `localePath(lang, path)`.
-   Write both like a person, not a translation.
+   Every word of text follows `STYLE.md` (textbook-clear, plain, a little formal; no slogans or hype).
 7. **Deploys** are described in `deploy/README.md`. Don't change the server by hand without
    updating that file.
 
