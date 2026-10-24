@@ -8,6 +8,9 @@ const config = {
   // Self-contained server bundle for the Docker image (see Dockerfile).
   output: 'standalone',
   experimental: {
+    // Build: at most 4 static-generation workers, sized by free memory (124+ docs pages, OG images).
+    cpus: 4,
+    memoryBasedWorkersCount: true,
     // Dev only: drop in-memory cache after each disk snapshot. Keeps `next dev` within a few GB on
     // shared machines (the default 'auto' relies on OS memory pressure, which cgroup caps don't signal).
     turbopackMemoryEviction: 'full',

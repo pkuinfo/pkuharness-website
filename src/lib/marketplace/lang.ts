@@ -219,7 +219,7 @@ export function validatePluginMd(
 
   for (const [name, def] of Object.entries(m.tools)) {
     if (typeof def !== 'string') {
-      tools.push({ name, title: def.title, effect: def.effect, userOnly: def.userOnly });
+      tools.push({ name, title: def.title, summary: def.summary, effect: def.effect, userOnly: def.userOnly });
       continue;
     }
     const repoPath = checkFile(`tools.${name}`, def);
@@ -239,7 +239,13 @@ export function validatePluginMd(
       }
       if (doc !== undefined) {
         const t = langTool.safeParse(doc);
-        if (t.success) Object.assign(tool, { title: t.data.title, effect: t.data.effect, userOnly: t.data.userOnly });
+        if (t.success)
+          Object.assign(tool, {
+            title: t.data.title,
+            summary: t.data.summary,
+            effect: t.data.effect,
+            userOnly: t.data.userOnly,
+          });
         else
           for (const i of zodIssues(t.error))
             err(
@@ -387,7 +393,7 @@ export function validatePluginMd(
     campus: m.campus,
     network: m.network,
     abilities: m.abilities,
-    tools,
+    tools: withEnglish(tools, m.i18n?.en),
     widgets: Object.keys(m.widgets),
     screens: Object.keys(m.screens),
     commands: Object.entries(m.commands).map(([name, c]) => ({ name, description: c.description })),
@@ -405,4 +411,20 @@ export function validatePluginMd(
     return { status: 'official', id: m.id, raw, plugin: hasError ? undefined : plugin, issues };
   }
   return { status: hasError ? 'error' : 'ok', id: m.id, raw, plugin: hasError ? undefined : plugin, issues };
+}
+
+/** Apply the `i18n.en.tools.<name>.{title,summary}` overlay of a PLUGIN.md to its tool list. */
+function withEnglish(tools: MarketplaceTool[], en: Record<string, unknown> | undefined): MarketplaceTool[] {
+  const overlay = en?.tools;
+  if (!overlay || typeof overlay !== 'object') return tools;
+  return tools.map((t) => {
+    const o = (overlay as Record<string, unknown>)[t.name];
+    if (!o || typeof o !== 'object') return t;
+    const { title, summary } = o as { title?: unknown; summary?: unknown };
+    return {
+      ...t,
+      ...(typeof title === 'string' ? { titleEn: title } : {}),
+      ...(typeof summary === 'string' ? { summaryEn: summary } : {}),
+    };
+  });
 }

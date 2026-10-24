@@ -53,6 +53,10 @@ export const registryEntry = z.object({
   id: pluginId,
   name: z.string().min(1),
   description: z.string().min(4).max(200),
+  /** English overlay (pku-harness-plugins 8607d85); required upstream for builtin/verified entries. */
+  i18n: z
+    .object({ en: z.object({ name: z.string().min(1).max(40), description: z.string().min(4).max(200) }) })
+    .optional(),
   author: z.string().min(1),
   source: z.string().url(),
   kind: z.enum(['builtin', 'remote']),

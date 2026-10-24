@@ -1,93 +1,120 @@
-'use client';
-
-import { ArrowUpRight, Star } from 'lucide-react';
+import { ArrowUpRight, BadgeCheck, KeyRound, ShieldCheck, Star } from 'lucide-react';
 import Link from 'next/link';
-import type { PointerEvent } from 'react';
 import { cn } from '@/lib/cn';
-import { marketplaceHref } from '@/lib/marketplace/labels';
+import type { Lang } from '@/lib/i18n';
+import { CAMPUS_SERVICE, marketplaceHref, pluginDescription, pluginName } from '@/lib/marketplace/labels';
 import type { MarketplacePlugin } from '@/lib/marketplace/types';
-import { CapabilityChip, CloudBadge, KindBadge, TrustBadge } from './badges';
+import { t } from '@/lib/messages';
+import { CloudBadge, KindBadge, TrustBadge } from './badges';
 import { PluginIcon } from './plugin-icon';
 
-function spotlight(e: PointerEvent<HTMLElement>) {
-  const r = e.currentTarget.getBoundingClientRect();
-  e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
-  e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
-}
-
-/** Marketplace card. `href={null}` renders a static preview (submit page). */
+/**
+ * Marketplace card. The footer is the plugin's "permission strip": which campus services it uses
+ * with your session, or that it needs none, so plugins can be compared at a glance.
+ * `href={null}` renders a static preview (submit page).
+ */
 export function PluginCard({
   plugin,
+  lang,
   href,
   className,
 }: {
   plugin: MarketplacePlugin;
+  lang: Lang;
   href?: string | null;
   className?: string;
 }) {
+  const m = t(lang).marketplace;
+  const name = pluginName(plugin, lang);
+  const desc = pluginDescription(plugin, lang);
+  const campus = plugin.campus ?? [];
+  // English page without an English name: show the original Chinese name under the fallback.
+  const original = lang === 'en' && !plugin.nameEn && name !== plugin.name;
+  const sub = original ? plugin.name : plugin.official ? plugin.id : plugin.repo;
   const body = (
     <>
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{
-          background:
-            'radial-gradient(260px circle at var(--mx, 50%) var(--my, 0%), color-mix(in oklab, var(--color-brand-bright) 13%, transparent), transparent 70%)',
-        }}
-      />
-      <div className="relative flex items-start gap-3">
+      <div className="flex items-start gap-3">
         <PluginIcon id={plugin.id} icon={plugin.icon} name={plugin.name} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <h3 className="truncate font-semibold tracking-tight text-fd-foreground">{plugin.name}</h3>
-            {href !== null && (
-              <ArrowUpRight className="size-3.5 shrink-0 -translate-x-1 text-fd-muted-foreground opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
+        <div className="min-w-0 flex-1 pt-0.5">
+          <h3 className="flex items-center gap-1.5 font-semibold tracking-tight text-fd-foreground">
+            <span className="truncate">{name}</span>
+            {plugin.official && plugin.verified && (
+              <span title={m.card.official} className="shrink-0">
+                <BadgeCheck className="size-4 text-fd-muted-foreground" aria-hidden="true" />
+                <span className="sr-only">{m.card.official}</span>
+              </span>
             )}
-          </div>
-          <p className="truncate font-mono text-[11px] text-fd-muted-foreground">{plugin.nameEn ?? plugin.id}</p>
+          </h3>
+          <p
+            lang={original ? 'zh-CN' : undefined}
+            className={cn('truncate text-fd-muted-foreground', original ? 'text-xs' : 'font-mono text-[11px]')}
+          >
+            {sub}
+          </p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <TrustBadge plugin={plugin} />
-        </div>
-      </div>
-      <p className="relative mt-3 line-clamp-2 min-h-10 text-sm leading-5 text-fd-muted-foreground">
-        {plugin.description}
-      </p>
-      <div className="relative mt-3 mb-3 flex flex-wrap items-center gap-1">
-        <KindBadge kind={plugin.kind} endpoint={plugin.endpoint} />
-        <CloudBadge plugin={plugin} />
-        {plugin.requires.slice(0, 3).map((c) => (
-          <CapabilityChip key={c} cap={c} />
-        ))}
-        {plugin.requires.length > 3 && (
-          <span className="font-mono text-[11px] text-fd-muted-foreground">+{plugin.requires.length - 3}</span>
+        {href !== null && (
+          <ArrowUpRight
+            aria-hidden="true"
+            className="size-4 shrink-0 text-fd-muted-foreground opacity-0 transition-[opacity,transform] duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-visible:opacity-100"
+          />
         )}
       </div>
-      <div className="relative mt-auto flex items-center justify-between gap-2 border-t border-dashed border-fd-border pt-3 font-mono text-[11px] text-fd-muted-foreground">
-        <span className="truncate">{plugin.official ? `@${plugin.author}` : plugin.repo}</span>
+      <p
+        lang={desc.lang === 'zh' ? 'zh-CN' : 'en'}
+        className="mt-3 line-clamp-2 min-h-10 text-sm leading-5 text-fd-muted-foreground"
+      >
+        {desc.text}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-1">
+        {(!plugin.official || !plugin.verified) && <TrustBadge plugin={plugin} lang={lang} />}
+        {plugin.kind !== 'builtin' && <KindBadge kind={plugin.kind} endpoint={plugin.endpoint} lang={lang} />}
+        <CloudBadge plugin={plugin} lang={lang} />
+      </div>
+      <div className="mt-auto flex items-center gap-2 pt-4 text-xs">
+        {campus.length ? (
+          <p className="flex min-w-0 flex-1 items-center gap-1.5" title={m.card.campusLabel}>
+            <KeyRound className="size-3.5 shrink-0 text-brand dark:text-fd-primary" aria-hidden="true" />
+            <span className="sr-only">{m.card.campusLabel}</span>
+            <span className="truncate text-fd-foreground">
+              {campus
+                .slice(0, 2)
+                .map((c) => CAMPUS_SERVICE[c]?.[lang] ?? c)
+                .join(lang === 'zh' ? '、' : ', ')}
+            </span>
+            {campus.length > 2 && (
+              <span className="shrink-0 text-fd-muted-foreground">{m.card.more(campus.length - 2)}</span>
+            )}
+          </p>
+        ) : plugin.requires.includes('campus-session') ? (
+          <p className="flex min-w-0 flex-1 items-center gap-1.5 text-fd-foreground">
+            <KeyRound className="size-3.5 shrink-0 text-brand dark:text-fd-primary" aria-hidden="true" />
+            {m.card.usesSession}
+          </p>
+        ) : (
+          <p className="flex min-w-0 flex-1 items-center gap-1.5 text-fd-muted-foreground">
+            <ShieldCheck className="size-3.5 shrink-0 text-up" aria-hidden="true" />
+            {m.card.noCampus}
+          </p>
+        )}
         {!plugin.official && plugin.stars !== undefined && (
-          <span className="inline-flex shrink-0 items-center gap-1">
-            <Star className="size-3" />
+          <span className="inline-flex shrink-0 items-center gap-1 text-fd-muted-foreground tabular-nums">
+            <Star className="size-3" aria-hidden="true" />
             {plugin.stars}
+            <span className="sr-only">{m.stars}</span>
           </span>
         )}
       </div>
     </>
   );
   const cls = cn(
-    'group relative flex h-full flex-col rounded-xl border border-fd-border bg-fd-card p-4 transition-[border-color,box-shadow,transform] duration-300 ease-out-strong',
+    'group relative flex h-full flex-col rounded-2xl border border-fd-border bg-fd-card p-4 transition-[border-color,background-color] duration-200',
     href !== null &&
-      'hover:-translate-y-0.5 hover:border-brand-bright/40 hover:shadow-[0_8px_30px_-12px] hover:shadow-brand/40 focus-visible:outline-2 focus-visible:outline-fd-ring',
+      'hover:border-fd-foreground/25 hover:bg-fd-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring',
     className,
   );
-  if (href === null)
-    return (
-      <div className={cls} onPointerMove={spotlight}>
-        {body}
-      </div>
-    );
+  if (href === null) return <div className={cls}>{body}</div>;
   return (
-    <Link href={href ?? marketplaceHref(plugin)} className={cls} onPointerMove={spotlight}>
+    <Link href={href ?? marketplaceHref(plugin, lang)} className={cls}>
       {body}
     </Link>
   );

@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildIndex } from './build';
 import { GitHubError, parseRepoInput, refCandidates } from './github';
-import { extractManifest, findCandidates, scanRepo, validateManifest } from './scanner';
+import { extractManifest, findCandidates, isIgnoredPath, scanRepo, validateManifest } from './scanner';
 import { manifestJsonSchema, registry } from './schema';
 import { renderMarketplaceFixture } from './test-fixture';
 
@@ -260,4 +260,14 @@ describe('schema', () => {
   test.skipIf(!existsSync(sibling))('mirrors the official registry schema (sibling checkout)', () => {
     expect(registry.safeParse(JSON.parse(readFileSync(sibling, 'utf8'))).success).toBe(true);
   });
+});
+
+test('test and fixture folders are never scanned for plugins', () => {
+  expect(isIgnoredPath('packages/cloud-server/test/fixtures/fn-demo/PLUGIN.md')).toBe(true);
+  expect(isIgnoredPath('src/__tests__/demo/PLUGIN.md')).toBe(true);
+  expect(isIgnoredPath('node_modules/x/PLUGIN.md')).toBe(true);
+  expect(isIgnoredPath('.github/PLUGIN.md')).toBe(true);
+  expect(isIgnoredPath('plugins/classrooms/PLUGIN.md')).toBe(false);
+  // a plugin may itself be named "test"; only folders above the file count
+  expect(isIgnoredPath('plugins/test-runner/PLUGIN.md')).toBe(false);
 });

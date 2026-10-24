@@ -1,13 +1,17 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { DownloadView } from '@/components/landing/download/download-view';
+import { toLang } from '@/lib/i18n';
+import { t } from '@/lib/messages';
 import { normalizeReleases, PREVIEW_RELEASES } from '@/lib/releases';
-import '@/components/landing/landing.css';
 
-export const metadata: Metadata = { title: '下载（预览）', robots: { index: false } };
+export async function generateMetadata({ params }: PageProps<'/[lang]/download/preview'>): Promise<Metadata> {
+  return { title: t(toLang((await params).lang)).download.meta.previewTitle, robots: { index: false } };
+}
 
-/** Development only: the download page as it will look once releases exist (demo data). */
-export default function DownloadPreviewPage() {
+/** Development only: the download page with demo data (two releases, notes with a checksum). */
+export default async function DownloadPreviewPage({ params }: PageProps<'/[lang]/download/preview'>) {
   if (process.env.NODE_ENV === 'production') notFound();
-  return <DownloadView data={{ releases: normalizeReleases(PREVIEW_RELEASES) }} />;
+  const lang = toLang((await params).lang);
+  return <DownloadView data={{ releases: normalizeReleases(PREVIEW_RELEASES) }} lang={lang} preview />;
 }

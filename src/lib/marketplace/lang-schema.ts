@@ -72,6 +72,8 @@ export const toolName = z
 /** A tool (inline in the frontmatter or in tools/<name>.yaml), §5. Steps are not checked here. */
 export const langTool = z.strictObject({
   title: z.string().min(1).max(60),
+  /** Short line for people (install review, marketplace); `description` is for the model. */
+  summary: z.string().min(1).max(80).optional(),
   description: z.string().min(4).max(2000),
   effect: toolEffect,
   untrusted: z.boolean().optional(),

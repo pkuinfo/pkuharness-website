@@ -104,8 +104,20 @@ export interface Candidate {
 const dirOf = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
 const baseOf = (p: string) => p.slice(p.lastIndexOf('/') + 1);
 
+/** Folders that never hold listable plugins: dependencies, dot folders, tests and their fixtures. */
+const IGNORED_DIRS = new Set([
+  'node_modules',
+  'test',
+  'tests',
+  '__tests__',
+  'fixtures',
+  '__fixtures__',
+  'testdata',
+  'e2e',
+]);
+
 export function isIgnoredPath(path: string): boolean {
-  return path.split('/').some((seg, i, all) => i < all.length - 1 && (seg === 'node_modules' || seg.startsWith('.')));
+  return path.split('/').some((seg, i, all) => i < all.length - 1 && (IGNORED_DIRS.has(seg) || seg.startsWith('.')));
 }
 
 export function normalizeDir(d: string): string {

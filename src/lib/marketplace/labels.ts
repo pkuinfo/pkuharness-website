@@ -1,6 +1,7 @@
+import { type Lang, localePath } from '@/lib/i18n';
 import type { Capability, MarketplacePlugin } from './types';
 
-/** Capabilities in plain words (zh first, as the app shows them). Client-safe. */
+/** Capabilities in plain words, in both languages. Client-safe. */
 export const CAPABILITY: Record<
   Capability,
   { zh: string; en: string; explain: string; explainZh: string; tone: 'neutral' | 'notice' | 'warn' }
@@ -86,7 +87,33 @@ export const handleOf = (p: Pick<MarketplacePlugin, 'slug'>) => p.slug;
 /** Install name in the app (remote plugins are MCP servers named after the id). */
 export const appServerName = (p: Pick<MarketplacePlugin, 'id'>) => `mcp-${p.id}`;
 
-export const marketplaceHref = (p: Pick<MarketplacePlugin, 'slug'>) => `/marketplace/${p.slug}`;
+/** Detail page of a plugin; pass `lang` for a locale-aware href (`/en/marketplace/…`). */
+export const marketplaceHref = (p: Pick<MarketplacePlugin, 'slug'>, lang: Lang = 'zh') =>
+  localePath(lang, `/marketplace/${p.slug}`);
+
+/** Pick a `{ zh, en }` label by language. */
+export const pick = (l: { zh: string; en: string } | undefined, lang: Lang, fallback = '') => (l ? l[lang] : fallback);
+
+const CJK = /[\u3400-\u9fff]/;
+const humanize = (id: string) =>
+  id.length <= 3 ? id.toUpperCase() : id.charAt(0).toUpperCase() + id.slice(1).replace(/-/g, ' ');
+
+/**
+ * Plugin name in the reader's language. Manifests are Chinese first and English comes from
+ * `i18n.en`; when that is missing, English readers get the id in words rather than a Chinese name.
+ */
+export const pluginName = (p: Pick<MarketplacePlugin, 'name' | 'nameEn' | 'id'>, lang: Lang) =>
+  lang === 'en' ? (p.nameEn ?? (CJK.test(p.name) ? humanize(p.id) : p.name)) : p.name;
+
+/** Plugin description in the reader's language, plus the language it is actually written in. */
+export function pluginDescription(p: Pick<MarketplacePlugin, 'description' | 'descriptionEn'>, lang: Lang) {
+  if (lang === 'en' && p.descriptionEn) return { text: p.descriptionEn, lang: 'en' as const };
+  return { text: p.description, lang: lang === 'en' ? ('zh' as const) : lang };
+}
+
+/** Capability explanation in the reader's language. */
+export const capabilityExplain = (c: Capability, lang: Lang) =>
+  lang === 'zh' ? CAPABILITY[c].explainZh : CAPABILITY[c].explain;
 
 /** Tags users filter by (the "official" tag is shown as a badge instead). */
 export const visibleTags = (p: Pick<MarketplacePlugin, 'tags'>) => p.tags.filter((t) => t !== 'official');
@@ -128,4 +155,9 @@ export const EFFECT: Record<string, { zh: string; en: string; tone: 'neutral' | 
   public: { zh: '公开发布', en: 'Public', tone: 'warn' },
 };
 
-export const MODE: Record<string, string> = { auto: '直接执行', ask: '先问你', off: '关闭' };
+/** Default confirmation modes (spec §9). */
+export const MODE: Record<string, { zh: string; en: string }> = {
+  auto: { zh: '直接执行', en: 'Runs without asking' },
+  ask: { zh: '先问你', en: 'Asks you first' },
+  off: { zh: '关闭', en: 'Off' },
+};

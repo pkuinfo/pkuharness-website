@@ -1,11 +1,13 @@
 import { BadgeCheck, Cloud, FileText, Package, Radio, Server, ShieldQuestion } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
-import { CAPABILITY } from '@/lib/marketplace/labels';
+import type { Lang } from '@/lib/i18n';
+import { CAPABILITY, capabilityExplain } from '@/lib/marketplace/labels';
 import type { Capability, MarketplacePlugin } from '@/lib/marketplace/types';
+import { t } from '@/lib/messages';
 
 const base =
-  'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-4 whitespace-nowrap';
+  'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-4 whitespace-nowrap [&_svg]:size-3';
 
 export function Badge({ className, children, title }: { className?: string; children: ReactNode; title?: string }) {
   return (
@@ -15,77 +17,80 @@ export function Badge({ className, children, title }: { className?: string; chil
   );
 }
 
-export function TrustBadge({ plugin }: { plugin: Pick<MarketplacePlugin, 'official' | 'verified'> }) {
+export function TrustBadge({ plugin, lang }: { plugin: Pick<MarketplacePlugin, 'official' | 'verified'>; lang: Lang }) {
+  const m = t(lang).marketplace.badges;
   if (plugin.official && plugin.verified)
     return (
       <Badge
-        className="bg-brand-bright/12 text-fd-primary ring-1 ring-inset ring-brand-bright/25"
-        title="Maintained by pkuinfo, reviewed"
+        className="bg-brand-bright/12 text-brand ring-1 ring-inset ring-brand-bright/25 dark:text-fd-primary"
+        title={m.officialTitle}
       >
-        <BadgeCheck className="size-3" />
-        官方
+        <BadgeCheck />
+        {m.official}
       </Badge>
     );
   if (plugin.verified)
     return (
-      <Badge className="bg-up/10 text-up ring-1 ring-inset ring-up/25" title="A maintainer reviewed the source">
-        <BadgeCheck className="size-3" />
-        已审核
+      <Badge className="bg-up/10 text-success-fg ring-1 ring-inset ring-up/25" title={m.verifiedTitle}>
+        <BadgeCheck />
+        {m.verified}
       </Badge>
     );
   return (
-    <Badge
-      className="bg-fd-muted text-fd-muted-foreground ring-1 ring-inset ring-fd-border"
-      title="Listed automatically; not reviewed yet"
-    >
-      <ShieldQuestion className="size-3" />
-      {plugin.official ? '官方 · 示例' : '社区'}
+    <Badge className="bg-fd-muted text-fd-muted-foreground ring-1 ring-inset ring-fd-border" title={m.communityTitle}>
+      <ShieldQuestion />
+      {plugin.official ? m.example : m.community}
     </Badge>
   );
 }
 
-export function KindBadge({ kind, endpoint }: { kind: MarketplacePlugin['kind']; endpoint?: string | null }) {
+export function KindBadge({
+  kind,
+  endpoint,
+  lang,
+}: {
+  kind: MarketplacePlugin['kind'];
+  endpoint?: string | null;
+  lang: Lang;
+}) {
+  const m = t(lang).marketplace.badges;
   if (kind === 'remote' && endpoint === null)
     return (
-      <Badge
-        className="bg-fd-muted text-fd-muted-foreground"
-        title="No public instance: deploy it yourself from source"
-      >
-        <Server className="size-3" />
-        自部署
+      <Badge className="bg-fd-muted text-fd-muted-foreground" title={m.selfHostedTitle}>
+        <Server />
+        {m.selfHosted}
       </Badge>
     );
   if (kind === 'declarative')
     return (
-      <Badge
-        className="bg-brand-bright/10 text-brand dark:text-[#ff8a96]"
-        title="A PLUGIN.md the app interprets on your phone: install by link, no code runs"
-      >
-        <FileText className="size-3" />
-        声明式
+      <Badge className="bg-brand-bright/10 font-mono text-brand dark:text-fd-primary" title={m.declarativeTitle}>
+        <FileText />
+        {m.declarative}
       </Badge>
     );
   return kind === 'builtin' ? (
-    <Badge className="bg-fd-muted text-fd-muted-foreground" title="Ships inside the app">
-      <Package className="size-3" />
-      内置
+    <Badge className="bg-fd-muted text-fd-muted-foreground" title={m.builtinTitle}>
+      <Package />
+      {m.builtin}
     </Badge>
   ) : (
-    <Badge className="bg-pku-slate/15 text-pku-navy dark:text-[#9fb3dc]" title="An MCP server you add by URL">
-      <Radio className="size-3" />
-      远程
+    <Badge className="bg-pku-slate/15 text-info-fg" title={m.remoteTitle}>
+      <Radio />
+      {m.remote}
     </Badge>
   );
 }
 
-export function CloudBadge({ plugin }: { plugin: Pick<MarketplacePlugin, 'cloud'> }) {
+export function CloudBadge({ plugin, lang }: { plugin: Pick<MarketplacePlugin, 'cloud'>; lang: Lang }) {
   if (!plugin.cloud?.uses.length) return null;
+  const m = t(lang).marketplace.badges;
   return (
     <Badge
-      className="bg-pku-amber/12 text-pku-gold dark:text-pku-amber ring-1 ring-inset ring-pku-amber/25"
-      title="Sends data to PKU Harness Cloud"
+      className="bg-pku-amber/12 text-pku-gold ring-1 ring-inset ring-pku-amber/25 dark:text-pku-amber"
+      title={m.cloudTitle}
     >
-      <Cloud className="size-3" />云{plugin.cloud.e2e ? ' · 端到端加密' : ''}
+      <Cloud />
+      {plugin.cloud.e2e ? m.cloudE2e : m.cloud}
     </Badge>
   );
 }
@@ -93,23 +98,15 @@ export function CloudBadge({ plugin }: { plugin: Pick<MarketplacePlugin, 'cloud'
 const TONE = {
   neutral: 'bg-fd-muted/70 text-fd-muted-foreground',
   notice: 'bg-pku-amber/10 text-pku-gold dark:text-pku-amber/90',
-  warn: 'bg-brand-bright/10 text-brand dark:text-[#ff8a96]',
+  warn: 'bg-brand-bright/10 text-brand dark:text-fd-primary',
 };
 
-export function CapabilityChip({
-  cap,
-  lang = 'zh',
-  className,
-}: {
-  cap: Capability;
-  lang?: 'zh' | 'en';
-  className?: string;
-}) {
+export function CapabilityChip({ cap, lang, className }: { cap: Capability; lang: Lang; className?: string }) {
   const c = CAPABILITY[cap];
   if (!c) return null;
   return (
-    <Badge className={cn('font-mono font-normal', TONE[c.tone], className)} title={c.explain}>
-      {lang === 'zh' ? c.zh : c.en}
+    <Badge className={cn('font-normal', TONE[c.tone], className)} title={capabilityExplain(cap, lang)}>
+      {c[lang]}
     </Badge>
   );
 }

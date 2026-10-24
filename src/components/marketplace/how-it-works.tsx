@@ -1,71 +1,76 @@
-import { FileJson, GitPullRequestArrow, RefreshCw, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { CodePanel } from '@/components/ui/code-panel';
+import { type Lang, localePath } from '@/lib/i18n';
+import { t } from '@/lib/messages';
+import { highlight } from './highlight';
 
-const STEPS = [
-  {
-    icon: FileJson,
-    title: '写一个 PLUGIN.md',
-    en: 'Add a PLUGIN.md',
-    body: (
-      <>
-        每个插件一个文件夹，放一个 <code>PLUGIN.md</code>：YAML 写声明，正文写给 AI 的说明。一个仓库可以有任意多个插件。
-      </>
-    ),
-  },
-  {
-    icon: GitPullRequestArrow,
-    title: '提交仓库',
-    en: 'Submit the repo',
-    body: <>粘贴 GitHub 地址，实时预览检测结果；提交后自动开 issue，机器人扫描并发起收录 PR。</>,
-  },
-  {
-    icon: RefreshCw,
-    title: '推送即更新',
-    en: 'Push to update',
-    body: <>市场每小时重新扫描已收录的仓库。改清单、加插件、删插件，push 就好。</>,
-  },
-  {
-    icon: ShieldCheck,
-    title: '人工审核',
-    en: 'Get verified',
-    body: <>维护者读过源码后标记「已审核」。未审核的插件同样可以添加，页面上会标明「社区」。</>,
-  },
-];
+const SAMPLE = `---
+spec: 1
+id: canteen-menu
+name: 食堂菜单
+description: 今天各食堂的菜单和营业时间。
+version: 1.0.0
+author: you
+network: [dining.pku.edu.cn]
+tools:
+  menu: tools/menu.yaml
+i18n:
+  en: { name: Canteen menus, description: What each canteen serves today. }
+---
 
-export function HowListingWorks() {
+Use \`menu\` when the user asks what to eat.`;
+
+/** "How a plugin gets listed": four real steps next to the file that starts it all. */
+export async function HowListingWorks({ lang }: { lang: Lang }) {
+  const m = t(lang).marketplace;
+  const html = await highlight(SAMPLE, 'markdown');
   return (
-    <section className="mt-24">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <section aria-labelledby="listing-title" className="mt-24 border-t border-fd-border pt-14">
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14">
         <div>
-          <p className="font-mono text-xs tracking-wider text-fd-muted-foreground">HOW LISTING WORKS</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight">仓库即插件源</h2>
+          <h2 id="listing-title" className="text-2xl font-semibold tracking-[-0.02em]">
+            {m.listing.title}
+          </h2>
+          <p className="mt-3 text-fd-muted-foreground">{m.listing.lede}</p>
+          <ol className="mt-8 space-y-6">
+            {m.listing.steps.map((s, i) => (
+              <li key={s.title} className="grid grid-cols-[28px_1fr] gap-x-3">
+                <span
+                  aria-hidden="true"
+                  className="flex size-7 items-center justify-center rounded-full border border-fd-border text-xs font-medium tabular-nums text-fd-muted-foreground"
+                >
+                  {i + 1}
+                </span>
+                <div className="pt-0.5">
+                  <h3 className="font-medium">{s.title}</h3>
+                  <p className="mt-1 text-sm leading-6 text-fd-muted-foreground">{s.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            <Link href="/marketplace.json" className="font-mono text-fd-muted-foreground hover:text-fd-foreground">
+              {m.listing.json}
+            </Link>
+            <Link href="/marketplace/llms.txt" className="font-mono text-fd-muted-foreground hover:text-fd-foreground">
+              {m.listing.llms}
+            </Link>
+            <Link
+              href={localePath(lang, '/docs/marketplace/manifest')}
+              className="text-fd-primary underline-offset-4 hover:underline"
+            >
+              {m.listing.spec}
+            </Link>
+          </p>
         </div>
-        <div className="flex gap-4 font-mono text-xs text-fd-muted-foreground">
-          <Link href="/marketplace.json" className="hover:text-fd-foreground">
-            marketplace.json
-          </Link>
-          <Link href="/marketplace/llms.txt" className="hover:text-fd-foreground">
-            llms.txt
-          </Link>
-          <Link href="/docs/marketplace/manifest" className="hover:text-fd-foreground">
-            manifest spec →
-          </Link>
-        </div>
+        <CodePanel
+          className="self-start"
+          label={m.listing.sample}
+          copyLabel={m.copy.copyValue('PLUGIN.md')}
+          copiedLabel={m.copy.copied}
+          files={[{ id: 'sample', label: m.listing.sample, code: SAMPLE, html }]}
+        />
       </div>
-      <ol className="mt-8 grid gap-px overflow-hidden rounded-xl border border-fd-border bg-fd-border sm:grid-cols-2 lg:grid-cols-4">
-        {STEPS.map((s, i) => (
-          <li key={s.en} className="bg-fd-card p-5 [&_code]:font-mono [&_code]:text-[12px] [&_code]:text-fd-foreground">
-            <div className="flex items-center justify-between">
-              <s.icon className="size-5 text-fd-primary" strokeWidth={1.75} />
-              <span className="font-mono text-xs text-fd-muted-foreground">0{i + 1}</span>
-            </div>
-            <h3 className="mt-4 font-medium">
-              {s.title} <span className="font-mono text-xs font-normal text-fd-muted-foreground">{s.en}</span>
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-fd-muted-foreground">{s.body}</p>
-          </li>
-        ))}
-      </ol>
     </section>
   );
 }

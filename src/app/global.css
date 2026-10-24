@@ -19,6 +19,13 @@
   --color-pku-pine: #44472c;
   --color-up: #22c55e;
   --color-down: #f97350;
+  /* Semantic text/fill tokens; light values here, dark values under .dark. */
+  --color-brand-hover: #9e0016;
+  --color-brand-fg: #8b0012;
+  --color-success-fg: #15803d;
+  --color-warn-fg: #8a560a;
+  --color-info-fg: #0e3463;
+  --color-pine-fg: #44472c;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
 }
@@ -36,6 +43,11 @@
   --color-fd-primary: #ff5a6a;
   --color-fd-primary-foreground: #1a0003;
   --color-fd-ring: #ff5a6a;
+  --color-brand-fg: #ff8a96;
+  --color-success-fg: #4ade80;
+  --color-warn-fg: #efaa3c;
+  --color-info-fg: #9fb3dc;
+  --color-pine-fg: #c9cd9a;
 }
 
 html {

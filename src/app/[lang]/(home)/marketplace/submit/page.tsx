@@ -1,39 +1,85 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { highlight } from '@/components/marketplace/highlight';
+import { Rich } from '@/components/marketplace/rich';
 import { SubmitForm } from '@/components/marketplace/submit-form';
+import { localePath, toLang } from '@/lib/i18n';
+import { t } from '@/lib/messages';
+import { siteUrl } from '@/lib/shared';
 
-export const metadata: Metadata = {
-  title: '提交插件 · Submit a plugin',
-  description: 'Check a GitHub repository for PKU Harness plugin manifests and submit it to the marketplace.',
-};
+const STARTER_MD = `---
+spec: 1
+id: my-plugin
+name: 我的插件
+description: 一句话说明它为同学们做什么。
+version: 0.1.0
+author: your-github-name
+network: [example.pku.edu.cn]
+tools:
+  lookup: tools/lookup.yaml
+i18n:
+  en: { name: My plugin, description: What it does, in one sentence. }
+---
 
-export default function SubmitPage() {
+Use \`lookup\` when the user asks about … Answer with …`;
+
+/** Remote MCP servers, until remote.mcp in PLUGIN.md replaces it. */
+const STARTER_JSON = `{
+  "$schema": "${siteUrl}/schema/plugin-manifest.v1.json",
+  "id": "my-plugin",
+  "name": "我的插件",
+  "description": "一句话说明它为同学们做什么。",
+  "endpoint": "https://my-plugin.example.com/mcp",
+  "requires": ["network"],
+  "scopes": ["example.pku.edu.cn"]
+}`;
+
+export async function generateMetadata({ params }: PageProps<'/[lang]/marketplace/submit'>): Promise<Metadata> {
+  const m = t(toLang((await params).lang)).marketplace.meta;
+  return {
+    title: m.submitTitle,
+    description: m.submitDescription,
+    alternates: { languages: { 'zh-CN': '/marketplace/submit', en: '/en/marketplace/submit' } },
+  };
+}
+
+export default async function SubmitPage({ params }: PageProps<'/[lang]/marketplace/submit'>) {
+  const lang = toLang((await params).lang);
+  const m = t(lang).marketplace;
+  const starters = [
+    { id: 'md', label: m.submit.starterTabs.md, code: STARTER_MD, html: await highlight(STARTER_MD, 'markdown') },
+    { id: 'json', label: m.submit.starterTabs.json, code: STARTER_JSON, html: await highlight(STARTER_JSON, 'json') },
+  ];
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-4 pt-14 pb-24 md:px-6 md:pt-20">
-      <nav aria-label="Breadcrumb" className="font-mono text-xs text-fd-muted-foreground">
-        <Link href="/marketplace" className="hover:text-fd-foreground">
-          marketplace
-        </Link>
-        <span className="mx-1.5 opacity-50">/</span>
-        <span className="text-fd-foreground">submit</span>
+    <div className="mx-auto w-full max-w-[960px] flex-1 px-4 pt-10 pb-24 md:px-8">
+      <nav aria-label="Breadcrumb">
+        <ol className="flex items-center gap-1.5 text-sm text-fd-muted-foreground">
+          <li>
+            <Link href={localePath(lang, '/marketplace')} className="hover:text-fd-foreground">
+              {m.root}
+            </Link>
+          </li>
+          <li aria-hidden="true" className="opacity-40">
+            /
+          </li>
+          <li aria-current="page" className="text-fd-foreground">
+            {m.submit.title}
+          </li>
+        </ol>
       </nav>
-      <h1 className="mt-6 text-3xl font-semibold tracking-tight md:text-4xl">
-        提交插件
-        <span className="mt-2 block text-base font-normal tracking-normal text-fd-muted-foreground">
-          Paste a GitHub repo. We find every plugin in it, check it, and show you what students will see.
-        </span>
-      </h1>
-      <p className="mt-5 text-[15px] leading-7 text-fd-muted-foreground">
-        市场按仓库收录插件：一个仓库可以包含任意多个插件，handle 是{' '}
-        <code className="font-mono text-fd-foreground">owner/repo/id</code>
-        。收录之后，你只需要 push，市场每小时会重新扫描。规则见{' '}
-        <Link href="/docs/marketplace/review" className="text-fd-primary hover:underline">
-          审核与安全
+      <h1 className="mt-8 text-4xl font-semibold tracking-[-0.03em] md:text-5xl">{m.submit.title}</h1>
+      <p className="mt-4 max-w-[60ch] text-base leading-7 text-fd-muted-foreground">{m.submit.lede}</p>
+      <p className="mt-3 max-w-[65ch] text-sm leading-6 text-fd-muted-foreground">
+        <Rich text={m.submit.about} />{' '}
+        <Link
+          href={localePath(lang, '/docs/marketplace/review')}
+          className="text-fd-primary underline-offset-4 hover:underline"
+        >
+          {m.submit.rules}
         </Link>
-        。
       </p>
       <div className="mt-10">
-        <SubmitForm />
+        <SubmitForm lang={lang} starters={starters} />
       </div>
     </div>
   );

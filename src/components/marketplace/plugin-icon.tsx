@@ -65,11 +65,11 @@ const ICONS: Record<string, LucideIcon> = {
 
 /** PKU auxiliary colours as light on a dark tile (DESIGN.md: auxiliaries only as light). */
 const TINTS = [
-  'from-brand-bright/25 to-brand-deep/5 text-brand ring-brand-bright/25 dark:text-[#ff8a96]',
+  'from-brand-bright/25 to-brand-deep/5 text-brand-fg ring-brand-bright/25',
   'from-pku-gold/30 to-pku-gold/5 text-pku-gold ring-pku-gold/30 dark:text-pku-sand',
-  'from-pku-slate/35 to-pku-navy/5 text-pku-navy ring-pku-slate/35 dark:text-[#9fb3dc]',
-  'from-pku-amber/30 to-pku-amber/5 text-[#9a6412] ring-pku-amber/30 dark:text-pku-amber',
-  'from-pku-pine/40 to-pku-pine/5 text-pku-pine ring-pku-pine/40 dark:text-[#c9cd9a]',
+  'from-pku-slate/35 to-pku-navy/5 text-info-fg ring-pku-slate/35',
+  'from-pku-amber/30 to-pku-amber/5 text-warn-fg ring-pku-amber/30',
+  'from-pku-pine/40 to-pku-pine/5 text-pine-fg ring-pku-pine/40',
 ];
 
 function hash(s: string) {

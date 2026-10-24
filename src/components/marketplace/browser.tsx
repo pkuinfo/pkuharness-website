@@ -1,34 +1,30 @@
 'use client';
 
-import { ArrowRight, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, PackageSearch, Search, SlidersHorizontal, Sprout, X } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import Link from 'next/link';
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { HoverTabs } from '@/components/ui/hover-tabs';
 import { cn } from '@/lib/cn';
-import { ALL_CAPABILITIES, CAMPUS_SERVICE, CAPABILITY, visibleTags } from '@/lib/marketplace/labels';
+import { htmlLang, type Lang, localePath } from '@/lib/i18n';
+import { ALL_CAPABILITIES, CAMPUS_SERVICE, CAPABILITY, capabilityExplain, visibleTags } from '@/lib/marketplace/labels';
 import type { Capability, MarketplacePlugin } from '@/lib/marketplace/types';
+import { t } from '@/lib/messages';
 import { PluginCard } from './plugin-card';
+import { Rich } from './rich';
 
 type Tab = 'all' | 'official' | 'community';
 type Sort = 'official' | 'stars' | 'newest' | 'name';
 type Kind = 'any' | 'builtin' | 'remote' | 'declarative';
 
-const TABS: { id: Tab; zh: string; en: string }[] = [
-  { id: 'all', zh: '全部', en: 'All' },
-  { id: 'official', zh: '官方', en: 'Official' },
-  { id: 'community', zh: '社区', en: 'Community' },
-];
-const SORTS: { id: Sort; label: string }[] = [
-  { id: 'official', label: '官方优先' },
-  { id: 'stars', label: 'Stars' },
-  { id: 'newest', label: '最新收录' },
-  { id: 'name', label: '名称' },
-];
+const TABS: Tab[] = ['all', 'official', 'community'];
+const SORTS: Sort[] = ['official', 'stars', 'newest', 'name'];
+const KINDS: Kind[] = ['any', 'declarative', 'builtin', 'remote'];
 const ease = [0.23, 1, 0.32, 1] as const;
 
-function matches(p: MarketplacePlugin, q: string) {
-  if (!q) return true;
-  const hay = [
+function haystack(p: MarketplacePlugin) {
+  return [
     p.name,
     p.nameEn,
     p.description,
@@ -39,20 +35,20 @@ function matches(p: MarketplacePlugin, q: string) {
     p.author,
     ...p.tags,
     ...p.scopes,
-    ...(p.campus ?? []),
-    ...(p.tools ?? []).map((t) => t.title ?? t.name),
+    ...(p.campus ?? []).flatMap((c) => [c, CAMPUS_SERVICE[c]?.zh, CAMPUS_SERVICE[c]?.en]),
+    ...(p.tools ?? []).flatMap((tool) => [tool.title ?? tool.name, tool.titleEn ?? '', tool.summary ?? '']),
   ]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
-  return q
-    .toLowerCase()
-    .split(/\s+/)
-    .every((w) => hay.includes(w));
 }
 
-function compare(sort: Sort) {
-  const byName = (a: MarketplacePlugin, b: MarketplacePlugin) => a.name.localeCompare(b.name, 'zh-CN');
+function compare(sort: Sort, lang: Lang) {
+  const byName = (a: MarketplacePlugin, b: MarketplacePlugin) =>
+    (lang === 'en' ? (a.nameEn ?? a.id) : a.name).localeCompare(
+      lang === 'en' ? (b.nameEn ?? b.id) : b.name,
+      htmlLang[lang],
+    );
   return (a: MarketplacePlugin, b: MarketplacePlugin) => {
     switch (sort) {
       case 'stars':
@@ -73,21 +69,28 @@ function compare(sort: Sort) {
 
 function readUrl() {
   const sp = new URLSearchParams(window.location.search);
-  const tab = sp.get('tab');
-  const sort = sp.get('sort');
-  const kind = sp.get('kind');
+  const tab = sp.get('tab') as Tab | null;
+  const sort = sp.get('sort') as Sort | null;
+  const kind = sp.get('kind') as Kind | null;
   return {
     q: sp.get('q') ?? '',
-    tab: (TABS.some((t) => t.id === tab) ? tab : 'all') as Tab,
-    sort: (SORTS.some((s) => s.id === sort) ? sort : 'official') as Sort,
-    kind: (kind === 'builtin' || kind === 'remote' || kind === 'declarative' ? kind : 'any') as Kind,
+    tab: tab && TABS.includes(tab) ? tab : 'all',
+    sort: sort && SORTS.includes(sort) ? sort : 'official',
+    kind: kind && KINDS.includes(kind) ? kind : 'any',
     campus: sp.get('campus'),
     caps: (sp.get('requires')?.split(',') ?? []).filter((c): c is Capability => c in CAPABILITY),
     tag: sp.get('tag'),
-  };
+  } as const;
 }
 
-export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }) {
+function countBy(values: string[]) {
+  const m = new Map<string, number>();
+  for (const v of values) m.set(v, (m.get(v) ?? 0) + 1);
+  return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+export function MarketplaceBrowser({ plugins, lang }: { plugins: MarketplacePlugin[]; lang: Lang }) {
+  const m = t(lang).marketplace.browse;
   const [tab, setTab] = useState<Tab>('all');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('official');
@@ -96,7 +99,7 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
   const [tag, setTag] = useState<string | null>(null);
   const [campus, setCampus] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const q = useDeferredValue(query.trim());
+  const q = useDeferredValue(query.trim().toLowerCase());
   const input = useRef<HTMLInputElement>(null);
   const [ready, setReady] = useState(false);
 
@@ -107,11 +110,14 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
     setSort(s.sort);
     setKind(s.kind);
     setCaps(s.caps);
-    setTag(s.tag);
-    setCampus(s.campus);
-    if (s.caps.length || s.tag || s.campus || s.kind !== 'any') setFiltersOpen(true);
+    // Drop filters the index can't satisfy any more (old links), so no invisible filter hides everything.
+    const tag = s.tag && plugins.some((p) => p.tags.includes(s.tag as string)) ? s.tag : null;
+    const campus = s.campus && plugins.some((p) => p.campus?.includes(s.campus as string)) ? s.campus : null;
+    setTag(tag);
+    setCampus(campus);
+    if (s.caps.length || tag || campus || s.kind !== 'any') setFiltersOpen(true);
     setReady(true);
-  }, []);
+  }, [plugins]);
 
   useEffect(() => {
     if (!ready) return;
@@ -129,8 +135,8 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (e.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && !t.isContentEditable) {
+      const el = e.target as HTMLElement;
+      if (e.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && !el.isContentEditable) {
         e.preventDefault();
         input.current?.focus();
       }
@@ -139,6 +145,7 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const index = useMemo(() => new Map(plugins.map((p) => [p.slug, haystack(p)])), [plugins]);
   const counts = useMemo(
     () => ({
       all: plugins.length,
@@ -147,33 +154,25 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
     }),
     [plugins],
   );
-  const tags = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const p of plugins) for (const t of visibleTags(p)) m.set(t, (m.get(t) ?? 0) + 1);
-    return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [plugins]);
-  const campusServices = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const p of plugins) for (const c of p.campus ?? []) m.set(c, (m.get(c) ?? 0) + 1);
-    return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [plugins]);
+  const tags = useMemo(() => countBy(plugins.flatMap((p) => visibleTags(p))), [plugins]);
+  const campusServices = useMemo(() => countBy(plugins.flatMap((p) => p.campus ?? [])), [plugins]);
   const usedCaps = useMemo(
     () => ALL_CAPABILITIES.filter((c) => plugins.some((p) => p.requires.includes(c))),
     [plugins],
   );
+  const usedKinds = useMemo(() => KINDS.filter((k) => k === 'any' || plugins.some((p) => p.kind === k)), [plugins]);
 
-  const shown = useMemo(
-    () =>
-      plugins
-        .filter((p) => (tab === 'all' ? true : tab === 'official' ? p.official : !p.official))
-        .filter((p) => kind === 'any' || p.kind === kind)
-        .filter((p) => caps.every((c) => p.requires.includes(c)))
-        .filter((p) => !tag || p.tags.includes(tag))
-        .filter((p) => !campus || (p.campus ?? []).includes(campus))
-        .filter((p) => matches(p, q))
-        .sort(compare(sort)),
-    [plugins, tab, kind, caps, tag, campus, q, sort],
-  );
+  const shown = useMemo(() => {
+    const words = q.split(/\s+/).filter(Boolean);
+    return plugins
+      .filter((p) => (tab === 'all' ? true : tab === 'official' ? p.official : !p.official))
+      .filter((p) => kind === 'any' || p.kind === kind)
+      .filter((p) => caps.every((c) => p.requires.includes(c)))
+      .filter((p) => !tag || p.tags.includes(tag))
+      .filter((p) => !campus || (p.campus ?? []).includes(campus))
+      .filter((p) => words.every((w) => index.get(p.slug)?.includes(w)))
+      .sort(compare(sort, lang));
+  }, [plugins, index, tab, kind, caps, tag, campus, q, sort, lang]);
 
   const activeFilters = caps.length + (tag ? 1 : 0) + (campus ? 1 : 0) + (kind !== 'any' ? 1 : 0);
   const clearAll = () => {
@@ -185,244 +184,290 @@ export function MarketplaceBrowser({ plugins }: { plugins: MarketplacePlugin[] }
   };
   const toggleCap = (c: Capability) => setCaps((cs) => (cs.includes(c) ? cs.filter((x) => x !== c) : [...cs, c]));
 
-  return (
-    <MotionConfig reducedMotion="user" transition={{ duration: 0.35, ease }}>
-      <div className="z-10 -mx-4 md:sticky md:top-14 border-b border-fd-border/70 bg-fd-background/80 px-4 py-3 backdrop-blur-xl md:-mx-6 md:px-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
-          <div
-            role="tablist"
-            aria-label="Plugin source"
-            className="flex shrink-0 rounded-lg border border-fd-border bg-fd-card p-0.5"
-          >
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                aria-selected={tab === t.id}
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  'relative flex-1 rounded-md px-3 py-1.5 text-sm transition-colors md:flex-none',
-                  tab === t.id ? 'text-fd-foreground' : 'text-fd-muted-foreground hover:text-fd-foreground',
-                )}
-              >
-                {tab === t.id && (
-                  <motion.span
-                    layoutId="mk-tab"
-                    className="absolute inset-0 rounded-md bg-fd-secondary ring-1 ring-fd-border"
-                    transition={{ type: 'spring', bounce: 0.18, duration: 0.45 }}
-                  />
-                )}
-                <span className="relative inline-flex items-center gap-1.5">
-                  {t.zh}
-                  <span className="font-mono text-[11px] text-fd-muted-foreground tabular-nums">{counts[t.id]}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <label className="group relative flex min-w-0 flex-1 items-center">
-            <span className="sr-only">Search plugins</span>
-            <Search className="pointer-events-none absolute left-3 size-4 text-fd-muted-foreground transition-colors group-focus-within:text-fd-primary" />
-            <input
-              ref={input}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
-              placeholder="搜索插件、作者、标签…"
-              className="h-9 w-full rounded-lg border border-fd-border bg-fd-card pr-16 pl-9 text-sm outline-none transition-[border-color,box-shadow] placeholder:text-fd-muted-foreground/70 focus:border-fd-primary/50 focus:ring-3 focus:ring-fd-primary/15"
-              type="search"
-              spellCheck={false}
-              autoComplete="off"
-            />
-            {query ? (
-              <button
-                type="button"
-                onClick={() => setQuery('')}
-                className="absolute right-2 rounded p-1 text-fd-muted-foreground hover:text-fd-foreground"
-                aria-label="Clear search"
-              >
-                <X className="size-3.5" />
-              </button>
-            ) : (
-              <kbd className="pointer-events-none absolute right-2.5 hidden rounded border border-fd-border px-1.5 font-mono text-[11px] text-fd-muted-foreground sm:block">
-                /
-              </kbd>
-            )}
-          </label>
-
-          <div className="flex shrink-0 items-center gap-2">
+  const facets = (
+    <div className="space-y-7 rounded-2xl border border-fd-border p-4 lg:rounded-none lg:border-0 lg:p-0">
+      {campusServices.length > 0 && (
+        <Facet title={m.facets.campus}>
+          <FacetItem active={campus === null} onClick={() => setCampus(null)}>
+            {m.any}
+          </FacetItem>
+          {campusServices.map(([c, n]) => (
+            <FacetItem key={c} active={campus === c} onClick={() => setCampus(campus === c ? null : c)} count={n}>
+              {CAMPUS_SERVICE[c]?.[lang] ?? c}
+            </FacetItem>
+          ))}
+        </Facet>
+      )}
+      {usedCaps.length > 0 && (
+        <Facet title={m.facets.needs}>
+          {usedCaps.map((c) => (
+            <FacetItem
+              key={c}
+              active={caps.includes(c)}
+              onClick={() => toggleCap(c)}
+              title={capabilityExplain(c, lang)}
+              check
+            >
+              {CAPABILITY[c][lang]}
+            </FacetItem>
+          ))}
+        </Facet>
+      )}
+      {usedKinds.length > 2 && (
+        <Facet title={m.facets.kind}>
+          {usedKinds.map((k) => (
+            <FacetItem key={k} active={kind === k} onClick={() => setKind(k)}>
+              {k === 'any' ? m.any : m.kinds[k]}
+            </FacetItem>
+          ))}
+        </Facet>
+      )}
+      {tags.length > 0 && (
+        <Facet title={m.facets.tags} wrap>
+          {tags.map(([tg, n]) => (
             <button
+              key={tg}
               type="button"
-              onClick={() => setFiltersOpen((o) => !o)}
-              aria-expanded={filtersOpen}
+              aria-pressed={tag === tg}
+              onClick={() => setTag(tag === tg ? null : tg)}
               className={cn(
-                'inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm transition-colors',
-                filtersOpen || activeFilters
-                  ? 'border-fd-primary/40 text-fd-foreground'
+                'inline-flex items-center gap-1 rounded-md border px-2 py-1 font-mono text-xs transition-colors focus-visible:outline-2 focus-visible:outline-fd-ring',
+                tag === tg
+                  ? 'border-fd-primary/50 bg-fd-primary/10 text-fd-foreground'
                   : 'border-fd-border text-fd-muted-foreground hover:text-fd-foreground',
               )}
             >
-              <SlidersHorizontal className="size-3.5" />
-              筛选
-              {activeFilters > 0 && (
-                <span className="rounded bg-fd-primary px-1 font-mono text-[10px] text-fd-primary-foreground">
-                  {activeFilters}
-                </span>
-              )}
+              #{tg}
+              <span className="opacity-60">{n}</span>
             </button>
-            <label className="relative">
-              <span className="sr-only">Sort</span>
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as Sort)}
-                className="h-9 appearance-none rounded-lg border border-fd-border bg-fd-card pr-7 pl-3 text-sm text-fd-foreground outline-none focus:border-fd-primary/50"
+          ))}
+        </Facet>
+      )}
+    </div>
+  );
+
+  return (
+    <MotionConfig reducedMotion="user" transition={{ duration: 0.3, ease }}>
+      <label className="group relative mt-8 flex items-center">
+        <span className="sr-only">{m.searchLabel}</span>
+        <Search
+          aria-hidden="true"
+          className="pointer-events-none absolute left-4 size-[18px] text-fd-muted-foreground transition-colors group-focus-within:text-fd-primary"
+        />
+        <input
+          ref={input}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
+          placeholder={m.searchPlaceholder}
+          className="h-12 w-full rounded-xl border border-fd-border bg-fd-card pr-14 pl-11 text-[15px] outline-none transition-[border-color,box-shadow] placeholder:text-fd-muted-foreground focus:border-fd-primary/60 focus:ring-4 focus:ring-fd-primary/15 [&::-webkit-search-cancel-button]:hidden"
+          type="search"
+          spellCheck={false}
+          autoComplete="off"
+          aria-controls="mk-results"
+        />
+        {query ? (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery('');
+              input.current?.focus();
+            }}
+            className="absolute right-2.5 inline-flex size-8 items-center justify-center rounded-md text-fd-muted-foreground hover:bg-fd-accent hover:text-fd-foreground focus-visible:outline-2 focus-visible:outline-fd-ring"
+            aria-label={m.clearSearch}
+          >
+            <X className="size-4" />
+          </button>
+        ) : (
+          <kbd className="pointer-events-none absolute right-3.5 hidden h-6 min-w-6 items-center justify-center rounded-md border border-fd-border px-1.5 font-mono text-xs text-fd-muted-foreground sm:inline-flex">
+            /
+          </kbd>
+        )}
+      </label>
+
+      <div className="mt-8 lg:grid lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-10">
+        <aside aria-label={m.filters} className="hidden lg:block">
+          <div className="lg:sticky lg:top-20">{facets}</div>
+        </aside>
+
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3 border-b border-fd-border">
+            <HoverTabs
+              label={m.sourceLabel}
+              controls="mk-results"
+              value={tab}
+              onValueChange={setTab}
+              tabs={TABS.map((id) => ({ id, label: m.tabs[id], count: counts[id] }))}
+              className="-mb-px"
+            />
+            <div className="mb-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((o) => !o)}
+                aria-expanded={filtersOpen}
+                aria-controls="mk-filters"
+                className={cn(
+                  'inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-fd-ring lg:hidden',
+                  activeFilters
+                    ? 'border-fd-primary/40 text-fd-foreground'
+                    : 'border-fd-border text-fd-muted-foreground',
+                )}
               >
-                {SORTS.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[10px] text-fd-muted-foreground">
-                ▾
-              </span>
-            </label>
+                <SlidersHorizontal className="size-3.5" aria-hidden="true" />
+                {filtersOpen ? m.hideFilters : m.filters}
+                {activeFilters > 0 && (
+                  <span className="rounded bg-fd-primary px-1 text-[11px] font-medium text-fd-primary-foreground tabular-nums">
+                    {activeFilters}
+                  </span>
+                )}
+              </button>
+              <label className="relative">
+                <span className="sr-only">{m.sortLabel}</span>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as Sort)}
+                  className="h-9 appearance-none rounded-lg border border-fd-border bg-fd-card pr-8 pl-3 text-sm text-fd-foreground outline-none focus-visible:border-fd-primary/60 focus-visible:ring-3 focus-visible:ring-fd-primary/15"
+                >
+                  {SORTS.map((s) => (
+                    <option key={s} value={s}>
+                      {m.sorts[s]}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 text-fd-muted-foreground"
+                />
+              </label>
+            </div>
+          </div>
+
+          <AnimatePresence initial={false}>
+            {filtersOpen && (
+              <motion.div
+                id="mk-filters"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden lg:hidden"
+              >
+                <div className="pt-4">{facets}</div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="flex min-h-12 items-center justify-between gap-3 text-sm text-fd-muted-foreground">
+            <span aria-live="polite" className="tabular-nums">
+              {m.results(shown.length, counts[tab])}
+            </span>
+            {(activeFilters > 0 || q) && (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 hover:text-fd-foreground focus-visible:outline-2 focus-visible:outline-fd-ring"
+              >
+                <X className="size-3.5" aria-hidden="true" />
+                {m.clear}
+              </button>
+            )}
+          </div>
+
+          <div id="mk-results" role="tabpanel" aria-labelledby={`tab-${tab}`}>
+            {shown.length > 0 ? (
+              <motion.ul layout className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {shown.map((p) => (
+                    <motion.li
+                      key={p.slug}
+                      layout
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.12 } }}
+                    >
+                      <PluginCard plugin={p} lang={lang} />
+                    </motion.li>
+                  ))}
+                </AnimatePresence>
+              </motion.ul>
+            ) : tab === 'community' && counts.community === 0 ? (
+              <EmptyState
+                icon={<Sprout />}
+                title={m.noCommunity.title}
+                actions={
+                  <>
+                    <Link
+                      href={localePath(lang, '/marketplace/submit')}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-fd-primary px-4 text-sm font-medium text-fd-primary-foreground transition-transform active:scale-[0.98]"
+                    >
+                      {m.noCommunity.submit}
+                      <ArrowRight className="size-3.5" aria-hidden="true" />
+                    </Link>
+                    <Link
+                      href={localePath(lang, '/docs/marketplace/publishing')}
+                      className="inline-flex h-9 items-center rounded-lg border border-fd-border px-4 text-sm hover:bg-fd-accent"
+                    >
+                      {m.noCommunity.guide}
+                    </Link>
+                  </>
+                }
+              >
+                <Rich text={m.noCommunity.body} />
+              </EmptyState>
+            ) : (
+              <EmptyState
+                icon={<PackageSearch />}
+                title={m.noMatch.title}
+                actions={
+                  <>
+                    <button
+                      type="button"
+                      onClick={clearAll}
+                      className="inline-flex h-9 items-center rounded-lg border border-fd-border px-4 text-sm hover:bg-fd-accent"
+                    >
+                      {m.clear}
+                    </button>
+                    <Link
+                      href={localePath(lang, '/marketplace/submit')}
+                      className="inline-flex h-9 items-center rounded-lg bg-fd-primary px-4 text-sm font-medium text-fd-primary-foreground"
+                    >
+                      {m.noMatch.write}
+                    </Link>
+                  </>
+                }
+              >
+                {m.noMatch.body}
+              </EmptyState>
+            )}
           </div>
         </div>
-
-        <AnimatePresence initial={false}>
-          {filtersOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="flex flex-col gap-2.5 pt-3 text-sm">
-                <FacetRow label="类型">
-                  {(['any', 'declarative', 'builtin', 'remote'] as Kind[]).map((k) => (
-                    <Chip key={k} active={kind === k} onClick={() => setKind(k)}>
-                      {{ any: '不限', declarative: '声明式', builtin: '内置', remote: '远程 MCP' }[k]}
-                    </Chip>
-                  ))}
-                </FacetRow>
-                <FacetRow label="需要">
-                  {usedCaps.map((c) => (
-                    <Chip key={c} active={caps.includes(c)} onClick={() => toggleCap(c)} title={CAPABILITY[c].explain}>
-                      {CAPABILITY[c].zh}
-                      <span className="font-mono text-[10px] opacity-60">{c}</span>
-                    </Chip>
-                  ))}
-                </FacetRow>
-                {campusServices.length > 0 && (
-                  <FacetRow label="校园">
-                    {campusServices.map(([c, n]) => (
-                      <Chip key={c} active={campus === c} onClick={() => setCampus(campus === c ? null : c)}>
-                        {CAMPUS_SERVICE[c]?.zh ?? c}
-                        <span className="font-mono text-[10px] opacity-60">{n}</span>
-                      </Chip>
-                    ))}
-                  </FacetRow>
-                )}
-                <FacetRow label="标签">
-                  {tags.map(([t, n]) => (
-                    <Chip key={t} active={tag === t} onClick={() => setTag(tag === t ? null : t)}>
-                      #{t}
-                      <span className="font-mono text-[10px] opacity-60">{n}</span>
-                    </Chip>
-                  ))}
-                </FacetRow>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
-
-      <div className="flex items-center justify-between py-4 font-mono text-xs text-fd-muted-foreground">
-        <span aria-live="polite">
-          {shown.length} / {counts[tab]} plugins
-        </span>
-        {(activeFilters > 0 || q) && (
-          <button type="button" onClick={clearAll} className="hover:text-fd-foreground">
-            清除筛选 ×
-          </button>
-        )}
-      </div>
-
-      {shown.length > 0 ? (
-        <motion.ul layout className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <AnimatePresence mode="popLayout" initial={false}>
-            {shown.map((p, i) => (
-              <motion.li
-                key={p.slug}
-                layout
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                  scale: 1,
-                  transition: { duration: 0.4, ease, delay: Math.min(i, 12) * 0.02 },
-                }}
-                exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
-              >
-                <PluginCard plugin={p} />
-              </motion.li>
-            ))}
-          </AnimatePresence>
-        </motion.ul>
-      ) : tab === 'community' && counts.community === 0 ? (
-        <EmptyCommunity />
-      ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-fd-border px-6 py-16 text-center"
-        >
-          <p className="font-mono text-sm text-fd-muted-foreground">
-            <span className="text-fd-primary">$</span> grep &quot;{q || '…'}&quot; → 0 results
-          </p>
-          <p className="text-fd-foreground">没有匹配的插件</p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={clearAll}
-              className="rounded-lg border border-fd-border px-3 py-1.5 text-sm hover:bg-fd-accent"
-            >
-              清除筛选
-            </button>
-            <Link
-              href="/marketplace/submit"
-              className="rounded-lg bg-fd-primary px-3 py-1.5 text-sm text-fd-primary-foreground"
-            >
-              自己写一个
-            </Link>
-          </div>
-        </motion.div>
-      )}
     </MotionConfig>
   );
 }
 
-function FacetRow({ label, children }: { label: string; children: React.ReactNode }) {
+function Facet({ title, children, wrap }: { title: string; children: ReactNode; wrap?: boolean }) {
   return (
-    <div className="flex items-start gap-3">
-      <span className="w-8 shrink-0 pt-1 text-xs text-fd-muted-foreground">{label}</span>
-      <div className="-mx-1 flex min-w-0 flex-1 flex-wrap gap-1.5 px-1">{children}</div>
-    </div>
+    <fieldset>
+      <legend className="mb-2 text-xs font-medium text-fd-muted-foreground">{title}</legend>
+      <div className={wrap ? 'flex flex-wrap gap-1.5' : 'flex flex-col gap-0.5'}>{children}</div>
+    </fieldset>
   );
 }
 
-function Chip({
+function FacetItem({
   active,
   onClick,
   children,
+  count,
   title,
+  check,
 }: {
   active: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
+  count?: number;
   title?: string;
+  check?: boolean;
 }) {
   return (
     <button
@@ -431,50 +476,28 @@ function Chip({
       title={title}
       aria-pressed={active}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors',
+        'group/facet flex h-8 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-fd-ring',
         active
-          ? 'border-fd-primary/50 bg-fd-primary/10 text-fd-foreground'
-          : 'border-fd-border text-fd-muted-foreground hover:border-fd-foreground/20 hover:text-fd-foreground',
+          ? 'bg-fd-primary/10 text-fd-foreground'
+          : 'text-fd-muted-foreground hover:bg-fd-accent hover:text-fd-foreground',
       )}
     >
-      {children}
-    </button>
-  );
-}
-
-function EmptyCommunity() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden rounded-2xl border border-fd-border bg-fd-card px-6 py-14 text-center"
-    >
-      <div
+      <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_50%_0%,color-mix(in_oklab,var(--color-brand-bright)_16%,transparent),transparent_60%)]"
-      />
-      <div className="relative mx-auto max-w-md">
-        <p className="font-mono text-xs tracking-wider text-fd-primary">COMMUNITY · 0 PLUGINS</p>
-        <h3 className="mt-3 text-xl font-semibold tracking-tight">第一个社区插件，可以是你的</h3>
-        <p className="mt-2 text-sm leading-6 text-fd-muted-foreground">
-          在 GitHub 仓库里建一个文件夹，放一个 <code className="font-mono text-fd-foreground">PLUGIN.md</code>
-          ，提交仓库地址即可上架。不用写代码、不用部署服务器，之后每次 push 都会自动更新。
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <Link
-            href="/marketplace/submit"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-fd-primary px-4 py-2 text-sm font-medium text-fd-primary-foreground transition-transform active:scale-[0.98]"
-          >
-            提交插件 <ArrowRight className="size-3.5" />
-          </Link>
-          <Link
-            href="/docs/marketplace/publishing"
-            className="rounded-lg border border-fd-border px-4 py-2 text-sm hover:bg-fd-accent"
-          >
-            发布指南
-          </Link>
-        </div>
-      </div>
-    </motion.div>
+        className={cn(
+          'flex size-3.5 shrink-0 items-center justify-center border transition-colors',
+          check ? 'rounded-[4px]' : 'rounded-full',
+          active ? 'border-fd-primary bg-fd-primary' : 'border-fd-muted-foreground/50',
+        )}
+      >
+        {active && (
+          <span
+            className={cn('bg-fd-primary-foreground', check ? 'size-1.5 rounded-[1px]' : 'size-1.5 rounded-full')}
+          />
+        )}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+      {count !== undefined && <span className="text-xs tabular-nums opacity-70">{count}</span>}
+    </button>
   );
 }

@@ -1,0 +1,36 @@
+/* Shine border (21st.dev: dillionverma/shine-border). Used by shine-border.tsx. */
+@keyframes ui-shine {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  to {
+    background-position: 0% 0%;
+  }
+}
+
+.ui-shine-border {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: var(--shine-width);
+  background-image: radial-gradient(transparent, transparent, var(--shine-colors), transparent, transparent);
+  background-size: 300% 300%;
+  mask:
+    linear-gradient(black 0 0) content-box,
+    linear-gradient(black 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: ui-shine var(--shine-duration) infinite linear;
+  will-change: background-position;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-shine-border {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}

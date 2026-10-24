@@ -23,6 +23,11 @@ export type ToolEffect = 'read' | 'write' | 'money' | 'public';
 export interface MarketplaceTool {
   name: string;
   title?: string;
+  /** Short user-facing line (PLUGIN.md `summary`). */
+  summary?: string;
+  /** English overlay from `i18n.en.tools.<name>`. */
+  titleEn?: string;
+  summaryEn?: string;
   effect?: ToolEffect;
   /** File the tool lives in, relative to the plugin folder (absent = inline). */
   path?: string;
