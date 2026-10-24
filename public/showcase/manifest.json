@@ -240,11 +240,118 @@
         "en": "Open a plugin from a link, check it, install"
       },
       "lang": "zh"
+    },
+    {
+      "file": "dashboard-widgets-dark.zh.png",
+      "type": "image",
+      "feature": "dashboard",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "lang": "zh",
+      "caption": {
+        "zh": "看板上的实时组件：下一班校车和各教学楼的空闲教室数，由 AI 按你的要求添加",
+        "en": "Live dashboard widgets: the next shuttle and free classrooms per building, added by the assistant on request"
+      }
+    },
+    {
+      "file": "dashboard-widgets-dark.png",
+      "type": "image",
+      "feature": "dashboard",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "lang": "en",
+      "caption": {
+        "zh": "看板上的实时组件：下一班校车和各教学楼的空闲教室数，由 AI 按你的要求添加",
+        "en": "Live dashboard widgets: the next shuttle and free classrooms per building, added by the assistant on request"
+      }
+    },
+    {
+      "file": "chat-dashboard-dark.zh.png",
+      "type": "image",
+      "feature": "dashboard",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "lang": "zh",
+      "role": "chat",
+      "caption": {
+        "zh": "在对话里说一句，AI 就把食堂人流、校车和空闲教室做成看板组件",
+        "en": "One sentence in chat and the assistant adds canteen, shuttle and classroom widgets to the dashboard"
+      }
+    },
+    {
+      "file": "dashboard-edit-dark.zh.png",
+      "type": "image",
+      "feature": "dashboard",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "lang": "zh",
+      "role": "edit",
+      "caption": {
+        "zh": "编辑看板：拖动排序、切换尺寸或删除组件",
+        "en": "Editing the dashboard: reorder, resize or remove widgets"
+      }
+    },
+    {
+      "file": "schedule-dark.zh.png",
+      "type": "image",
+      "feature": "schedule",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "lang": "zh",
+      "caption": {
+        "zh": "日程页：今天的课、待办和提醒。「每 3 天一次，共 16 次」这样的重复提醒由 AI 在对话里创建",
+        "en": "The Schedule tab: today's classes, to-dos and reminders. A series like \"every 3 days, 16 times\" is created by the assistant from chat"
+      }
+    },
+    {
+      "file": "schedule-dark.png",
+      "type": "image",
+      "feature": "schedule",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "lang": "en",
+      "caption": {
+        "zh": "日程页：今天的课、待办和提醒。「每 3 天一次，共 16 次」这样的重复提醒由 AI 在对话里创建",
+        "en": "The Schedule tab: today's classes, to-dos and reminders. A series like \"every 3 days, 16 times\" is created by the assistant from chat"
+      }
+    },
+    {
+      "file": "chat-schedule-dark.zh.png",
+      "type": "image",
+      "feature": "schedule",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "lang": "zh",
+      "role": "chat",
+      "caption": {
+        "zh": "一句话创建一组重复提醒和一个带截止时间的待办",
+        "en": "One message creates a repeating reminder series and a to-do with a deadline"
+      }
+    },
+    {
+      "file": "chat-schedule.zh.mp4",
+      "type": "video",
+      "feature": "schedule",
+      "theme": "dark",
+      "width": 720,
+      "height": 1600,
+      "duration": 12.0,
+      "lang": "zh",
+      "role": "chat",
+      "caption": {
+        "zh": "一句话创建一组重复提醒和一个带截止时间的待办",
+        "en": "One message creates a repeating reminder series and a to-do with a deadline"
+      }
     }
   ],
   "notCaptured": {
-    "dashboard": "The dashboard header greets the signed-in user by name and the widgets show personal balances; needs a demo profile.",
-    "schedule": "The timetable is the signed-in user's own courses; needs a demo profile.",
     "settings": "Settings shows the account name and student ID; permissions are shown on the plugin page instead."
   }
 }

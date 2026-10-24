@@ -40,7 +40,7 @@ export const en = {
         title: 'A dashboard for the numbers you check often',
         body: 'Tell the assistant which numbers you want to follow, such as your campus card balance, network fee or how busy the canteens are. It builds a widget for each one, and the widgets refresh on their own. The assistant can also run a check on a schedule and notify you at the exact minute.',
         examples: [
-          'Put my campus card balance on the dashboard.',
+          'Add the canteen crowds, the next shuttle and free classrooms to my dashboard.',
           'Check my network fee every morning at 8 and tell me if it is under ¥10.',
         ],
       },
@@ -213,7 +213,7 @@ export const zh: typeof en = {
         name: '看板',
         title: '在看板上查看常用的数据',
         body: '告诉助手你想关注哪些数据，例如校园卡余额、网费或食堂的就餐人数，它会为每项数据生成一个小组件。小组件会自动刷新。助手还可以按计划定时检查，并在指定的时刻准时通知你。',
-        examples: ['把校园卡余额放到看板上', '每天早上 8 点查一次网费，低于 10 元就提醒我'],
+        examples: ['把食堂人流、下一班校车和各楼空闲教室数做成看板组件', '每天早上 8 点查一次网费，低于 10 元就提醒我'],
       },
       schedule: {
         name: '日程',
