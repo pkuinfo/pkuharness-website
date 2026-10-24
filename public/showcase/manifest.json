@@ -349,9 +349,32 @@
         "zh": "一句话创建一组重复提醒和一个带截止时间的待办",
         "en": "One message creates a repeating reminder series and a to-do with a deadline"
       }
+    },
+    {
+      "file": "settings-dark.zh.png",
+      "type": "image",
+      "feature": "settings",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "lang": "zh",
+      "caption": {
+        "zh": "设置页：校园账号、AI 服务、插件与授权、通知和外观。账号一行的姓名和学号已打码",
+        "en": "Settings: campus account, AI provider, plugins and permissions, notifications and appearance. The name and student ID are blurred"
+      }
+    },
+    {
+      "file": "settings-dark.png",
+      "type": "image",
+      "feature": "settings",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "lang": "en",
+      "caption": {
+        "zh": "设置页：校园账号、AI 服务、插件与授权、通知和外观。账号一行的姓名和学号已打码",
+        "en": "Settings: campus account, AI provider, plugins and permissions, notifications and appearance. The name and student ID are blurred"
+      }
     }
-  ],
-  "notCaptured": {
-    "settings": "Settings shows the account name and student ID; permissions are shown on the plugin page instead."
-  }
+  ]
 }

@@ -55,7 +55,7 @@ export const en = {
       },
       settings: {
         name: 'Settings',
-        title: 'Permissions for each plugin',
+        title: 'Your account, AI provider and plugin permissions',
         body: 'The Settings tab holds only what needs its own screen: your PKU account, your AI model provider and your plugins. Plugin actions are grouped into four kinds: Read, Change, Money and Public. For each plugin, you set every kind to Allow, Ask first or Never.',
         examples: ['Always ask me before spending money.', 'Ask me before posting anything to Treehole.'],
       },
@@ -223,7 +223,7 @@ export const zh: typeof en = {
       },
       settings: {
         name: '设置',
-        title: '每个插件的权限',
+        title: '账号、AI 服务和插件权限',
         body: '设置页只保留需要单独界面的内容：北大账号、模型服务和插件。插件的操作分为读取、修改、资金和公开四类。对于每个插件，你可以把每一类分别设为「直接执行」「每次询问」或「禁止」。',
         examples: ['涉及资金的操作每次都先问我', '往树洞发帖之前先让我确认'],
       },
