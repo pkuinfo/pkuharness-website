@@ -17,6 +17,7 @@ import QRCode from 'qrcode';
 import { Logo } from '@/components/brand/logo';
 import { GitHubIcon } from '@/components/marketplace/badges';
 import { Rich } from '@/components/marketplace/rich';
+import { ShimmerLink } from '@/components/ui/shimmer-link';
 import { ShineBorder } from '@/components/ui/shine-border';
 import { Timeline } from '@/components/ui/timeline';
 import { cn } from '@/lib/cn';
@@ -24,6 +25,7 @@ import { htmlLang, type Lang, localePath } from '@/lib/i18n';
 import { t } from '@/lib/messages';
 import { formatBytes, pickLatest, type Release, type ReleasesResult } from '@/lib/releases';
 import { github, repos } from '@/lib/shared';
+import { PageAurora } from '../page-aurora';
 import { CopyButton } from './copy-button';
 
 type M = ReturnType<typeof t>['download'];
@@ -79,10 +81,7 @@ export async function DownloadView({ data, lang, preview }: { data: ReleasesResu
   return (
     <div className="flex flex-col">
       <header className="relative isolate -mt-14 overflow-hidden pt-14">
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 -z-10 bg-[radial-gradient(45%_70%_at_85%_0%,color-mix(in_oklab,var(--color-brand-bright)_16%,transparent),transparent_70%)] dark:bg-[radial-gradient(45%_70%_at_85%_0%,color-mix(in_oklab,var(--color-brand)_55%,transparent),transparent_70%)]"
-        />
+        <PageAurora className="h-full" />
         <div className="mx-auto w-full max-w-[1200px] px-4 pt-14 pb-10 md:px-8 md:pt-20">
           {preview && (
             <p className="mb-6 inline-flex items-center gap-2 rounded-lg border border-pku-amber/30 bg-pku-amber/10 px-3 py-1.5 text-sm">
@@ -154,18 +153,20 @@ async function LatestRelease({ release, lang, m }: { release: Release; lang: Lan
           <ul className="mt-7 space-y-4">
             {release.apks.map((a, i) => (
               <li key={a.url} className="flex flex-wrap items-center gap-x-4 gap-y-3">
-                <a
-                  href={a.url}
-                  className={cn(
-                    'inline-flex items-center gap-2 rounded-xl font-semibold transition-[transform,background-color] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring active:scale-[0.97]',
-                    i === 0
-                      ? 'h-12 bg-brand px-6 text-white shadow-[0_12px_32px_-12px] shadow-brand hover:bg-brand-hover'
-                      : 'h-11 border border-fd-border px-4 hover:bg-fd-accent',
-                  )}
-                >
-                  <ArrowDownToLine className="size-[18px]" aria-hidden="true" />
-                  {m.latest.download}
-                </a>
+                {i === 0 ? (
+                  <ShimmerLink href={a.url} className="px-6">
+                    <ArrowDownToLine className="size-[18px]" aria-hidden="true" />
+                    {m.latest.download}
+                  </ShimmerLink>
+                ) : (
+                  <a
+                    href={a.url}
+                    className="inline-flex h-11 items-center gap-2 rounded-xl border border-fd-border px-4 font-semibold transition-[transform,background-color] duration-150 hover:bg-fd-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring active:scale-[0.97]"
+                  >
+                    <ArrowDownToLine className="size-[18px]" aria-hidden="true" />
+                    {m.latest.download}
+                  </a>
+                )}
                 <span className="min-w-0 text-sm text-fd-muted-foreground">
                   <span className="block truncate font-mono text-fd-foreground">{a.name}</span>
                   <span className="tabular-nums">{formatBytes(a.size)}</span>

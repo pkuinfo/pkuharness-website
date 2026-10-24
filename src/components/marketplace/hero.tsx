@@ -22,10 +22,6 @@ export function MarketplaceHero({
   }).format(new Date(stats.generatedAt));
   return (
     <header className="relative pt-14 md:pt-20">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-40 left-0 -z-10 h-[420px] w-[min(900px,100%)] opacity-60 [background:radial-gradient(closest-side,color-mix(in_oklab,var(--color-brand)_32%,transparent),transparent)] blur-3xl dark:opacity-90"
-      />
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
           <h1 className="text-4xl font-semibold tracking-[-0.03em] text-balance md:text-5xl">{m.title}</h1>

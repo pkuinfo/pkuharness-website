@@ -1,6 +1,7 @@
 import { ArrowDownToLine, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
+import { ShimmerLink } from '@/components/ui/shimmer-link';
 import { cn } from '@/lib/cn';
 import { type Lang, localePath } from '@/lib/i18n';
 import { t } from '@/lib/messages';
@@ -30,23 +31,26 @@ export function Hero({
       <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center px-4 pt-12 text-center md:px-8 md:pt-20">
         <h1
           id="hero-title"
-          className="lp-display lp-rise font-bold text-[2.6rem] leading-[1.1] sm:text-6xl md:text-7xl lg:text-[5.25rem]"
+          className="lp-display font-bold text-[2.6rem] leading-[1.1] sm:text-6xl md:text-7xl lg:text-[5.25rem]"
         >
-          {h.title[0]}
-          <br />
-          {h.title[1]}
+          {/* each line rises out of its own slot; the text is laid out (and counted for LCP) at once */}
+          {h.title.map((line, i) => (
+            <span key={line} className="lp-line" style={delay(i * 0.09)}>
+              <span>{line}</span>
+            </span>
+          ))}
         </h1>
         <p
           className="lp-rise mt-7 max-w-[36rem] text-pretty text-[17px] text-fd-muted-foreground leading-[1.75] md:text-xl md:leading-[1.7]"
-          style={delay(0.08)}
+          style={delay(0.2)}
         >
           {h.lead}
         </p>
-        <div className="lp-rise mt-9 flex flex-wrap items-center justify-center gap-3" style={delay(0.16)}>
-          <Link href={localePath(lang, '/download')} className={button.primary}>
+        <div className="lp-rise mt-9 flex flex-wrap items-center justify-center gap-3" style={delay(0.28)}>
+          <ShimmerLink href={localePath(lang, '/download')}>
             <ArrowDownToLine className="size-[18px]" aria-hidden="true" />
             {h.download}
-          </Link>
+          </ShimmerLink>
           <Link href={localePath(lang, '/docs')} className={button.glass}>
             <BookOpen className="size-[18px]" aria-hidden="true" />
             {h.docs}
@@ -58,7 +62,7 @@ export function Hero({
         </div>
         <ul
           className="lp-rise mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-fd-muted-foreground text-sm"
-          style={delay(0.24)}
+          style={delay(0.36)}
         >
           {latest && (
             <li>

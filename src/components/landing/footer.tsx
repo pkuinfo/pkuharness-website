@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Logo } from '@/components/brand/logo';
+import { TextHoverEffect } from '@/components/ui/text-hover-effect';
 import { type Lang, localePath } from '@/lib/i18n';
 import { t } from '@/lib/messages';
 import { github, repos } from '@/lib/shared';
@@ -38,8 +39,9 @@ function columns(lang: Lang): { title: string; links: { label: string; href: str
 
 /**
  * Site footer. The oversized wordmark along the bottom edge follows 21st.dev:
- * arihantcodes/large-name-footer; here it is set in the page's own type, cut off by the page edge
- * and kept faint so it reads as a sign-off, not a headline.
+ * arihantcodes/large-name-footer (a faint name cut off by the page edge, a sign-off rather than a
+ * headline); its outline draws once and lights up under the pointer, from 21st.dev:
+ * mdafsarx/hover-footer (`TextHoverEffect`, see `components/ui/text-hover-effect.tsx`).
  */
 export function SiteFooter({ lang }: { lang: Lang }) {
   const m = t(lang).footer;
@@ -87,12 +89,10 @@ export function SiteFooter({ lang }: { lang: Lang }) {
         <span>{m.license}</span>
         <span className="md:text-end">{m.disclaimer}</span>
       </div>
-      <p
-        aria-hidden="true"
-        className="pointer-events-none mt-6 -mb-[0.24em] select-none whitespace-nowrap text-center font-bold text-[15.5vw] text-fd-foreground/[0.06] leading-[0.9] tracking-[-0.04em] min-[1440px]:text-[14rem]"
-      >
-        PKU Harness
-      </p>
+      <TextHoverEffect
+        text="PKU Harness"
+        className="mx-auto mt-6 -mb-[3%] block w-full max-w-[1440px] text-fd-foreground"
+      />
     </footer>
   );
 }

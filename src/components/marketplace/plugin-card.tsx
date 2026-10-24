@@ -1,5 +1,6 @@
 import { ArrowUpRight, BadgeCheck, KeyRound, ShieldCheck, Star } from 'lucide-react';
 import Link from 'next/link';
+import { GlowingEffect } from '@/components/ui/glowing-effect';
 import { cn } from '@/lib/cn';
 import type { Lang } from '@/lib/i18n';
 import { CAMPUS_SERVICE, marketplaceHref, pluginDescription, pluginName } from '@/lib/marketplace/labels';
@@ -11,7 +12,9 @@ import { PluginIcon } from './plugin-icon';
 /**
  * Marketplace card. The footer is the plugin's "permission strip": which campus services it uses
  * with your session, or that it needs none, so plugins can be compared at a glance.
- * `href={null}` renders a static preview (submit page).
+ * `href={null}` renders a static preview (submit page). Linked cards lift a little on hover, take
+ * a warm tint, and their border lights up near the pointer (`GlowingEffect`, from 21st.dev:
+ * manuarora700/glowing-effect).
  */
 export function PluginCard({
   plugin,
@@ -33,8 +36,11 @@ export function PluginCard({
   const sub = original ? plugin.name : plugin.official ? plugin.id : plugin.repo;
   const body = (
     <>
+      {href !== null && <GlowingEffect spread={32} proximity={32} borderWidth={1.5} />}
       <div className="flex items-start gap-3">
-        <PluginIcon id={plugin.id} icon={plugin.icon} name={plugin.name} />
+        <span className="shrink-0 transition-transform duration-300 ease-out group-hover:-rotate-3 group-hover:scale-[1.06]">
+          <PluginIcon id={plugin.id} icon={plugin.icon} name={plugin.name} />
+        </span>
         <div className="min-w-0 flex-1 pt-0.5">
           <h3 className="flex items-center gap-1.5 font-semibold tracking-tight text-fd-foreground">
             <span className="truncate">{name}</span>
@@ -107,9 +113,9 @@ export function PluginCard({
     </>
   );
   const cls = cn(
-    'group relative flex h-full flex-col rounded-2xl border border-fd-border bg-fd-card p-4 transition-[border-color,background-color] duration-200',
+    'group relative flex h-full flex-col rounded-2xl border border-fd-border bg-fd-card p-4 transition-[border-color,background-color,transform,box-shadow] duration-300 ease-out',
     href !== null &&
-      'hover:border-fd-foreground/25 hover:bg-fd-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring',
+      'hover:-translate-y-0.5 hover:border-fd-foreground/20 hover:bg-[color-mix(in_oklab,var(--color-fd-card)_92%,var(--color-brand))] hover:shadow-[0_18px_40px_-24px_color-mix(in_oklab,var(--color-brand)_70%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring motion-reduce:hover:translate-y-0',
     className,
   );
   if (href === null) return <div className={cls}>{body}</div>;

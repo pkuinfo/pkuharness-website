@@ -20,6 +20,7 @@ import {
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import type { ReactNode } from 'react';
+import { PageAurora } from '@/components/landing/page-aurora';
 import { CodePanel, type CodePanelFile } from '@/components/ui/code-panel';
 import { cn } from '@/lib/cn';
 import { type Lang, localePath } from '@/lib/i18n';
@@ -534,204 +535,213 @@ export async function PluginDetail({
   const isPluginMd = plugin.format === 'plugin-md';
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] flex-1 px-4 pt-10 pb-24 md:px-8">
-      <Crumbs plugin={plugin} lang={lang} m={m} />
+    <div className="relative isolate -mt-14 flex-1 overflow-x-clip pt-14">
+      <PageAurora className="h-[380px]" />
+      <div className="mx-auto w-full max-w-[1200px] px-4 pt-10 pb-24 md:px-8">
+        <Crumbs plugin={plugin} lang={lang} m={m} />
 
-      <header className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-start">
-        <PluginIcon id={plugin.id} icon={plugin.icon} name={plugin.name} size="lg" />
-        <div className="min-w-0 flex-1">
-          <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">{name}</h1>
-          <p className="mt-1 font-mono text-xs text-fd-muted-foreground">{plugin.handle ?? plugin.slug}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <TrustBadge plugin={plugin} lang={lang} />
-            <KindBadge kind={plugin.kind} endpoint={plugin.endpoint} lang={lang} />
-            <CloudBadge plugin={plugin} lang={lang} />
-          </div>
-          <p lang={desc.lang === 'zh' ? 'zh-CN' : 'en'} className="mt-4 max-w-[65ch] text-base leading-7">
-            {desc.text}
-          </p>
-          {lang === 'en' && desc.lang === 'zh' && (
-            <p className="mt-1 text-xs text-fd-muted-foreground">{d.descriptionInZh}</p>
-          )}
-          {tags.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-1.5">
-              {tags.map((tg) => (
-                <Link
-                  key={tg}
-                  href={`${localePath(lang, '/marketplace')}?tag=${encodeURIComponent(tg)}`}
-                  className="rounded-md border border-fd-border px-2 py-0.5 font-mono text-xs text-fd-muted-foreground transition-colors hover:text-fd-foreground"
-                >
-                  #{tg}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </header>
-
-      <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <aside className="space-y-4 lg:sticky lg:top-20 lg:order-2 lg:self-start">
-          <InstallCard plugin={plugin} lang={lang} m={m} />
-          <Meta plugin={plugin} m={m} />
-        </aside>
-
-        <div className="min-w-0 space-y-14 lg:order-1">
-          {isPluginMd && <Permissions plugin={plugin} lang={lang} m={m} />}
-
-          <Section id="capabilities" title={d.capabilities.title}>
-            {plugin.requires.length === 0 ? (
-              <p className="text-sm text-fd-muted-foreground">{d.capabilities.none}</p>
-            ) : (
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {plugin.requires.map((c) => {
-                  const cap = CAPABILITY[c];
-                  return (
-                    <li key={c} className="rounded-xl border border-fd-border p-4">
-                      <p className="flex items-center gap-2 text-sm font-medium">
-                        <span
-                          aria-hidden="true"
-                          className={cn(
-                            'size-1.5 rounded-full',
-                            cap.tone === 'warn'
-                              ? 'bg-brand-bright'
-                              : cap.tone === 'notice'
-                                ? 'bg-pku-amber'
-                                : 'bg-fd-muted-foreground',
-                          )}
-                        />
-                        {cap[lang]}
-                      </p>
-                      <p className="mt-1 text-sm leading-6 text-fd-muted-foreground">{capabilityExplain(c, lang)}</p>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Section>
-
-          {!isPluginMd && (
-            <Section id="scopes" title={d.scopes.title}>
-              {plugin.scopes.length ? (
-                <ul className="flex flex-wrap gap-2">
-                  {plugin.scopes.map((s) => (
-                    <li
-                      key={s}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-fd-muted px-2.5 py-1 font-mono text-xs"
-                    >
-                      <Globe className="size-3 text-fd-muted-foreground" aria-hidden="true" />
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-fd-muted-foreground">
-                  {plugin.requires.some((r) => r === 'network' || r === 'campus-network')
-                    ? d.scopes.notListed
-                    : d.scopes.none}
-                </p>
-              )}
-              {plugin.kind === 'remote' && plugin.endpoint && (
-                <p className="mt-3 text-sm text-fd-muted-foreground">
-                  {d.scopes.remote(new URL(plugin.endpoint).host)}
-                </p>
-              )}
-            </Section>
-          )}
-
-          <Section id="cloud" title={d.cloud.title}>
-            {plugin.cloud?.uses.length ? (
-              <div className="rounded-2xl border border-pku-amber/30 bg-pku-amber/5 p-5">
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <Cloud className="size-4 text-pku-gold dark:text-pku-amber" aria-hidden="true" />
-                  {d.cloud.uses}
-                  {plugin.cloud.uses.map((u) => (
-                    <span key={u} className="rounded-md bg-pku-amber/15 px-1.5 py-0.5 text-xs">
-                      {CLOUD_SERVICE[u]?.[lang] ?? u}
-                    </span>
-                  ))}
-                  <span className="inline-flex items-center gap-1 text-xs text-fd-muted-foreground">
-                    <Lock className="size-3" aria-hidden="true" />
-                    {plugin.cloud.e2e ? d.cloud.e2e : d.cloud.notE2e}
-                  </span>
-                </div>
-                <ul className="mt-4 list-disc space-y-1.5 ps-5 text-sm leading-6 marker:text-pku-amber">
-                  {(lang === 'en' && plugin.cloud.disclosure.en?.length
-                    ? plugin.cloud.disclosure.en
-                    : plugin.cloud.disclosure.zh
-                  ).map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <p className="flex items-center gap-2 text-sm text-fd-muted-foreground">
-                <ShieldCheck className="size-4 text-up" aria-hidden="true" />
-                {d.cloud.none}
-              </p>
-            )}
-          </Section>
-
-          <Section id="checks" title={d.checks.title}>
-            <Checks plugin={plugin} m={m} />
-          </Section>
-
-          {plugin.instructions && (
-            <Section id="instructions" title={d.instructions.title}>
-              <p className="mb-3 text-sm text-fd-muted-foreground">{d.instructions.note}</p>
-              <div className="prose prose-sm max-w-none rounded-2xl border border-fd-border bg-fd-card/50 p-5 text-sm leading-7 dark:prose-invert [&_code]:font-mono [&_code]:text-[12.5px]">
-                <Markdown remarkPlugins={[remarkGfm]}>{plugin.instructions}</Markdown>
-              </div>
-            </Section>
-          )}
-
-          <Section id="manifest" title={d.manifest.title}>
-            <p className="mb-3 text-sm text-fd-muted-foreground">
-              {plugin.manifestSource ? d.manifest.raw : d.manifest.normalized}{' '}
-              {plugin.manifestPath && (
-                <>
-                  {d.manifest.from}: <span className="font-mono text-xs">{plugin.manifestPath}</span>.{' '}
-                </>
-              )}
-              <Link
-                href={localePath(lang, '/docs/marketplace/manifest')}
-                className="text-fd-primary underline-offset-4 hover:underline"
-              >
-                {d.manifest.fields}
-              </Link>
-            </p>
-            <CodePanel
-              files={files}
-              label={d.manifest.title}
-              copyLabel={m.copy.copyValue(d.manifest.title)}
-              copiedLabel={m.copy.copied}
+        <header className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-start">
+          <span className="relative isolate shrink-0 self-start">
+            <span
+              aria-hidden="true"
+              className="absolute -inset-4 -z-10 rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--color-brand)_40%,transparent),transparent)] blur-md"
             />
-          </Section>
-        </div>
-      </div>
-
-      {siblings.length > 0 && (
-        <section aria-labelledby="siblings" className="mt-20 border-t border-fd-border pt-12">
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <h2 id="siblings" className="text-xl font-semibold tracking-[-0.02em]">
-              {d.siblings}
-            </h2>
-            <Link
-              href={localePath(lang, `/marketplace/${plugin.repo.toLowerCase()}`)}
-              className="inline-flex items-center gap-1 font-mono text-xs text-fd-muted-foreground hover:text-fd-foreground"
-            >
-              {plugin.repo}
-              <ArrowUpRight className="size-3.5" aria-hidden="true" />
-            </Link>
+            <PluginIcon id={plugin.id} icon={plugin.icon} name={plugin.name} size="lg" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">{name}</h1>
+            <p className="mt-1 font-mono text-xs text-fd-muted-foreground">{plugin.handle ?? plugin.slug}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <TrustBadge plugin={plugin} lang={lang} />
+              <KindBadge kind={plugin.kind} endpoint={plugin.endpoint} lang={lang} />
+              <CloudBadge plugin={plugin} lang={lang} />
+            </div>
+            <p lang={desc.lang === 'zh' ? 'zh-CN' : 'en'} className="mt-4 max-w-[65ch] text-base leading-7">
+              {desc.text}
+            </p>
+            {lang === 'en' && desc.lang === 'zh' && (
+              <p className="mt-1 text-xs text-fd-muted-foreground">{d.descriptionInZh}</p>
+            )}
+            {tags.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {tags.map((tg) => (
+                  <Link
+                    key={tg}
+                    href={`${localePath(lang, '/marketplace')}?tag=${encodeURIComponent(tg)}`}
+                    className="rounded-md border border-fd-border px-2 py-0.5 font-mono text-xs text-fd-muted-foreground transition-colors hover:text-fd-foreground"
+                  >
+                    #{tg}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
-          <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {siblings.slice(0, 6).map((p) => (
-              <li key={p.slug}>
-                <PluginCard plugin={p} lang={lang} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+        </header>
+
+        <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <aside className="space-y-4 lg:sticky lg:top-20 lg:order-2 lg:self-start">
+            <InstallCard plugin={plugin} lang={lang} m={m} />
+            <Meta plugin={plugin} m={m} />
+          </aside>
+
+          <div className="min-w-0 space-y-14 lg:order-1">
+            {isPluginMd && <Permissions plugin={plugin} lang={lang} m={m} />}
+
+            <Section id="capabilities" title={d.capabilities.title}>
+              {plugin.requires.length === 0 ? (
+                <p className="text-sm text-fd-muted-foreground">{d.capabilities.none}</p>
+              ) : (
+                <ul className="grid gap-3 sm:grid-cols-2">
+                  {plugin.requires.map((c) => {
+                    const cap = CAPABILITY[c];
+                    return (
+                      <li key={c} className="rounded-xl border border-fd-border p-4">
+                        <p className="flex items-center gap-2 text-sm font-medium">
+                          <span
+                            aria-hidden="true"
+                            className={cn(
+                              'size-1.5 rounded-full',
+                              cap.tone === 'warn'
+                                ? 'bg-brand-bright'
+                                : cap.tone === 'notice'
+                                  ? 'bg-pku-amber'
+                                  : 'bg-fd-muted-foreground',
+                            )}
+                          />
+                          {cap[lang]}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-fd-muted-foreground">{capabilityExplain(c, lang)}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Section>
+
+            {!isPluginMd && (
+              <Section id="scopes" title={d.scopes.title}>
+                {plugin.scopes.length ? (
+                  <ul className="flex flex-wrap gap-2">
+                    {plugin.scopes.map((s) => (
+                      <li
+                        key={s}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-fd-muted px-2.5 py-1 font-mono text-xs"
+                      >
+                        <Globe className="size-3 text-fd-muted-foreground" aria-hidden="true" />
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-fd-muted-foreground">
+                    {plugin.requires.some((r) => r === 'network' || r === 'campus-network')
+                      ? d.scopes.notListed
+                      : d.scopes.none}
+                  </p>
+                )}
+                {plugin.kind === 'remote' && plugin.endpoint && (
+                  <p className="mt-3 text-sm text-fd-muted-foreground">
+                    {d.scopes.remote(new URL(plugin.endpoint).host)}
+                  </p>
+                )}
+              </Section>
+            )}
+
+            <Section id="cloud" title={d.cloud.title}>
+              {plugin.cloud?.uses.length ? (
+                <div className="rounded-2xl border border-pku-amber/30 bg-pku-amber/5 p-5">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <Cloud className="size-4 text-pku-gold dark:text-pku-amber" aria-hidden="true" />
+                    {d.cloud.uses}
+                    {plugin.cloud.uses.map((u) => (
+                      <span key={u} className="rounded-md bg-pku-amber/15 px-1.5 py-0.5 text-xs">
+                        {CLOUD_SERVICE[u]?.[lang] ?? u}
+                      </span>
+                    ))}
+                    <span className="inline-flex items-center gap-1 text-xs text-fd-muted-foreground">
+                      <Lock className="size-3" aria-hidden="true" />
+                      {plugin.cloud.e2e ? d.cloud.e2e : d.cloud.notE2e}
+                    </span>
+                  </div>
+                  <ul className="mt-4 list-disc space-y-1.5 ps-5 text-sm leading-6 marker:text-pku-amber">
+                    {(lang === 'en' && plugin.cloud.disclosure.en?.length
+                      ? plugin.cloud.disclosure.en
+                      : plugin.cloud.disclosure.zh
+                    ).map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="flex items-center gap-2 text-sm text-fd-muted-foreground">
+                  <ShieldCheck className="size-4 text-up" aria-hidden="true" />
+                  {d.cloud.none}
+                </p>
+              )}
+            </Section>
+
+            <Section id="checks" title={d.checks.title}>
+              <Checks plugin={plugin} m={m} />
+            </Section>
+
+            {plugin.instructions && (
+              <Section id="instructions" title={d.instructions.title}>
+                <p className="mb-3 text-sm text-fd-muted-foreground">{d.instructions.note}</p>
+                <div className="prose prose-sm max-w-none rounded-2xl border border-fd-border bg-fd-card/50 p-5 text-sm leading-7 dark:prose-invert [&_code]:font-mono [&_code]:text-[12.5px]">
+                  <Markdown remarkPlugins={[remarkGfm]}>{plugin.instructions}</Markdown>
+                </div>
+              </Section>
+            )}
+
+            <Section id="manifest" title={d.manifest.title}>
+              <p className="mb-3 text-sm text-fd-muted-foreground">
+                {plugin.manifestSource ? d.manifest.raw : d.manifest.normalized}{' '}
+                {plugin.manifestPath && (
+                  <>
+                    {d.manifest.from}: <span className="font-mono text-xs">{plugin.manifestPath}</span>.{' '}
+                  </>
+                )}
+                <Link
+                  href={localePath(lang, '/docs/marketplace/manifest')}
+                  className="text-fd-primary underline-offset-4 hover:underline"
+                >
+                  {d.manifest.fields}
+                </Link>
+              </p>
+              <CodePanel
+                files={files}
+                label={d.manifest.title}
+                copyLabel={m.copy.copyValue(d.manifest.title)}
+                copiedLabel={m.copy.copied}
+              />
+            </Section>
+          </div>
+        </div>
+
+        {siblings.length > 0 && (
+          <section aria-labelledby="siblings" className="mt-20 border-t border-fd-border pt-12">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <h2 id="siblings" className="text-xl font-semibold tracking-[-0.02em]">
+                {d.siblings}
+              </h2>
+              <Link
+                href={localePath(lang, `/marketplace/${plugin.repo.toLowerCase()}`)}
+                className="inline-flex items-center gap-1 font-mono text-xs text-fd-muted-foreground hover:text-fd-foreground"
+              >
+                {plugin.repo}
+                <ArrowUpRight className="size-3.5" aria-hidden="true" />
+              </Link>
+            </div>
+            <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {siblings.slice(0, 6).map((p) => (
+                <li key={p.slug}>
+                  <PluginCard plugin={p} lang={lang} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
     </div>
   );
 }

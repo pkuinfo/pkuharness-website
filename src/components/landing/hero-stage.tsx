@@ -1,7 +1,15 @@
 'use client';
 
-import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
+import {
+  type MotionValue,
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useScroll,
+  useSpring,
+  useTransform,
+} from 'motion/react';
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
 import { DeviceMedia, type MediaPair } from './showcase/device-media';
 
 /**
@@ -10,6 +18,10 @@ import { DeviceMedia, type MediaPair } from './showcase/device-media';
  * choreography is adapted from 21st.dev: ruixen.ui/phone-scroll-hero (tilt on X, scale up,
  * climb). Changes: driven by motion's `useScroll` on the stage, flanking devices with counter
  * motion, no fixed section height, and a still stage under reduced motion.
+ *
+ * Entrance: the middle phone rises first, the side phones follow from further back. With a fine
+ * pointer, the three phones shift a few pixels against the pointer at different depths (side
+ * phones more than the middle one), so the stage reads as three objects in space.
  */
 export function HeroStage({
   center,
@@ -32,37 +44,89 @@ export function HeroStage({
   const sideRotateNeg = useTransform(sideRotate, (v) => -v);
   const sideX = useTransform(scrollYProgress, [0, 1], [-48, 0]);
   const sideXNeg = useTransform(sideX, (v) => -v);
+
+  // Pointer parallax: -1..1 from the viewport centre, springy.
+  const px = useMotionValue(0);
+  const py = useMotionValue(0);
+  const sx = useSpring(px, { stiffness: 60, damping: 18, mass: 0.6 });
+  const sy = useSpring(py, { stiffness: 60, damping: 18, mass: 0.6 });
+
   // Server HTML is the animated start state; switch to the still stage only after hydration.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const still = mounted && Boolean(reduce);
 
+  useEffect(() => {
+    if (reduce || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    const onMove = (e: PointerEvent) => {
+      px.set((e.clientX / window.innerWidth) * 2 - 1);
+      py.set((e.clientY / window.innerHeight) * 2 - 1);
+    };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => window.removeEventListener('pointermove', onMove);
+  }, [reduce, px, py]);
+
   return (
     <div ref={ref} className="relative mx-auto mt-12 w-full max-w-[1100px] [perspective:1400px] md:mt-16">
-      <div className="lp-device-in relative flex items-start justify-center">
+      <div className="relative flex items-start justify-center">
         {left && (
-          <motion.div
-            style={still ? { y: 56, rotate: -4 } : { y: sideY, x: sideX, rotate: sideRotateNeg }}
-            className="absolute top-0 left-[6%] hidden w-[230px] origin-bottom-right lg:block xl:left-[14%]"
-          >
-            <DeviceMedia media={left} sizes="230px" labels={labels} caption={false} />
-          </motion.div>
+          <Depth x={sx} y={sy} depth={-14} className="absolute top-0 left-[6%] hidden lg:block xl:left-[14%]">
+            <div className="lp-device-in" style={{ '--lp-delay': '0.62s' } as CSSProperties}>
+              <motion.div
+                style={still ? { y: 56, rotate: -4 } : { y: sideY, x: sideX, rotate: sideRotateNeg }}
+                className="w-[230px] origin-bottom-right"
+              >
+                <DeviceMedia media={left} sizes="230px" labels={labels} caption={false} />
+              </motion.div>
+            </div>
+          </Depth>
         )}
         {right && (
-          <motion.div
-            style={still ? { y: 56, rotate: 4 } : { y: sideY, x: sideXNeg, rotate: sideRotate }}
-            className="absolute top-0 right-[6%] hidden w-[230px] origin-bottom-left lg:block xl:right-[14%]"
-          >
-            <DeviceMedia media={right} sizes="230px" labels={labels} caption={false} />
-          </motion.div>
+          <Depth x={sx} y={sy} depth={-14} className="absolute top-0 right-[6%] hidden lg:block xl:right-[14%]">
+            <div className="lp-device-in" style={{ '--lp-delay': '0.72s' } as CSSProperties}>
+              <motion.div
+                style={still ? { y: 56, rotate: 4 } : { y: sideY, x: sideXNeg, rotate: sideRotate }}
+                className="w-[230px] origin-bottom-left"
+              >
+                <DeviceMedia media={right} sizes="230px" labels={labels} caption={false} />
+              </motion.div>
+            </div>
+          </Depth>
         )}
-        <motion.div
-          style={still ? undefined : { rotateX, scale, transformOrigin: '50% 0%' }}
-          className="relative z-10 w-[min(72vw,300px)] md:w-[300px]"
-        >
-          <DeviceMedia media={center} sizes="(min-width: 768px) 300px, 72vw" labels={labels} glow eager />
-        </motion.div>
+        <Depth x={sx} y={sy} depth={-6} className="relative z-10">
+          <div className="lp-device-in">
+            <motion.div
+              style={still ? undefined : { rotateX, scale, transformOrigin: '50% 0%' }}
+              className="relative w-[min(72vw,300px)] md:w-[300px]"
+            >
+              <DeviceMedia media={center} sizes="(min-width: 768px) 300px, 72vw" labels={labels} glow eager />
+            </motion.div>
+          </div>
+        </Depth>
       </div>
     </div>
+  );
+}
+
+/** Shifts its child by `depth` px per unit of pointer offset. */
+function Depth({
+  x,
+  y,
+  depth,
+  className,
+  children,
+}: {
+  x: MotionValue<number>;
+  y: MotionValue<number>;
+  depth: number;
+  className?: string;
+  children: ReactNode;
+}) {
+  const tx = useTransform(x, (v) => v * depth);
+  const ty = useTransform(y, (v) => v * depth * 0.6);
+  return (
+    <motion.div style={{ x: tx, y: ty }} className={className}>
+      {children}
+    </motion.div>
   );
 }

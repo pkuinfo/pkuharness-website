@@ -1,17 +1,47 @@
-import { ArrowUpRight, Link2, Scale, ScanSearch } from 'lucide-react';
-import Link from 'next/link';
+import { Link2, Scale, ScanSearch } from 'lucide-react';
 import { type Lang, localePath } from '@/lib/i18n';
+import { pluginDescription } from '@/lib/marketplace/labels';
+import type { MarketplacePlugin } from '@/lib/marketplace/types';
 import { t } from '@/lib/messages';
 import { Section, SectionHeading } from './bits';
-import { PluginMarquee } from './plugin-marquee';
-import type { LandingPlugin } from './registry';
+import { PluginOrbit } from './plugin-orbit';
+import type { OrbitPlugin } from './plugin-orbit-scene';
+import { CORE_PLUGIN_IDS, type LandingPlugin } from './registry';
 import { DeviceMedia, type MediaPair } from './showcase/device-media';
+import { SpotlightList } from './spotlight-list';
 
 const ICONS = [Link2, ScanSearch, Scale];
 
-export function PluginsSection({ lang, plugins, media }: { lang: Lang; plugins: LandingPlugin[]; media?: MediaPair }) {
+export function PluginsSection({
+  lang,
+  plugins,
+  media,
+  market = [],
+}: {
+  lang: Lang;
+  plugins: LandingPlugin[];
+  media?: MediaPair;
+  /** Marketplace index entries, for links and English descriptions (may be empty). */
+  market?: MarketplacePlugin[];
+}) {
   const m = t(lang).home;
   const p = m.plugins;
+
+  const official = new Map(
+    market.filter((x) => x.slug.startsWith('pkuinfo/pku-harness-plugins/')).map((x) => [x.id, x] as const),
+  );
+  const hrefs: Record<string, string> = {};
+  const orbit: OrbitPlugin[] = plugins.map((pl) => {
+    const entry = official.get(pl.id);
+    if (entry) hrefs[pl.id] = localePath(lang, `/marketplace/${entry.slug}`);
+    const desc = entry ? pluginDescription(entry, lang) : undefined;
+    return {
+      ...pl,
+      description: desc && desc.lang === lang ? desc.text : pl.description,
+      group: pl.kind === 'remote' ? 'remote' : CORE_PLUGIN_IDS.has(pl.id) ? 'core' : 'campus',
+    };
+  });
+
   return (
     <section aria-labelledby="plugins-title" className="relative py-16 md:py-24">
       <Section>
@@ -26,18 +56,15 @@ export function PluginsSection({ lang, plugins, media }: { lang: Lang; plugins: 
             <SectionHeading id="plugins-title" title={p.title}>
               <p>{p.lead}</p>
             </SectionHeading>
-            <ul className="mt-10 max-w-[36rem] divide-y divide-fd-border border-fd-border border-y">
-              {p.points.map((pt, i) => {
-                const Icon = ICONS[i] ?? Link2;
-                return (
-                  <li key={pt.title} className="grid grid-cols-[auto_1fr] gap-x-4 py-5">
-                    <Icon className="mt-1 size-5 text-fd-primary" aria-hidden="true" />
-                    <h3 className="font-semibold text-lg">{pt.title}</h3>
-                    <p className="col-start-2 mt-1.5 text-pretty text-fd-muted-foreground leading-[1.75]">{pt.body}</p>
-                  </li>
-                );
-              })}
-            </ul>
+            <SpotlightList
+              className="mt-10 max-w-[36rem]"
+              items={p.points.map((pt, i) => ({
+                key: pt.title,
+                title: pt.title,
+                body: pt.body,
+                icon: ICONS[i] ?? Link2,
+              }))}
+            />
           </div>
           {media && (
             <div className="mx-auto w-[min(68vw,280px)] md:w-full lg:w-[280px]">
@@ -45,24 +72,17 @@ export function PluginsSection({ lang, plugins, media }: { lang: Lang; plugins: 
             </div>
           )}
         </div>
-      </Section>
 
-      <div className="mt-14 md:mt-16">
-        <div className="mx-auto mb-6 flex max-w-[1200px] flex-wrap items-baseline justify-between gap-x-6 gap-y-2 px-4 md:px-8">
-          <p className="font-medium text-fd-muted-foreground">{p.count(plugins.length)}</p>
-          <Link
-            href={localePath(lang, '/marketplace')}
-            className="group inline-flex items-center gap-1 font-medium text-fd-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-fd-ring"
-          >
-            {p.browse}
-            <ArrowUpRight
-              className="size-4 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-              aria-hidden="true"
-            />
-          </Link>
+        <div className="mt-16 md:mt-20">
+          <PluginOrbit
+            plugins={orbit}
+            hrefs={hrefs}
+            browseHref={localePath(lang, '/marketplace')}
+            initial="classrooms"
+            labels={{ ...p.orbit, browse: p.browse }}
+          />
         </div>
-        <PluginMarquee plugins={plugins} remoteLabel={p.remote} />
-      </div>
+      </Section>
     </section>
   );
 }

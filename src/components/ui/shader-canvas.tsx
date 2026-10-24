@@ -5,6 +5,7 @@
  *
  * Ported from 21st.dev: isaiahbjork/shader-aurora-veil ("WebsiteShaderCanvas"), adapted:
  * - the fragment body is a prop (we pass the PKU aurora from `landing/hero-aurora.tsx`);
+ * - the pointer is eased toward its target every frame, so the field drifts after it;
  * - frames are capped (`fps`) and the loop stops when the canvas is off-screen, the tab is
  *   hidden, or the visitor prefers reduced motion (then one still frame is drawn);
  * - a CSS `fallback` background shows before the first frame and if WebGL is unavailable.
@@ -114,6 +115,7 @@ export function ShaderCanvas({
 }: ShaderCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const pointerRef = useRef({ x: 0.5, y: 0.5 });
+  const easedRef = useRef({ x: 0.5, y: 0.5 });
   const reduceMotion = useReducedMotion();
   const [ready, setReady] = useState(false);
   const [epoch, setEpoch] = useState(0);
@@ -193,7 +195,11 @@ export function ShaderCanvas({
       const t = animate ? stillTime + (now - startedAt) / 1000 : stillTime;
       gl.uniform2f(uResolution, el.width, el.height);
       gl.uniform1f(uTime, t);
-      gl.uniform2f(uPointer, pointerRef.current.x, pointerRef.current.y);
+      // the light follows the pointer with a little lag, so it drifts rather than jumps
+      const e = easedRef.current;
+      e.x += (pointerRef.current.x - e.x) * 0.06;
+      e.y += (pointerRef.current.y - e.y) * 0.06;
+      gl.uniform2f(uPointer, e.x, e.y);
       gl.uniform1f(uIntensity, intensity);
       gl.uniform1f(uIsLight, tone === 'light' ? 1 : 0);
       gl.drawArrays(gl.TRIANGLES, 0, 3);

@@ -10,6 +10,7 @@ import { getLocalizedPlugins } from '@/components/landing/registry';
 import { getShowcase, pick } from '@/components/landing/showcase/media';
 import { Trust } from '@/components/landing/trust';
 import { toLang } from '@/lib/i18n';
+import { getMarketplaceIndex } from '@/lib/marketplace';
 import { t } from '@/lib/messages';
 import { getReleases, pickLatest } from '@/lib/releases';
 import '@/components/landing/landing.css';
@@ -30,10 +31,13 @@ const TAB_FEATURES: Record<Chapter['id'], string[]> = {
 export default async function HomePage({ params }: PageProps<'/[lang]'>) {
   const lang = toLang((await params).lang);
   const m = t(lang).home;
-  const [plugins, media, { releases }] = await Promise.all([
+  const [plugins, media, { releases }, market] = await Promise.all([
     getLocalizedPlugins(lang),
     getShowcase(lang),
     getReleases(),
+    getMarketplaceIndex()
+      .then((i) => i.plugins)
+      .catch(() => []),
   ]);
   const latest = pickLatest(releases);
 
@@ -59,10 +63,13 @@ export default async function HomePage({ params }: PageProps<'/[lang]'>) {
         <SectionHeading id="tour-title" title={m.tour.title}>
           <p>{m.tour.lead}</p>
         </SectionHeading>
-        <FeatureTour chapters={chapters} labels={{ ...m.media, examples: m.tour.examplesLabel }} />
+        <FeatureTour
+          chapters={chapters}
+          labels={{ ...m.media, examples: m.tour.examplesLabel, tabBar: m.tour.tabBar }}
+        />
       </Section>
 
-      <PluginsSection lang={lang} plugins={plugins} media={install} />
+      <PluginsSection lang={lang} plugins={plugins} media={install} market={market} />
       <Trust lang={lang} />
       <Developers lang={lang} />
       <HomeFaq lang={lang} />

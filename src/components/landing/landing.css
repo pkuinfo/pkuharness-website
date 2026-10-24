@@ -1,32 +1,5 @@
 /* Landing-page keyframes and helpers (plain CSS; imported by the (home) pages that use them). */
 
-@keyframes lp-marquee-x {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(calc(-100% - var(--gap)));
-  }
-}
-
-@keyframes lp-marquee-y {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(calc(-100% - var(--gap)));
-  }
-}
-
-.lp-marquee-x {
-  animation: lp-marquee-x var(--duration) linear infinite;
-}
-
-.lp-marquee-y {
-  animation: lp-marquee-y var(--duration) linear infinite;
-}
-
-/* Border beam (Magic UI) */
 .lp-border-beam {
   border: calc(var(--border-width) * 1px) solid transparent;
   mask: linear-gradient(transparent, transparent), linear-gradient(white, white);
@@ -199,11 +172,33 @@
   letter-spacing: -0.005em;
 }
 
+/* Hero headline: each line rises out of a clipped slot. */
+@keyframes lp-line-in {
+  from {
+    transform: translateY(105%) rotate(2deg);
+  }
+  to {
+    transform: none;
+  }
+}
+.lp-line {
+  display: block;
+  overflow: clip;
+  overflow-clip-margin: 0.12em;
+  padding-bottom: 0.04em;
+}
+.lp-line > span {
+  display: block;
+  transform-origin: 0 100%;
+  animation: lp-line-in 1s cubic-bezier(0.23, 1, 0.32, 1) both;
+  animation-delay: var(--lp-delay, 0s);
+}
+
 /* Hero devices arrive once, from below, after the headline. */
 @keyframes lp-device-in {
   from {
     opacity: 0;
-    transform: translateY(48px);
+    transform: translateY(56px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -211,7 +206,7 @@
   }
 }
 .lp-device-in {
-  animation: lp-device-in 1.1s cubic-bezier(0.23, 1, 0.32, 1) 0.3s both;
+  animation: lp-device-in 1.2s cubic-bezier(0.23, 1, 0.32, 1) var(--lp-delay, 0.42s) both;
 }
 
 .lp-faq-answer:not([hidden]) {
@@ -221,4 +216,54 @@
 /* Break Chinese lines between words, not inside them (Chrome 119+; others ignore it). */
 .lp-home :is(h1, h2, h3, p, li):lang(zh) {
   word-break: auto-phrase;
+}
+
+/* Plugin orbit: the name label over a bead (drei <Html>), and the canvas fade-in. */
+.lp-orbit-label {
+  display: block;
+  translate: 0 -1.6rem;
+  white-space: nowrap;
+  border-radius: 8px;
+  padding: 0.2rem 0.55rem;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-fd-foreground);
+  background: color-mix(in oklab, var(--color-fd-background) 78%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-fd-foreground) 14%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+@keyframes lp-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.lp-fade-in {
+  animation: lp-fade-in 1.2s ease-out both;
+}
+
+/* Where a connection arrives: a small light that breathes in time with the flow. */
+@keyframes lp-endpoint {
+  0%,
+  60% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+}
+.lp-endpoint {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lp-endpoint 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
