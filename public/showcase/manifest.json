@@ -115,7 +115,7 @@
       "theme": "dark",
       "width": 720,
       "height": 1600,
-      "duration": 13,
+      "duration": 11.6,
       "caption": {
         "zh": "从一个链接打开插件，检查后即可安装",
         "en": "Open a plugin from a link, check it, install"
@@ -234,7 +234,7 @@
       "theme": "dark",
       "width": 720,
       "height": 1600,
-      "duration": 13,
+      "duration": 11.6,
       "caption": {
         "zh": "从一个链接打开插件，检查后即可安装",
         "en": "Open a plugin from a link, check it, install"
