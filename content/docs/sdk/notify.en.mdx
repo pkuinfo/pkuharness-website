@@ -1,14 +1,26 @@
 ---
 title: notify
-description: NotifyReadiness and deliveryBlocker, for screens that check whether reminders and scheduled checks can fire on the minute.
+description: The NotifyReadiness type and the deliveryBlocker function, for screens that check whether reminders and scheduled checks can arrive on time.
 ---
 
-Source: `packages/sdk/src/notify.ts`. Use these with `services.notify.readiness()` and
-`services.notify.fix(kind)`.
+For reminders and scheduled checks to arrive on time, the user has to allow a few things in the
+system settings. This module helps a plugin screen find out which one is missing and guide the
+user to turn it on. Use it with `services.notify.readiness()`, which reads the current state, and
+`services.notify.fix(kind)`, which shows the system prompt or opens the matching system screen.
 
-On-time delivery needs three things from the OS (Android first): the notification permission, the
-"Alarms & reminders" special access for exact alarms (Android 14+ denies it by default), and,
-as a nice-to-have, no battery optimisation for the app.
+Source: `packages/sdk/src/notify.ts`.
+
+## What on-time delivery needs [#requirements]
+
+Android is supported first. On Android, on-time delivery needs the following:
+
+- The notification permission.
+- The "Alarms & reminders" special access, which allows exact alarms. Android 14 and later deny it
+  by default.
+- No battery optimisation for the app. This one is only recommended. Reminders still fire on time
+  without it.
+
+## Types and functions [#types-and-functions]
 
 ```ts
 type NotifyPermission = 'granted' | 'undetermined' | 'denied';
@@ -32,8 +44,10 @@ type NotifyFixKind = 'notifications' | 'exactAlarms' | 'battery';
 function deliveryBlocker(r: NotifyReadiness): 'notifications' | 'exactAlarms' | null;
 ```
 
-A screen can show a fix button only when something actually blocks delivery. Call `fix` only from
-a tap:
+## Example: showing a fix button [#example]
+
+A screen only needs to show a fix button when something actually blocks delivery. Call `fix` only
+when the user taps:
 
 ```tsx
 import { deliveryBlocker, type NotifyReadiness, type PluginScreenProps } from '@pku-harness/sdk';
@@ -55,5 +69,5 @@ export function ReminderBanner({ host, services }: PluginScreenProps) {
 }
 ```
 
-A system screen can return before the user has changed anything, so read readiness again when the
-app comes back to the foreground.
+The user may come back from a system screen without changing anything. Read the readiness again
+when the app returns to the foreground.

@@ -1,10 +1,12 @@
 ---
 title: 校园会话与 IAAA
-description: 校园账号由框架保管，框架自己登录各个北大服务，再通过 `services.campus.request` 把响应交给插件。插件永远拿不到密码或会话令牌。
+description: 校园账号由框架保管。框架自己登录各个北大服务，再通过 `services.campus.request` 把响应交给插件。插件永远拿不到密码或会话令牌。
 icon: GraduationCap
 ---
 
-北大的各项服务都挂在 IAAA（统一身份认证）后面，而每个服务保存会话的方式又各不相同：有的用 cookie，有的要经过门户 SSO 跳转，有的用 JWT。这些逻辑由框架在 App 里统一实现一次，协议参考的是 [`pkucli`](https://github.com/pkuinfo/pkucli)。内置插件只需按**服务名**发起一个需要登录的请求，就能拿到响应。
+北大的各项服务都通过学校的统一身份认证系统 IAAA 登录。登录之后，每个服务保存会话的方式又各不相同：有的用 cookie，有的要经过门户的单点登录（SSO）跳转，有的用 JWT 令牌。
+
+这些登录逻辑由框架在 App 里统一实现，协议细节参考 [`pkucli`](https://github.com/pkuinfo/pkucli)。内置插件不需要关心登录。它只要按**服务名**发起一个请求，框架就会带上登录状态发出请求，并把响应交给插件。例如，查询校园卡余额：
 
 ```ts
 const res = await ctx.services.campus.request('card', {
@@ -15,17 +17,24 @@ const res = await ctx.services.campus.request('card', {
 
 ## 框架负责登录的服务 [#services-the-harness-signs-in-to]
 
-| 服务 | 域名 | 框架附加的会话 |
+下表列出四个主要服务，以及框架为它们建立会话的过程。
+
+| 服务 | 域名 | 框架建立的会话 |
 | --- | --- | --- |
-| `card` | bdcard.pku.edu.cn | IAAA → 门户 ssoLogin → redirectToCard → synjones JWT（遇到 401 时刷新） |
+| `card` | bdcard.pku.edu.cn | IAAA → 门户 ssoLogin → redirectToCard → synjones JWT |
 | `its` | its.pku.edu.cn | ITS 网页登录（网络账号） |
-| `treehole` | treehole.pku.edu.cn `/chapi/…` | IAAA “PKU Helper” → JWT + 设备 uuid（遇到 401 时重新登录） |
-| `blackboard` | course.pku.edu.cn（教学网） | IAAA → campusLogin cookie 会话；自动跟随重定向 |
-| `bdkj`, `cwfw`, `cwpay`, `elective`, `library`, `library-space` | 空间预约、财务、财务缴费、选课、图书馆、图书馆座位 | 由 App 中的适配器注册（`src/core/campus/adapters/`） |
+| `treehole` | treehole.pku.edu.cn `/chapi/…` | IAAA「PKU Helper」→ JWT + 设备 uuid |
+| `blackboard` | course.pku.edu.cn（教学网） | IAAA → campusLogin cookie 会话 |
 
-`CampusService` 的类型是 `'card' | 'its' | 'treehole' | 'blackboard' | (string & {})`。请求未注册的服务会直接被拒绝。请在插件的 `scopes` 里声明你用到的服务，让用户看得到。
+会话失效时，框架会自动处理。`card` 遇到 401 时刷新 JWT；`treehole` 遇到 401 时重新登录；`blackboard` 会自动跟随重定向。
 
-## 请求 [#requests]
+除此之外，App 里的适配器（`src/core/campus/adapters/`）还注册了以下服务：`bdkj`（空间预约）、`cwfw`（财务）、`cwpay`（财务缴费）、`elective`（选课）、`library`（图书馆）和 `library-space`（图书馆空间预约，包括研讨室和研修专座）。
+
+`CampusService` 的类型是 `'card' | 'its' | 'treehole' | 'blackboard' | (string & {})`。请求一个没有注册的服务，会直接被拒绝。请在插件的 `scopes` 里声明你用到的服务，这样用户可以在插件页面上看到。
+
+## 请求的格式 [#requests]
+
+`request` 的第二个参数是一个 `CampusRequest` 对象。
 
 ```ts
 type CampusRequest = {
@@ -44,23 +53,42 @@ type CampusRequest = {
 };
 ```
 
-请求由 App 原生的校园 HTTP 模块发出。它为每个会话维护独立的 cookie jar，允许手动控制重定向，使用 HTTP/1.1，内置部分校园站点需要的额外信任根证书，并且**不走代理**：只能在校内访问的站点会被直接请求。完整类型见 [SDK → campus](/docs/sdk/campus)。
+请求由 App 原生的校园 HTTP 模块发出。这个模块有以下特点。
+
+- 为每个会话维护独立的 cookie 存储。
+- 允许手动控制重定向。
+- 使用 HTTP/1.1。
+- 内置部分校园网站需要的额外根证书。
+- **不经过代理**。只能在校内访问的网站会被直接请求。
+
+完整的类型定义见 [SDK → campus](/docs/sdk/campus)。
 
 ## 二次验证 [#second-factors]
 
-**IAAA** 的二次验证（短信、邮箱、手机令牌）由框架处理。任何一次登录都可能弹出验证提示，后台刷新也一样，请求会一直等到用户完成验证。
+二次验证分两种，分别由框架和插件处理。
 
-**服务自身**的验证则交给插件处理，因为只有插件了解那个接口。树洞会返回 `40002`（短信验证：`/chapi/api/jwt_send_msg`、`/chapi/api/jwt_msg_verify`）和 `40077`（课程数据令牌）。插件把它们转换成类似 `{ status: 'verification_required', methods: ['sms'], message }` 的结果，由用户完成验证，或者由助手拿着用户提供的验证码完成。在 Android 上，`services.sms.awaitCode()` 支持一键读取验证码。
+**IAAA 的二次验证**由框架处理，包括短信、邮箱和手机令牌三种方式。任何一次登录都可能弹出验证提示，后台刷新会话时也一样。这时请求会暂停，等用户完成验证后再继续。
 
-如果用户在 App 里绑定了身份验证器，`services.campus.otp()` 会返回当前的手机令牌验证码（不会返回密钥）。树洞课程令牌这类二次验证可以用它。
+**服务自己的验证**交给插件处理，因为只有插件了解这个服务的接口。以树洞为例，它会返回两种需要验证的状态码：
+
+- `40002` 表示需要短信验证，相关接口是 `/chapi/api/jwt_send_msg` 和 `/chapi/api/jwt_msg_verify`；
+- `40077` 表示需要课程数据令牌。
+
+插件把这些状态码转换成类似 `{ status: 'verification_required', methods: ['sms'], message }` 的结果。之后，用户可以自己完成验证，也可以把验证码交给助手，由助手完成。在 Android 上，`services.sms.awaitCode()` 支持一键读取短信验证码。
+
+如果用户在 App 里绑定了身份验证器，`services.campus.otp()` 会返回当前的手机令牌验证码，但不会返回令牌的密钥。树洞课程令牌这类二次验证可以用它完成。
 
 ## 把用户带到校园网页 [#handing-the-user-to-a-campus-page]
 
-`services.campus.openSignedIn(service)` 会利用服务自己的跳转机制，在系统浏览器里打开一个已登录的服务页面。典型用法是为插件创建的订单付款。URL 由框架生成，插件看不到令牌。`services.browser.open(url)` 可以打开任意 URL，比如支付收银台，其中 `weixin://`、`alipays://` 这类链接会唤起对应的 App。
+有时插件需要让用户在浏览器里完成操作，最常见的是为插件创建的订单付款。
+
+`services.campus.openSignedIn(service)` 会在系统浏览器里打开一个已经登录的服务页面。它用的是这个服务自己的跳转机制。URL 由框架生成，所以插件看不到其中的令牌。
+
+`services.browser.open(url)` 可以打开任意 URL，例如支付收银台。如果 URL 是 `weixin://` 或 `alipays://` 这类链接，系统会打开对应的 App。
 
 ## 规则 [#rules]
 
-- **必须**声明 `requires: ['campus-session']`；访问只能在校内访问的站点时，还要加上 `'campus-network'`。
-- **不得**向用户索要校园账号密码，无论是在页面里、工具输入里还是远程插件里。远程插件目前没有校园会话；按范围授予会话的功能已列入路线图。
-- `pkucli` 已实现的接口和特殊处理**必须**照着移植，并在注释里注明来源文件。详见[从 pkucli 移植](/docs/build/porting-from-pkucli)。
-- **应当**检查 `services.campus.status().signedIn`，未登录时返回清楚的提示（“请先在设置里登录校园账号”），而不是原始错误。
+- **必须**声明 `requires: ['campus-session']`。如果访问只能在校内访问的网站，还要加上 `'campus-network'`。
+- **不得**向用户索要校园账号密码，无论是在页面里、工具输入里还是远程插件里。远程插件目前没有校园会话。按范围授予会话的功能已经列入路线图。
+- `pkucli` 已经实现的接口和特殊处理，**必须**照着移植，并在注释里注明来源文件。详见[从 pkucli 移植](/docs/build/porting-from-pkucli)。
+- **应当**先检查 `services.campus.status().signedIn`。如果用户还没有登录，请返回一条清楚的提示，例如「请先在设置里登录校园账号」，不要直接返回原始错误。

@@ -1,9 +1,16 @@
 ---
 title: dashboard
-description: The Widget type, the Binding and WidgetSource schemas, and WidgetSize, as used by dashboard widgets and services.widgets.
+description: Data types for dashboard widgets. The Widget type, the Binding and WidgetSource schemas, and WidgetSize, also used by services.widgets.
 ---
 
-Source: `packages/sdk/src/dashboard.ts`. Concepts: [Dashboard](/en/docs/concepts/dashboard).
+This module defines the data structure of dashboard widgets. There are two kinds of widget. The
+agent builds the first kind, which shows a UI description (the spec) filled by data bindings. A
+plugin provides the second kind and draws it with native components. A plugin uses these types when
+it reads or writes widgets through `services.widgets`.
+
+Source: `packages/sdk/src/dashboard.ts`. For the concepts, see [Dashboard](/en/docs/concepts/dashboard).
+
+## Types and schemas [#types-and-schemas]
 
 ```ts
 import { z } from 'zod';
@@ -50,11 +57,17 @@ export type Widget = {
 };
 ```
 
-Each binding writes its result into the spec's state with [`setPointer`](/en/docs/sdk/pointer). A
-binding at `/card` with `path: "balance"` therefore makes `{ "$state": "/card" }` resolve to the
-balance.
+An `sm` widget is a half-width tile, `md` fills the row, and `lg` is a large card that fills the row.
 
-To place a plugin widget from a tool, build a `Widget` with a `source` and `put` it:
+## How bindings fill in data [#how-bindings-work]
+
+Each binding calls a read-only tool and writes the result into the spec's state with
+[`setPointer`](/en/docs/sdk/pointer). For example, a binding at `/card` with `path: "balance"`
+makes `{ "$state": "/card" }` in the spec resolve to the balance.
+
+## Placing a plugin widget from a tool [#placing-a-plugin-widget]
+
+To place a plugin's widget from a tool, build a `Widget` with a `source` and pass it to `put`:
 
 ```ts
 const w: Widget = {

@@ -1,7 +1,11 @@
 ---
 title: pointer
-description: setPointer, the minimal JSON-pointer write that puts binding results into widget state.
+description: setPointer writes a value into an object at a JSON Pointer path. The dashboard uses it to put binding results into widget state.
 ---
+
+`setPointer` writes a value into an object at a JSON Pointer path such as `"/a/b"`. The dashboard
+uses it to put the data each binding fetches into the state of a widget's spec. You can also use it
+in a plugin whenever you need to update a nested object by path.
 
 Source: `packages/sdk/src/pointer.ts`.
 
@@ -10,9 +14,11 @@ Source: `packages/sdk/src/pointer.ts`.
 function setPointer(target: Record<string, unknown>, pointer: string, value: unknown): Record<string, unknown>;
 ```
 
-- It returns a new object and leaves `target` alone: every object along the path is copied.
-- A missing or non-object value on the way becomes `{}`.
-- In keys, `~1` decodes to `/` and `~0` to `~`.
+It behaves as follows:
+
+- It returns a new object and leaves `target` unchanged. Every object along the path is copied.
+- A missing value, or a value that is not an object, on the way is replaced with `{}`.
+- In keys, `~1` decodes to `/` and `~0` decodes to `~`.
 - An empty pointer (`""`) returns `target` unchanged.
 
 ```ts

@@ -1,22 +1,30 @@
 ---
 title: Introduction
-description: PKU Harness is an open-source, AI-native app for campus life at Peking University. These docs are for the people and AI agents who build plugins for it.
+description: PKU Harness is an open-source app for campus life at Peking University, built around an AI assistant. These docs are for the people and AI agents who build plugins for it.
 icon: House
 ---
 
-PKU Harness is the one app a PKU student installs. You sign in once with your campus account
-(IAAA) and reach every campus system from there: timetable, campus card, network fee, Treehole
-(树洞), Blackboard (教学网), finance, room booking, and whatever plugins add. An AI agent sits at
-the core and works those systems for you, and every feature it can use is also one tap away in
-native UI.
+PKU Harness is an Android app that helps Peking University students with campus services. You
+sign in once with your campus account, and the app gives you your timetable, campus card,
+network fee, Treehole (树洞), Blackboard (教学网), finance, room booking and other campus
+systems. Sign-in goes through IAAA, the university's central login system. Plugins can add
+more services.
 
-## Everything is a plugin
+At the centre of the app is an AI assistant, which we also call the agent. You describe what you
+need in a conversation, and the agent works the campus systems for you. Every feature the agent
+can use also has a button in the app's native screens, so you can do the same thing yourself.
 
-The app itself is only a **harness**: an agent loop, a design system and a set of host services.
-Everything else is a **plugin**: each campus service, the dashboard, reminders, even the model
-provider. Plugins are all equal. One that ships inside the app and one that a student runs on
-their own server use the same contract, sit in the same plugin list and follow the same
-permissions.
+## How the app and its plugins fit together [#everything-is-a-plugin]
+
+The app itself provides only the basic machinery. It has an agent loop, which is the program that
+lets the AI think, call tools and answer. It also has a design system for screens and a set of
+host services, such as campus sign-in, scheduled tasks, widgets and to-dos. We call this layer
+the _harness_.
+
+Everything else comes from **plugins**. Each campus service is a plugin, and so are the
+dashboard, reminders and even the AI model provider. A plugin that ships inside the app and a
+plugin that a student runs on their own server use the same interface. Both appear in the same
+plugin list and use the same permission system.
 
 ```
  ┌──────────────── PKU Harness app (the harness) ────────────────┐
@@ -29,30 +37,31 @@ permissions.
    (TypeScript, SDK)        (MCP over HTTPS)     (optional backend)
 ```
 
-Two rules follow, and the rest of these docs keep coming back to them:
+This design leads to two rules that the rest of these docs come back to often.
 
-- **Human and AI are equal operators.** Every capability is one typed tool. A screen calls it when
-  you tap; the agent calls it in a conversation. Anything you can do, the agent can do, and the
-  other way round.
-- **Credentials never leave the device.** The harness signs in to campus services itself and hands
-  plugins responses. Plugins never see passwords or session tokens.
+- **You and the agent can do exactly the same things.** Each feature is one typed _tool_. When
+  you tap a button, the screen calls the tool. When you ask in a conversation, the agent calls
+  the same tool.
+- **Credentials never leave the phone.** The harness signs in to campus services itself. Plugins
+  receive only the responses, and never see your password or session tokens.
 
 ## Who these docs are for
 
 <Cards>
   <Card title="Student developers" href="/en/docs/build">
-    Connect a campus service the app doesn't cover yet: a plugin document, a remote MCP server in
-    any language, or a bundled TypeScript plugin.
+    Connect a campus service that the app doesn't cover yet. You can write a plugin document,
+    run a remote MCP server in any language, or write a bundled TypeScript plugin.
   </Card>
   <Card title="AI agents" href="/en/docs/for-agents">
     Claude Code, Codex or the in-app agent writing a plugin. Start with the checklist, then read
-    the pages it links.
+    the pages it links to.
   </Card>
   <Card title="Users" href="/en/docs/getting-started/install">
-    Install the app, sign in with your campus account and connect a model.
+    Install the app, sign in with your campus account and connect an AI model.
   </Card>
   <Card title="Server operators" href="/en/docs/cloud">
-    Run a PKU Harness Cloud provider, the optional end-to-end encrypted backend for plugins.
+    Run a PKU Harness Cloud provider. It is an optional backend that gives plugins end-to-end
+    encrypted storage and sync.
   </Card>
 </Cards>
 
@@ -61,28 +70,32 @@ Two rules follow, and the rest of these docs keep coming back to them:
 | You want to | Read |
 | --- | --- |
 | Understand how the app is put together | [Architecture](/en/docs/concepts/architecture), then the other [Concepts](/en/docs/concepts/plugins) pages |
-| Ship a plugin today without touching the app | [Quickstart: remote plugin](/en/docs/build/remote-plugin) |
+| Ship a plugin today without changing the app | [Quickstart: remote plugin](/en/docs/build/remote-plugin) |
 | Write a plugin that ships inside the app | [Bundled plugin](/en/docs/build/bundled-plugin) and the [SDK reference](/en/docs/sdk) |
 | List a plugin in the marketplace | [Marketplace](/en/docs/marketplace) |
-| Store data or share live with a server | [PKU Harness Cloud](/en/docs/cloud) and its [API reference](/en/docs/cloud/api/meta) |
+| Store data on a server or share it live | [PKU Harness Cloud](/en/docs/cloud) and its [API reference](/en/docs/cloud/api/meta) |
 | See every repository and the roadmap | [Ecosystem](/en/docs/ecosystem/repositories) |
 
-## Feeding these docs to an agent
+## Giving these docs to an AI agent [#feeding-these-docs-to-an-agent]
 
-Every page is also served as Markdown, so you can hand an agent exactly the context it needs.
-The docs come in Simplified Chinese (default, under `/docs`) and English (under `/en/docs`).
+Every page is also available as Markdown. This lets you give an AI agent only the pages it needs
+instead of the whole site. The docs are written in Simplified Chinese and English. Chinese is the
+default and lives under `/docs`. English lives under `/en/docs`.
 
 | URL | Content |
 | --- | --- |
 | [`/llms.txt`](/llms.txt) | Index of every page in both languages, with one-line descriptions |
 | [`/llms-full.txt`](/llms-full.txt) | Every English page in one file |
 | [`/llms-full.zh.txt`](/llms-full.zh.txt) | Every Chinese page in one file |
-| `/en/docs/<page>.md` | One English page, e.g. [`/en/docs/sdk/plugin.md`](/en/docs/sdk/plugin.md) |
+| `/en/docs/<page>.md` | One English page, for example [`/en/docs/sdk/plugin.md`](/en/docs/sdk/plugin.md) |
 | `/docs/<page>.md` | The same page in Chinese |
-| `/en/docs/<page>` with `Accept: text/markdown` | Same as `.md` (content negotiation) |
+| `/en/docs/<page>` with the header `Accept: text/markdown` | Same as `.md` |
 
-Under each page title there are **Copy Markdown** and **Open in…** buttons. In the Markdown
-version, the Cloud API reference pages render their operations and schemas as text.
+The last row uses HTTP content negotiation: the server reads the request header and returns
+Markdown instead of HTML.
+
+Under each page title there are two buttons, **Copy Markdown** and **Open in…**. In the Markdown
+version, the Cloud API reference pages list their operations and schemas as plain text.
 
 ```bash
 # Give Claude Code the plugin checklist and the SDK contract
@@ -90,11 +103,14 @@ curl -s https://<this-site>/en/docs/for-agents.md https://<this-site>/en/docs/sd
 ```
 
 <Callout title="Status">
-  PKU Harness 1.0.0 is out for Android. iOS is being prepared. JavaScript fixes reach installed
-  apps as signed over-the-air updates; native changes ship as a new APK. The SDK and wire protocol
-  described here match the default branches of
+  PKU Harness 1.0.0 is out for Android. The iOS version is being prepared.
+
+  Fixes to the JavaScript code reach installed apps as signed over-the-air (OTA) updates. Changes
+  to native code need a new APK.
+
+  The SDK and wire protocol described here match the default branches of
   [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness) and
-  [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins). You consume
-  plugins and the SDK from that GitHub repository, not npm. Most campus integrations are
-  [plugin documents](/en/docs/build/declarative-plugins) (`PLUGIN.md`) installed by link.
+  [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins). You get plugins
+  and the SDK from those GitHub repositories, not from npm. Most campus services are provided as
+  [plugin documents](/en/docs/build/declarative-plugins) (`PLUGIN.md`) that you install by link.
 </Callout>

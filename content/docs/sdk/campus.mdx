@@ -1,71 +1,79 @@
 ---
 title: campus
-description: 通过宿主访问已登录校园服务的类型（CampusService、CampusRequest、CampusResponse、multipart 上传、用户选取的文件），以及登录状态和手机令牌验证码。
+description: 通过宿主访问已登录校园服务所用的类型（CampusService、CampusRequest、CampusResponse、multipart 上传、用户选取的文件），以及登录状态和手机令牌验证码。
 ---
 
-源码：`packages/sdk/src/campus.ts`。概念：[校园会话](/docs/concepts/campus-sessions)。需要 `campus-session` 能力。
+插件需要以用户身份访问校园网站时，例如查询校园卡余额或在树洞发帖，就通过 `services.campus.request` 让宿主代为发送请求。这个模块定义了请求、响应和相关状态的类型。使用这些接口的插件需要声明 `campus-session` 能力。
 
-校园账号密码由宿主保存在设备密钥库里，宿主自己登录各个服务（IAAA、门户 SSO、ITS），再把响应交给插件。插件既拿不到密码，也拿不到原始会话 token。multipart 上传时，宿主直接从本地 URI 读取文件并发送，文件内容同样不经过插件。
+源码：`packages/sdk/src/campus.ts`。概念介绍见[校园会话](/docs/concepts/campus-sessions)。
+
+## 插件能看到什么 [#what-plugins-see]
+
+校园账号和密码由宿主保存在设备的密钥库里。宿主自己登录各个服务，包括 IAAA（北大统一身份认证）、门户的单点登录（SSO）和 ITS（校园网账号系统），然后把服务的响应交给插件。插件既拿不到密码，也拿不到原始的会话 token。
+
+上传文件（multipart 请求）时，宿主直接从本地 URI 读取文件并发送，文件内容同样不经过插件。
+
+## 类型 [#types]
 
 ```ts
 /**
- * - `card`: bdcard.pku.edu.cn (synjones JWT added for you)
- * - `its`: its.pku.edu.cn (网络账号 session)
- * - `treehole`: treehole.pku.edu.cn `/chapi/…` (Bearer JWT + device uuid added for you). Its own
- *   second factors stay visible: 40002 = SMS check, 40077 = course-data token.
- * - `blackboard`: course.pku.edu.cn (教学网, HTML pages; SSO session, redirects followed)
- * - more registered by the harness's adapters (bdkj, cwfw, cwpay, elective, library, library-space)
+ * - `card`：bdcard.pku.edu.cn（宿主自动加上 synjones JWT）
+ * - `its`：its.pku.edu.cn（网络账号会话）
+ * - `treehole`：treehole.pku.edu.cn `/chapi/…`（宿主自动加上 Bearer JWT 和设备 uuid）。树洞自己的
+ *   二次验证仍会返回给插件：40002 = 短信验证，40077 = 课程数据令牌。
+ * - `blackboard`：course.pku.edu.cn（教学网，HTML 页面；SSO 会话，自动跟随重定向）
+ * - 其余服务由宿主的适配器注册（bdkj、cwfw、cwpay、elective、library、library-space）
  */
 type CampusService = 'card' | 'its' | 'treehole' | 'blackboard' | (string & {});
 
 type CampusRequest = {
-  /** Absolute URL, or a path on the service's host (e.g. "/berserker-app/…"). */
+  /** 绝对 URL，或该服务主机上的路径（例如 "/berserker-app/…"）。 */
   url: string;
   method?: 'GET' | 'POST';
   headers?: Record<string, string>;
   body?: string;
   contentType?: string;
   responseType?: 'text' | 'base64';
-  /** Form fields, sent url-encoded (instead of `body`). */
+  /** 表单字段，以 url-encoded 格式发送（代替 `body`）。 */
   form?: Record<string, string>;
   /**
-   * Where the session credential goes. Default: headers. 'form' puts it into `form` too, for APIs
-   * that read and sign the token from the body (the campus card's order API).
+   * 会话凭据放在哪里，默认放在请求头。'form' 表示同时放进 `form`，用于从请求体读取 token 并对其签名的
+   * 接口（校园卡的下单接口）。
    */
   authIn?: 'headers' | 'form';
-  /** Last step before sending a `form`: add a signature. Runs inside the harness; bundled plugins only. */
+  /** 发送 `form` 前的最后一步：加上签名。在宿主内运行；仅限内置插件。 */
   sign?: (fields: Record<string, string>) => Record<string, string> | Promise<Record<string, string>>;
-  /** Follow 3xx redirects (default: the service's own choice). false = read `location` yourself. */
+  /** 是否跟随 3xx 重定向（默认由服务决定）。false 表示自己读取 `location`。 */
   followRedirects?: boolean;
-  /** A multipart/form-data body (file uploads), instead of `body` / `form`. Method defaults to POST. */
+  /** multipart/form-data 请求体（上传文件），代替 `body` / `form`。方法默认为 POST。 */
   multipart?: CampusMultipart;
-  /** Request timeout in ms (default 20 s; 120 s for multipart). */
+  /** 请求超时，单位为毫秒（默认 20 秒；multipart 为 120 秒）。 */
   timeoutMs?: number;
 };
 
 type CampusMultipart = {
-  /** Text fields: an array of [name, value] keeps order and allows repeated names. Written before files. */
+  /** 文本字段：用 [name, value] 数组可以保持顺序并允许重名。文本字段写在文件之前。 */
   fields: Record<string, string> | [string, string][];
   files: CampusFilePart[];
 };
 
 type CampusFilePart = {
-  /** Form field name of the part, e.g. "newFile_LocalFile0". */
+  /** 这一部分的表单字段名，例如 "newFile_LocalFile0"。 */
   field: string;
-  /** File name sent to the server. */
+  /** 发送给服务器的文件名。 */
   name: string;
-  /** MIME type, e.g. "application/pdf". */
+  /** MIME 类型，例如 "application/pdf"。 */
   mime: string;
-  /** Local URI from `services.files.pick`. */
+  /** 来自 `services.files.pick` 的本地 URI。 */
   uri: string;
 };
 
 type PickedFile = {
   name: string;
   mime: string;
-  /** Bytes, when the system reports it. */
+  /** 字节数，系统提供时才有。 */
   size: number | null;
-  /** Local URI, valid for this app session. */
+  /** 本地 URI，在本次应用会话内有效。 */
   uri: string;
 };
 
@@ -74,14 +82,14 @@ type CampusResponse = { status: number; url: string; headers: Record<string, str
 type CampusStatus = {
   signedIn: boolean;
   username: string | null;
-  /** Holder's name when known (from the campus card). */
+  /** 持卡人姓名，已知时才有（来自校园卡）。 */
   name: string | null;
 };
 
-/** The current 手机令牌 (IAAA TOTP) code; the secret never leaves the harness. */
-type OtpCode = { code: string; /** Seconds until the code rolls over (1–30). */ remainingSeconds: number };
+/** 当前的手机令牌（IAAA TOTP）验证码；密钥始终留在宿主内。 */
+type OtpCode = { code: string; /** 距离验证码更新还有几秒（1–30）。 */ remainingSeconds: number };
 
-/** The harness's 手机令牌 binding (no secret). `pending` = binding SMS sent, awaiting the code. */
+/** 宿主的手机令牌绑定状态（不含密钥）。`pending` 表示已发送绑定短信，正在等待验证码。 */
 type OtpStatus = { bound: boolean; userId: string | null; userName: string | null; boundAt: number | null; pending: boolean };
 ```
 
@@ -93,7 +101,7 @@ const res = await ctx.services.campus.request('card', { url: '/berserker-app/ykt
 if (res.status !== 200) throw new Error(`校园卡服务返回 HTTP ${res.status}`);
 const json = JSON.parse(res.body);
 
-// 树洞 JSON POST
+// 向树洞发送 JSON POST 请求
 await ctx.services.campus.request('treehole', {
   url: '/chapi/api/jwt_send_msg',
   method: 'POST',

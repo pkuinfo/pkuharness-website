@@ -1,31 +1,40 @@
 ---
 title: Publishing
-description: Getting a plugin to users. Remote plugins are listed in the marketplace registry. Bundled plugins are merged into pku-harness-plugins and reach phones as a signed OTA update or with the next app release.
+description: How a remote or bundled plugin reaches users. Remote plugins are listed in the marketplace registry. Bundled plugins are merged into pku-harness-plugins and reach phones as a signed over-the-air update or with the next app release.
 icon: Send
 ---
+
+This page explains how a finished plugin reaches users. The steps differ for remote plugins and
+bundled plugins. A plugin document is published by pushing its folder to GitHub; see
+[Declarative plugins](/en/docs/build/declarative-plugins#publish) and the marketplace's
+[submit flow](/en/docs/marketplace/publishing).
 
 ## Remote plugins
 
 1. Deploy your MCP server over HTTPS ([Quickstart](/en/docs/build/remote-plugin#4-deploy)).
-2. Make sure your MCP server `name` matches the registry `id` you'll use.
-3. List it in the marketplace. Either add a manifest to your repository and submit it on this
-   website ([manifest reference](/en/docs/marketplace/manifest), [submitting](/en/docs/marketplace/publishing)),
-   or open a pull request that adds an entry to `registry/registry.json` in
-   [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins). Review and the
-   `verified` badge are covered in the [review policy](/en/docs/marketplace/review).
-4. Users install it from Settings → Plugins → Marketplace, or add your URL by hand.
+2. Make sure your MCP server's `name` matches the registry `id` you will use.
+3. List the plugin in the marketplace. You can add a manifest to your repository and submit it on
+   this website ([manifest reference](/en/docs/marketplace/manifest),
+   [submitting](/en/docs/marketplace/publishing)). Or you can open a pull request that adds an
+   entry to `registry/registry.json` in
+   [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins). The
+   [review policy](/en/docs/marketplace/review) explains how entries are reviewed and how the
+   `verified` badge is given.
+4. Users install the plugin from Settings → Plugins → Marketplace, or add your URL by hand.
 
-Updates go out as soon as you deploy: the app picks up the new tool list the next time it refreshes
-the plugin. Keep tool names stable. Renaming a tool breaks users' widgets and scheduled checks that
-reference it.
+Updates go out as soon as you deploy. The app picks up the new tool list the next time it refreshes
+the plugin.
+
+Keep tool names stable. Users' widgets and scheduled checks refer to tools by name, so renaming a
+tool breaks them.
 
 ## Bundled plugins
 
-1. Open an issue in `pku-harness-plugins` first, saying what the plugin does and why it has to be
+1. Open an issue in `pku-harness-plugins` first. Say what the plugin does and why it has to be
    bundled.
-2. Send a pull request with `plugins/<id>/`, the `builtinPlugins` entry in `plugins/index.ts` and a
-   `"kind": "builtin"` registry entry.
-3. CI and reviewers run:
+2. Send a pull request with three parts: the folder `plugins/<id>/`, the entry in `builtinPlugins`
+   in `plugins/index.ts`, and a registry entry with `"kind": "builtin"`.
+3. Continuous integration (CI) and the reviewers run these checks:
 
    ```bash
    bun test
@@ -33,21 +42,27 @@ reference it.
    bun scripts/validate-registry.ts
    ```
 
-4. After the merge, the app bumps its `plugins/` submodule to the new commit. JS-only changes reach
-   phones as a signed over-the-air (OTA) update, applied on the next launch. Anything that needs
-   native code waits for the next app release (a new APK).
+4. After the merge, the app moves its `plugins/` submodule to the new commit. How the change then
+   reaches phones depends on what it touches. A change to JavaScript only is delivered as a signed
+   over-the-air (OTA) update, which the app downloads and applies on its next launch. A change
+   that needs native code waits for the next app release, which is a new APK.
 
-Nothing is published to npm. The SDK and plugins are consumed straight from the GitHub repository.
+Nothing is published to npm. The app and other developers use the SDK and plugins straight from the
+GitHub repository.
 
 ## Renaming or merging
 
-Never reuse or silently rename ids that users may have stored in widgets, checks or settings. Use
-`PluginDef.legacy` to map old plugin ids, tool ids and widget keys to the new ones
+Users may have stored plugin ids, tool ids or widget keys in their widgets, checks or settings.
+Never reuse such an id, and never rename one silently. Instead, use `PluginDef.legacy` to map the
+old plugin ids, tool ids and widget keys to the new ones
 ([SDK → plugin](/en/docs/sdk/plugin#pluginlegacy)).
 
 ## Using PKU Harness Cloud
 
-If the plugin declares `PluginDef.cloud`, copy its `cloud` declaration (`uses`, `e2e`,
-`disclosure`, optional `backend`) into the registry entry. The marketplace shows it before
-install, and `disclosure.zh` must say in plain words what leaves the device. See
-[Cloud → plugin guide](/en/docs/cloud/plugin-guide#6-registry-entry).
+PKU Harness Cloud is our hosted service for features that need a server. If your plugin declares
+`PluginDef.cloud`, copy its `cloud` declaration into the registry entry. The declaration has the
+fields `uses`, `e2e` (whether stored data must be end-to-end encrypted), `disclosure` and, optionally,
+`backend`.
+
+The marketplace shows this declaration before install. `disclosure.zh` must say in plain words what
+data leaves the device. See [Cloud → plugin guide](/en/docs/cloud/plugin-guide#6-registry-entry).

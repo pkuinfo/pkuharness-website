@@ -1,27 +1,40 @@
 ---
 title: Security
-description: How PKU Harness Cloud keeps the server blind. Device keypairs, proof-of-work registration, short-lived signed plugin tokens, XChaCha20-Poly1305 envelopes, share-link secrets in the URL fragment, claim-once channels and redaction.
+description: How PKU Harness Cloud keeps user data unreadable to the server. Device keypairs, proof-of-work registration, short-lived signed plugin tokens, XChaCha20-Poly1305 envelopes, share-link secrets in the URL fragment, claim-once channels and share-link redaction.
 icon: Lock
 ---
 
+The cloud is designed so that the server only forwards and stores ciphertext it can't read, and
+doesn't know who the user is. This page describes the mechanisms behind that in order: how a
+device gets an identity, how it gets tokens, how data is encrypted, how share links protect
+their secret, and which risks remain.
+
 ## Device identity
 
-On first use, each device generates two keypairs and keeps the secret keys in the keystore
-(after first unlock, this device only):
+The first time a device uses the cloud, it generates two keypairs. The secret keys are kept in
+the system keystore. They can be used only on this device, and only after it has been unlocked
+once since boot.
 
 | Key | Algorithm | Used for |
 | --- | --- | --- |
 | Signing key | Ed25519 | Signing token challenges |
 | Box key | X25519 | Key agreement |
 
-That is the whole identity: no student ID, no name, no phone number. Settings → Cloud shows a
-fingerprint of the signing key, plus **reset identity** and **delete cloud data**
-(`DELETE /v1/devices/me`, which the app also calls before a full reset).
+The server knows the device only by these two public keys. It doesn't learn a student ID, a name
+or a phone number. Settings → Cloud shows a fingerprint of the signing key and offers two
+actions, **reset identity** and **delete cloud data**. Deleting cloud data calls
+`DELETE /v1/devices/me`, which the app also calls before a full reset.
 
-## Registration: proof of work
+## Proof of work at registration [#registration-proof-of-work]
 
-`POST /v1/devices` costs a proof of work instead of an account. That makes farming identities
-expensive without app attestation, which would break self-built APKs:
+Registering a device (`POST /v1/devices`) needs no account, but the device must first solve a
+proof of work. A proof of work is a puzzle that takes some computation to solve and very little
+to check. One registration is cheap, but creating identities in bulk becomes expensive.
+
+The alternative would be for the server to verify that requests come from the official app, but
+that would stop self-built APKs from working, so we don't do it.
+
+The puzzle is defined as follows:
 
 ```
 prefix = UTF-8("pku-harness-cloud/v1/pow\n" + salt + "\n" + signPub + "\n" + boxPub + "\n")
@@ -30,14 +43,15 @@ valid  = hash has ≥ difficulty leading zero bits
 ```
 
 `salt` and `difficulty` come from `GET /v1/meta`, and the server accepts both its current and its
-previous salt. The default difficulty of 16 takes about a second on a phone. Clients refuse
-anything above 28, so a hostile provider can't make phones spin forever. Both public keys are part
-of the prefix, so one solution registers exactly one identity.
+previous salt. The default difficulty of 16 takes about a second on a phone. Clients refuse any
+difficulty above 28, so a hostile provider can't make phones compute forever. Both public keys
+are part of the prefix, so one solution registers exactly one identity.
 
 ## Plugin tokens
 
-Every request carries a bearer token bound to **one device, one plugin and a set of services**,
-valid for 10 minutes. The device gets it by signing a challenge with its Ed25519 key:
+Every request a plugin makes carries a bearer token. A token belongs to one device, one plugin
+and a set of services, and it is valid for 10 minutes. The device gets a token by signing this
+challenge with its Ed25519 signing key:
 
 ```
 pku-harness-cloud/v1/auth
@@ -49,76 +63,108 @@ pku-harness-cloud/v1/auth
 <nonce>      16 random bytes, base64url
 ```
 
-A token for server functions adds one more line, `doc <hash> <link>`: the plugin document version
-the user consented to.
+A token for server functions adds one more line, `doc <hash> <link>`, which records the plugin
+document version the user consented to.
+
+Each part of the challenge guards against a different attack:
 
 - `aud` stops a provider from replaying a signature at another provider.
-- The server accepts `|now − ts| ≤ 5 min` and rejects a nonce it has already seen in that window.
-- Store namespaces and channel ownership come from the token (`sub`, `plg`), never from the path,
-  so one plugin can't touch another plugin's data.
+- The server accepts only requests where `|now − ts| ≤ 5 min`, and rejects a nonce it has already
+  seen in that window.
+- Store namespaces and channel ownership come from the token's `sub` and `plg`, never from the
+  request path, so one plugin can't touch another plugin's data.
 - Plugins never see tokens. The host mints them and attaches them to requests.
 
 ## Envelopes
 
-Every encrypted payload, on the wire and at rest, is an envelope:
+All encrypted data, both in transit and stored on the server, uses one format, which we call an
+_envelope_:
 
 ```json
 { "v": 1, "n": "<24-byte nonce, base64url>", "c": "<ciphertext ‖ 16-byte tag, base64url>" }
 ```
 
-It uses XChaCha20-Poly1305 with a random 24-byte nonce, optionally with associated data (a
-channel id, a frame kind) that whoever opens it must supply again. This is implemented once, in
-`@pku-harness/cloud-protocol`, on the audited [noble](https://paulmillr.com/noble/) libraries
-(pure JavaScript). The app (Hermes), the reference server (Bun) and viewer pages (WeChat webview,
-no WebCrypto) all run that one implementation.
+An envelope uses XChaCha20-Poly1305 with a randomly generated 24-byte nonce. Encryption can
+include associated data, such as a channel id or a frame kind, and whoever opens the envelope
+must supply the same associated data.
+
+This encryption is implemented once, in `@pku-harness/cloud-protocol`, on the audited
+[noble](https://paulmillr.com/noble/) libraries (pure JavaScript). The app (on Hermes), the
+reference server (on Bun) and viewer pages (in the WeChat in-app browser, which has no WebCrypto)
+all run that one implementation.
 
 ## Share links and channels
+
+A share link looks like this:
 
 ```
 https://<provider>/s/<channelId>#k=<base64url 32 bytes>
 ```
 
-- The secret `k` sits in the **URL fragment**, which browsers never send to the server.
-- `authKey = HKDF-SHA256(k, "pku-harness-cloud/v1/join")`. The server stores only
-  `joinHash = base64url(sha256(authKey))`, so it can check joins without being able to join.
-- `encKey = HKDF-SHA256(k, "pku-harness-cloud/v1/enc")` never leaves the devices. It seals the
-  channel `meta` and feeds into the per-peer key.
-- To join, the viewer sends `authKey` and an ephemeral X25519 public key. Frames between owner and
-  peer use `HKDF-SHA256(ikm = X25519(own, other) ‖ encKey, salt = chanPub ‖ peerPub, info = "pku-harness-cloud/v1/peer")`.
-- **Claim**: `maxPeers` defaults to 1. The first joiner claims the channel and anyone after that
-  gets `409 conflict`, so a forwarded link is useless. The owner can kick a peer to free the seat.
-- Checks the server can't verify (a masked-name hint, a PIN) run on the owner's device. The
-  server only rate-limits joins (20 per IP per minute) and locks a channel after 5 wrong
-  `authKey`s.
+The secret `k` sits in the URL fragment, the part after `#`. Browsers never send the fragment to
+the server, so the server never gets `k`. The device and the viewer derive two keys from `k`:
 
-### Keeping links away from the model
+- `authKey = HKDF-SHA256(k, "pku-harness-cloud/v1/join")` is used to join the channel. The
+  server stores only `joinHash = base64url(sha256(authKey))`, so it can check joins without
+  being able to join.
+- `encKey = HKDF-SHA256(k, "pku-harness-cloud/v1/enc")` never leaves the devices. It encrypts
+  the channel `meta` and is an input to each peer's key.
 
-- The SDK's `SecretLink` is opaque: `JSON.stringify(link)` gives `"[secret link]"`.
-- The host scrubs share-link patterns (`/s/<id>#k=…`, `pkuharness://share/<id>#k=…`) from tool
-  output and logs (`scrubShareLinks`).
-- Tools never return links. Screens show them with `host.shareLink` or `<QRCode link>`.
+To join, the viewer sends `authKey` and a freshly generated X25519 public key. From then on,
+frames between the owner and that peer are encrypted with this key:
+
+```
+HKDF-SHA256(ikm = X25519(own, other) ‖ encKey, salt = chanPub ‖ peerPub, info = "pku-harness-cloud/v1/peer")
+```
+
+Channels have two more protections:
+
+- Claiming: `maxPeers` defaults to 1. The first joiner claims the channel and anyone after that
+  gets `409 conflict`, so a forwarded link is useless. The owner can kick a peer to free the
+  seat.
+- Checks the server can't verify, such as a masked-name hint or a PIN, run on the owner's
+  device. The server only rate-limits joins (20 per IP per minute) and locks a channel after 5
+  wrong `authKey`s.
+
+### Keeping links away from the AI model [#keeping-links-away-from-the-model]
+
+A share link contains a decryption key, so the app keeps it out of the AI model's context:
+
+- The SDK's `SecretLink` is an opaque object. `JSON.stringify(link)` gives only
+  `"[secret link]"`.
+- The host removes strings that look like share links (`/s/<id>#k=…`,
+  `pkuharness://share/<id>#k=…`) from tool output and logs. See `scrubShareLinks`.
+- Tools never return links. Screens show them to the user with `host.shareLink` or
+  `<QRCode link>`.
 
 ## Limits
 
-Rate limits are token buckets per `(deviceId, plugin, service)` and per IP, reported in
-`RateLimit-*` headers. A 429 becomes `CloudError('rate_limited', retryAfterS)`. Defaults:
+Rate limits use token buckets, one set per `(deviceId, plugin, service)` and one per IP, and the
+current state is reported in `RateLimit-*` headers. When the server answers 429, the host throws
+`CloudError('rate_limited', retryAfterS)`. The defaults are:
 
 | Resource | Default |
 | --- | --- |
 | Store | 1 MB and 1,000 keys per plugin per device, 64 KB per value |
-| Channels | 5 open per device, TTL 60 s – 24 h (default 15 min), at most 5 peers, 4 KB frames, 60 frames/min, 64 mailbox slots |
-| Joins | 20 per IP per minute |
+| Channels | 5 open per device, lifetime 60 s to 24 h (default 15 min), at most 5 peers, 4 KB frames, 60 frames/min, 64 mailbox slots |
+| Channel joins | 20 per IP per minute |
 | Push (planned) | 100 pending schedules |
 | Functions (off on the official server) | 60 calls per minute |
 
 ## Residual risks
 
-- **Metadata.** A provider sees timing, sizes and IP addresses. Disclosure lines have to say so.
-- **Viewer pages run the provider's JavaScript.** A malicious operator could serve a page that
-  leaks `k`, exposing what flows through that one channel during the share (but not credentials).
-  Mitigations: pages are static, built reproducibly from the plugins repository and served with a
-  strict CSP (`connect-src 'self'`). Viewers who have the app decrypt natively through a deep link
-  and never run the provider's JavaScript.
-- **Server functions** see plaintext by design. They must be declared in `PLUGIN.md`, disclosed
-  and approved, and the server runs only the document version the user consented to. They are off
-  on the official server for now.
+These mechanisms don't remove every risk. Three kinds of risk remain.
+
+Metadata. A provider sees request times, data sizes and IP addresses. A plugin's disclosure lines
+have to say so.
+
+Viewer pages run JavaScript supplied by the provider. A malicious operator could serve a page
+that leaks `k`, and so see what passes through that one channel during the share, though not
+campus credentials. We reduce this risk in three ways. Viewer pages are static and built
+reproducibly from the plugins repository. They are served with a strict Content Security Policy
+(CSP), `connect-src 'self'`. Viewers who have the app decrypt inside the app through a deep link
+and never run the provider's JavaScript.
+
+Server functions see plaintext by design. They must be declared in `PLUGIN.md` with a disclosure
+and approved by the user before use, and the server runs only the document version the user
+consented to. They are off on the official server.

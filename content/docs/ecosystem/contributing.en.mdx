@@ -1,56 +1,69 @@
 ---
 title: Contributing
-description: How to contribute to PKU Harness (plugins, the app, the protocol reference and these docs), plus conventions, community, security reports and license.
+description: How to contribute plugins, app changes, protocol notes and documentation to PKU Harness, and the conventions, security rules and license that apply.
 icon: HeartHandshake
 ---
 
-PKU Harness is built in the open for the PKU community. Issues and pull requests are welcome in
-every repository.
+PKU Harness is developed in public for the PKU community. Every repository accepts issues and
+pull requests. This page explains which repository to use for each kind of change and what we
+expect from a contribution.
 
 ## Where to contribute
 
-| You want to | Go to |
-| --- | --- |
-| Connect a campus service or add a capability | Usually a plugin document; a remote plugin in your own repo when you need a server. Official plugins live in [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) (open an issue first). See [Build a plugin](/en/docs/build). |
-| List a plugin | [Marketplace](/en/docs/marketplace) |
-| Fix or improve the app | [`pku-harness`](https://github.com/pkuinfo/pku-harness). Read `AGENTS.md`, `docs/ARCHITECTURE.md` and `docs/DESIGN.md` first |
-| Document or fix a campus protocol | [`pkucli`](https://github.com/pkuinfo/pkucli) |
-| Improve these docs | [`pkuharness-website`](https://github.com/pkuinfo/pkuharness-website), under `content/docs/` (every page has an edit link) |
+The right repository depends on what you want to change.
+
+- **Connecting a campus service or adding a capability.** This is usually done with a plugin
+  document. If your plugin needs its own server, write a remote plugin in your own repository.
+  Official plugins live in
+  [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins); please open an issue
+  there before you start. See [Build a plugin](/en/docs/build).
+- **Listing a plugin.** See [Marketplace](/en/docs/marketplace).
+- **Fixing or improving the app.** Use [`pku-harness`](https://github.com/pkuinfo/pku-harness).
+  Read `AGENTS.md`, `docs/ARCHITECTURE.md` and `docs/DESIGN.md` first.
+- **Documenting or fixing a campus protocol.** Use [`pkucli`](https://github.com/pkuinfo/pkucli).
+- **Improving these docs.** Use
+  [`pkuharness-website`](https://github.com/pkuinfo/pkuharness-website). The pages are in
+  `content/docs/`, and every page has an edit link.
 
 ## Conventions
 
 - Use **bun** for all JavaScript and TypeScript (`bun install`, `bun run`, `bun test`, `bunx`).
-- Keep commits small and use Conventional Commits: `feat(wallet): …`, `fix(treehole): …`, `docs: …`.
-- In the plugins repository and the app, `bun run verify` must pass before a pull request. It runs
-  exactly what CI runs (plugins: typecheck, registry validation, bundled-documents check and every
-  test; app: typecheck, lint and tests). Check UI changes on a device or emulator in both dark and
-  light themes.
-- Plugin changes land in `pku-harness-plugins` first. Then the app commits the bump of its
-  `plugins/` submodule.
-- Campus protocols are ported from pkucli, with the source file cited in a comment.
-- Docs and code comments are in English. User-facing copy is Chinese first, with an English
-  translation for every user-facing string.
+- Keep commits small and follow Conventional Commits, for example `feat(wallet): …`,
+  `fix(treehole): …` or `docs: …`.
+- Before you open a pull request in the plugins repository or the app, run `bun run verify` and
+  make sure it passes. It runs the same checks as continuous integration (CI). In the plugins
+  repository these are the typecheck, registry validation, the bundled-documents check and every
+  test. In the app they are the typecheck, lint and tests.
+- If you change the UI, check it on a device or emulator in both the dark and the light theme.
+- Plugin changes are merged into `pku-harness-plugins` first. The app then commits an update of
+  its `plugins/` submodule.
+- Campus protocols are ported from pkucli. Cite the source file in a comment.
+- Docs and code comments are written in English. Text shown to users is written in Chinese first,
+  and every such string also needs an English translation.
 
 ## Using AI agents
 
-The repositories are meant to be worked on by people and coding agents together, and each has an
-`AGENTS.md` (or `CLAUDE.md`) with its rules. For plugins, point your agent at
-[For AI agents](/en/docs/for-agents) and the Markdown versions of these docs (`/llms.txt`).
-You're responsible for what you submit: review generated code, run the checks, and never let an
-agent handle real credentials.
+The repositories are designed to be worked on by people and coding agents together. Each one has
+an `AGENTS.md` (or `CLAUDE.md`) file with its rules. If you write a plugin with an agent, point
+it at [For AI agents](/en/docs/for-agents) and at the Markdown version of these docs
+(`/llms.txt`).
+
+You are responsible for what you submit. Review the generated code, run the checks yourself, and
+never let an agent handle real credentials.
 
 ## Community
 
 - Discuss ideas and report bugs in the GitHub issues of the relevant repository.
-- Be kind. The app, plugins and website repositories each have a code of conduct
+- Be kind to others. The app, plugins and website repositories each have a code of conduct
   (`CODE_OF_CONDUCT.md`).
 
 ## Security
 
-Report vulnerabilities privately as described in the affected repository's `SECURITY.md`, never in
-public issues. Don't put real credentials, tokens or personal data in issues, fixtures or logs.
+Report vulnerabilities privately, following the `SECURITY.md` of the affected repository. Don't
+report them in public issues. Also keep real credentials, tokens and personal data out of issues,
+test fixtures and logs.
 
 ## License
 
-All repositories are MIT licensed. By contributing, you agree that your contribution is released
-under the same license.
+All repositories use the MIT license. By contributing, you agree that your contribution is
+released under the same license.

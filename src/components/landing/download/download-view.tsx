@@ -494,15 +494,15 @@ function BuildFromSource({ lang, m, collapsed }: { lang: Lang; m: M; collapsed: 
         <Rich text={m.build.proxy} /> {m.build.more}{' '}
         <a href={`${github(repos.app)}#readme`} className="text-fd-primary underline-offset-4 hover:underline">
           {m.build.readme}
-        </a>{' '}
-        {m.build.and}{' '}
+        </a>
+        {m.build.and}
         <Link
           href={localePath(lang, '/docs/getting-started/install')}
           className="text-fd-primary underline-offset-4 hover:underline"
         >
           {m.build.docs}
         </Link>
-        {lang === 'zh' ? '。' : '.'}
+        {m.build.end}
       </p>
     </>
   );

@@ -52,7 +52,7 @@ export default async function SubmitPage({ params }: PageProps<'/[lang]/marketpl
   ];
   return (
     <div className="mx-auto w-full max-w-[960px] flex-1 px-4 pt-10 pb-24 md:px-8">
-      <nav aria-label="Breadcrumb">
+      <nav aria-label={m.breadcrumb}>
         <ol className="flex items-center gap-1.5 text-sm text-fd-muted-foreground">
           <li>
             <Link href={localePath(lang, '/marketplace')} className="hover:text-fd-foreground">

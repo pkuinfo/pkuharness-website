@@ -1,59 +1,87 @@
 ---
 title: 概览
-description: 插件市场如何发现、检查和上架插件，「已审核」意味着什么，以及 App 如何安装插件。
+description: 插件市场如何发现、检查和上架插件，各个徽章的含义，以及 App 如何安装插件。
 icon: Store
 ---
 
-[插件市场](/marketplace)收录了所有 PKU Harness 插件：官方插件，以及社区插件。社区插件要么是一个带 `PLUGIN.md` 的文件夹（由 App 解释执行），要么是远程 MCP 服务器。和 [skills.sh](https://skills.sh) 一样，插件市场**从 GitHub 仓库建立索引**：你不用上传安装包，只要把一个公开仓库告诉插件市场，它就会找出里面的所有插件。
+[插件市场](/marketplace)列出了所有可以在 PKU Harness 里安装的插件，包括官方插件和社区开发者写的插件。社区插件有两种：一种是带 `PLUGIN.md` 文件的文件夹，App 读取这个文件并按其中的说明执行；另一种是远程服务器，App 通过 MCP（Model Context Protocol，模型上下文协议）连接它。
 
-## 上架流程 [#how-listing-works]
+插件市场不需要你上传任何东西。你只要告诉它一个公开的 GitHub 仓库，它就会自己找出仓库里的所有插件。这和 [skills.sh](https://skills.sh) 从 GitHub 收录 Agent 技能的做法相同。
+
+## 插件如何上架 [#how-listing-works]
 
 <Steps>
 <Step>
 
-**为每个插件写一个 `PLUGIN.md`。** 一个插件一个文件夹，放在哪一层都行。YAML frontmatter 声明插件是什么、能碰哪些东西；Markdown 正文告诉助手怎么用它；工具放在 `tools/*.yaml` 里。一个仓库可以放一个插件，也可以放一百个。详见[清单参考](/docs/marketplace/manifest)。（在 `PLUGIN.md` 的 `remote.mcp` 取代它之前，远程 MCP 服务器仍然可以用 `pku-harness.plugin.json` 来描述。）
+**为每个插件写一个 `PLUGIN.md`。** 每个插件放在单独的文件夹里，文件夹在仓库的哪一层都可以。`PLUGIN.md` 开头的 YAML frontmatter 说明插件是什么、可以访问哪些东西；后面的 Markdown 正文告诉助手怎样使用它。工具一般单独放在 `tools/*.yaml` 文件里。一个仓库可以只放一个插件，也可以放上百个。所有字段见[清单参考](/docs/marketplace/manifest)。
+
+远程 MCP 服务器也可以改用 `pku-harness.plugin.json` 文件来描述。在 `PLUGIN.md` 的 `remote.mcp` 取代它之前，这种旧格式会一直保留。
 
 </Step>
 <Step>
 
-**检查并提交仓库。** 把仓库粘贴到 [/marketplace/submit](/marketplace/submit)。网站会实时扫描，列出找到的每个插件，以及它们的错误、警告和卡片预览。点**提交上架**会打开一个预填好的 GitHub issue；机器人再扫描一遍，开一个把仓库加进 `data/sources.json` 的 pull request，由维护者合并。
+**检查并提交仓库。** 把仓库粘贴到 [/marketplace/submit](/marketplace/submit)。网站会立即扫描，列出找到的每个插件，以及它们的错误、警告和卡片预览。
+
+全部通过后，点击**提交上架**，网站会打开一个预先填好内容的 GitHub issue。机器人会再扫描一次仓库，然后开一个 pull request，把仓库加进 `data/sources.json`。最后由维护者合并这个 pull request。
 
 </Step>
 <Step>
 
-**推送即更新。** 插件市场大约每小时重新扫描一次所有已上架的仓库。改清单、加插件文件夹或删掉一个，列表都会跟着变，不需要重新提交。
+**推送代码即可更新。** 插件市场大约每小时重新扫描一次所有已上架的仓库。你修改清单、新增或删除插件文件夹后，列表会随之更新，不需要重新提交。
 
 </Step>
 </Steps>
 
-## 标识与 id [#handles-and-ids]
+## 插件的标识和 id [#handles-and-ids]
 
-插件的**标识**（handle）是 `owner/repo/path`，即存放 `PLUGIN.md` 的文件夹，比如 `alice/campus-tools/canteen`。它在本站的页面地址用的则是 id：`/marketplace/alice/campus-tools/canteen-menu`。`id` 必须**在整个插件市场里唯一**，因为 App 把工具注册为 `<id>.<tool>`（远程插件则注册为 MCP 服务器 `mcp-<id>`），id 重复的两个插件会在手机上冲突。先上架的仓库保留这个 id，官方 id 是保留字。
+每个插件有两个名字。**标识**（handle）是 `owner/repo/path`，也就是存放 `PLUGIN.md` 的文件夹，例如 `alice/campus-tools/canteen`。**id** 是清单里的 `id` 字段，例如 `canteen-menu`。插件在本站的页面地址用的是 id：`/marketplace/alice/campus-tools/canteen-menu`。
 
-## 官方、已审核与社区 [#official-verified-and-community]
+`id` 在整个插件市场里必须唯一。App 会把每个工具注册为 `<id>.<tool>`，把每个远程插件注册为 MCP 服务器 `mcp-<id>`。如果两个插件的 id 相同，它们的工具就会在手机上冲突。两个仓库使用同一个 id 时，先上架的仓库保留它。官方插件的 id 不能被占用。
+
+## 官方插件、已审核插件和社区插件 [#official-verified-and-community]
+
+每个插件页都会显示下面三种徽章之一。徽章表示插件经过了多仔细的审查，不影响插件的功能。
 
 | 徽章 | 含义 |
 |---|---|
 | **官方 Official** | 由 pkuinfo 在 [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) 里维护，从其中的 `registry/registry.json` 上架。 |
-| **已审核 Verified** | 维护者读过源码的社区插件。按插件 id 记录在 `data/sources.json` 里。 |
-| **社区 Community** | 通过扫描器检查后自动上架，还没有人读过源码。 |
+| **已审核 Verified** | 维护者读过源码的社区插件，按插件 id 记录在 `data/sources.json` 里。 |
+| **社区 Community** | 通过扫描器的检查后自动上架，还没有人读过源码。 |
 
-未审核的插件用起来完全一样。徽章只是告诉同学这个插件经过了多少审查。什么样的插件会被审核通过或下架，见[审核规则](/docs/marketplace/review)。
+维护者把插件标为「已审核」之前要检查什么，以及插件在什么情况下会被下架，见[审核规则](/docs/marketplace/review)。
+
+## 插件市场的英文名称 [#english-names-on-the-marketplace]
+
+大多数插件的名称以中文为主。如果插件提供了英文名称和简介，英文版插件市场就会显示它们：
+
+- `PLUGIN.md` 插件写在 `i18n.en.name` 和 `i18n.en.description` 里，还可以在 `i18n.en.tools.<name>` 里为每个工具提供英文标题和简介。
+- 官方插件写在注册表条目里，即 `registry/registry.json` 中的 `i18n.en: { name, description }`。
+
+如果插件没有英文名称，英文页面会根据 id 生成一个名称，并在下方显示原来的中文名称。
 
 ## App 如何安装插件 [#how-the-app-installs-a-plugin]
 
-- **声明式**插件（`PLUGIN.md`）**通过链接**安装。插件页上有*在 App 中打开*按钮（`pkuharness://plugin?src=…`）、二维码，以及可以粘贴到「设置 → 插件」里的安装链接（GitHub 文件夹 URL）。App 拉取文件，弹出审查面板（官方还是社区、用到的校园服务、网站、App 功能，以及每个工具的效果），然后把插件存到手机上。之后 App 会定期重新拉取链接：没有新增权限的更新静默生效，要求更多权限的更新会等用户确认。
-- **内置**插件随 App 一起提供，用户在「设置 → 插件」里开启。其中的官方插件文档和其他文档一样，从各自的 GitHub 链接更新。
-- **远程**插件是 MCP 服务器（Streamable HTTP）。用户可以在「设置 → 插件 → 插件市场」里添加，也可以手动粘贴端点 URL。App 连接端点，把它的工具注册为 `mcp-<id>`。如果是 `"auth": "bearer"`，用户需要粘贴一个 token，它只保存在手机的钥匙串里。
-- **自建**插件（没有 `endpoint`）会连同源码一起列出。用户自己部署一个实例，再粘贴它的 URL。
+不同种类的插件，安装方式也不同。
 
-手机上不运行任何第三方代码：App 解释执行 `PLUGIN.md` 里声明的步骤，远程插件则跑在作者自己的服务器上。校园请求由 App 带着用户的会话发出，插件永远看不到密码、cookie 或 token。
+**插件文档**（`PLUGIN.md`）通过链接安装。插件页提供三种方式：*在 App 中打开*按钮（`pkuharness://plugin?src=…`）、二维码，以及安装链接本身，也就是 GitHub 文件夹的 URL。你可以把链接粘贴到「设置 → 插件」里。App 随后下载文件并弹出审查面板。面板上会写明插件是官方还是社区插件、用到哪些校园服务和网站、需要哪些 App 功能，以及每个工具的效果。你确认后，App 把插件保存在手机上。
 
-## 给 App 和 AI Agent 用的接口 [#for-the-app-and-for-agents]
+之后，App 会重新下载这个链接来检查更新。如果更新没有申请新的权限，App 会直接应用；如果申请了更多权限，就要等你确认后才生效。
+
+**内置插件**随 App 一起安装，你可以在「设置 → 插件」里开启。部分官方内置插件本身就是插件文档，它们和其他插件文档一样，从各自的 GitHub 链接更新。
+
+**远程插件**是使用 Streamable HTTP 传输的 MCP 服务器。你可以在「设置 → 插件 → 插件市场」里添加，也可以直接粘贴它的端点 URL。App 连接这个端点，并把它的工具注册为 `mcp-<id>`。如果插件使用 `"auth": "bearer"`，你需要粘贴一个 token，App 会把它保存在手机的钥匙串里。
+
+**自建插件**是没有公开 `endpoint` 的远程插件。插件市场会列出它们的源码链接，你需要自己部署一份服务器，再把它的 URL 粘贴到 App 里。
+
+无论哪种插件，手机上都不会运行第三方代码。App 只执行 `PLUGIN.md` 里声明的步骤，远程插件则运行在作者自己的服务器上。访问校园服务的请求由 App 带着你的会话发出，所以插件永远看不到你的密码、cookie 或 token。
+
+## 供程序读取的接口 [#for-the-app-and-for-agents]
+
+App 和 AI Agent 通过下面这些 URL 读取插件市场：
 
 | URL | 内容 |
 |---|---|
 | [`/marketplace.json`](/marketplace.json) | 完整索引（`MarketplaceIndex`：`plugins[]` + `sources[]`），支持 CORS，每小时刷新。 |
-| [`/marketplace/llms.txt`](/marketplace/llms.txt) | 同一份列表的 Markdown 版，给语言模型读。 |
-| [`/schema/plugin-manifest.v1.json`](/schema/plugin-manifest.v1.json) | `pku-harness.plugin.json` 的 JSON Schema（远程 MCP 的兼容方案）。 |
-| `POST /api/marketplace/scan` | `{ "repo": "owner/repo" }` → 扫描报告（有频率限制；提交页用的就是它）。 |
+| [`/marketplace/llms.txt`](/marketplace/llms.txt) | 同一份列表的 Markdown 版本，供语言模型阅读。 |
+| [`/schema/plugin-manifest.v1.json`](/schema/plugin-manifest.v1.json) | `pku-harness.plugin.json` 的 JSON Schema。这是描述远程 MCP 服务器的旧格式。 |
+| `POST /api/marketplace/scan` | 接收 `{ "repo": "owner/repo" }`，返回扫描报告。有频率限制，提交页用的就是它。 |

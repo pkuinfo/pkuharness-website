@@ -1,14 +1,20 @@
 ---
 title: Scheduler and notifications
-description: One engine runs reminders, to-dos, class reminders and scheduled checks. A job pairs a trigger (once, or a bounded series) with an action (notify, check, agent) and fires on the minute.
+description: One scheduler runs reminders, to-dos, class reminders and scheduled checks. Each job pairs a trigger (once, or a series with an end) with an action (notify, check or agent), and fires on the minute.
 icon: AlarmClock
 ---
 
-Anything time-based in PKU Harness is a **job** in one scheduler: a reminder, a to-do's reminder,
-a class reminder, "check my card balance every morning". Users create jobs in the Schedule tab or by
-asking the agent. Plugins create them with `services.scheduler`.
+Everything time-based in PKU Harness is handled by one scheduler. Each item in the scheduler is
+called a **job**. A reminder, a to-do's reminder, a class reminder and "check my card balance
+every morning" are all jobs.
 
-## Jobs
+You can create jobs in the Schedule tab, or ask the agent to create them. Plugins create jobs
+with `services.scheduler`.
+
+Every job has two parts. The **trigger** decides when it runs, and the **action** decides what it
+does when it runs.
+
+## Anatomy of a job [#jobs]
 
 ```ts
 type Job = {
@@ -30,36 +36,66 @@ type Job = {
 
 ## Triggers
 
-All times are **device-local**.
+There are two kinds of trigger. All times are in the phone's **local time**.
 
-| Trigger | Fields | Covers |
-| --- | --- | --- |
-| `{ type: 'at' }` | `at` (epoch ms) | "in 2 days", "tomorrow 8:00" |
-| `{ type: 'every' }` | `unit` (`minute` `hour` `day` `week`), `interval` (1–1000), `times?` (`"HH:MM"`, day/week), `weekdays?` (0 = Sunday … 6, week), `startAt`, `count?`, `until?` | "every morning at 8", "every 3 days, 16 times, then stop", "Mon/Wed/Fri 07:30 until the end of term" |
+A **one-time trigger**, `{ type: 'at' }`, has a single field, `at`, which is a timestamp in
+milliseconds. It suits reminders such as "in 2 days" or "tomorrow at 8:00".
 
-A series is a sequence of periods: one minute or hour step, one day, or one week starting Monday.
-Each period has slots (times × weekdays). Slots before `startAt` are skipped. The rest are numbered
-0, 1, 2… and cut off by `count`, `until` (inclusive), or both.
+A **repeating trigger**, `{ type: 'every' }`, suits reminders such as "every morning at 8",
+"every 3 days, 16 times, then stop" or "Mon/Wed/Fri at 07:30 until the end of term". It has
+these fields.
 
-The agent and forms use a friendlier input, `ScheduleInput`, with local `"YYYY-MM-DD HH:mm"` strings:
+| Field | Meaning |
+| --- | --- |
+| `unit` | The unit of repetition: `minute`, `hour`, `day` or `week` |
+| `interval` | Repeat every this many units, 1–1000 |
+| `times?` | Times of day as `"HH:MM"`, for `day` and `week` |
+| `weekdays?` | Days of the week, 0 = Sunday to 6 = Saturday, for `week` |
+| `startAt` | When the series starts |
+| `count?` | The maximum number of runs |
+| `until?` | The last day of the series (inclusive) |
+
+A repeating trigger is worked out as follows. A series is a sequence of periods. Each period is
+one minute or hour step, one day, or one week starting on Monday. Each period contains slots,
+formed by combining the times and weekdays. Slots before `startAt` are skipped. The remaining
+slots are numbered 0, 1, 2… and cut off by `count`, `until`, or both.
+
+The agent and forms use an input format that is easier to write, `ScheduleInput`, with times as
+local `"YYYY-MM-DD HH:mm"` strings. For example, "every 3 days at 09:00, 16 times" is written as:
 
 ```json
 { "type": "repeat", "unit": "day", "interval": 3, "times": ["09:00"], "count": 16 }
 ```
 
-`toTrigger(input)` converts it. `summarize(trigger)` returns `{ schedule, next, total, finished }`,
-for example `"每 3 天 09:00 · 共 16 次"` plus the next three times, so the agent can read the times
-back to the user before saving.
+`toTrigger(input)` converts this into a trigger. `summarize(trigger)` returns
+`{ schedule, next, total, finished }`, for example `"每 3 天 09:00 · 共 16 次"` plus the next
+three times. The agent can read these times back to you to confirm before it saves the job.
 
 ## Actions
 
-| Action | Fields | Runs |
-| --- | --- | --- |
-| `notify` | `title`, `body?`, `url?` (in-app route opened on tap) | Armed ahead of time as an exact notification; no code runs at fire time |
-| `check` | `tool` (read-only, `<plugin>.<tool>`), `args?`, `condition`, `title`, `body?`, `url?` | Calls the tool, reads `condition.path`, notifies only if the condition holds; `{value}` in the text is replaced by the value |
-| `agent` | `prompt` (4–1000 chars) | A fresh, read-only agent session with no chat history; replies `NO_REPLY` to stay silent, otherwise its short answer becomes the notification |
+There are three kinds of action.
 
-A condition is `{ path, op, value? }`, where `op` is one of `<` `<=` `>` `>=` `==` `!=` `changed` `always`.
+| Action | Fields |
+| --- | --- |
+| `notify` | `title`, `body?`, `url?` |
+| `check` | `tool`, `args?`, `condition`, `title`, `body?`, `url?` |
+| `agent` | `prompt` (4–1000 characters) |
+
+**`notify`** sends a notification. It is registered in advance as an exact notification, so no
+code runs when it fires. `url` is the in-app route that opens when you tap the notification.
+
+**`check`** is a scheduled check. It calls a read-only tool (in the form `<plugin>.<tool>`), reads
+the value at `condition.path` in the result, and sends a notification only if the condition
+holds. Any `{value}` in the notification text is replaced by the value it read.
+
+**`agent`** runs the agent on a schedule. Each run starts a fresh, read-only agent session with
+no chat history. If the agent replies `NO_REPLY`, there is nothing worth telling you. Otherwise,
+its short answer becomes the notification.
+
+A `check` condition is written `{ path, op, value? }`. `op` is one of `<`, `<=`, `>`, `>=`, `==`,
+`!=`, `changed` and `always`.
+
+This check reminds you to top up when your campus-card balance falls below ¥100:
 
 ```json
 {
@@ -70,41 +106,64 @@ A condition is `{ path, op, value? }`, where `op` is one of `<` `<=` `>` `>=` `=
 }
 ```
 
-## Exact delivery (Android)
+## On-time delivery on Android [#exact-delivery-android]
 
-`notify` jobs are armed as exact alarms ahead of time, within a 14-day window and capped at 64 per
-job and 400 in total. They are re-armed on start, on every change, when the app comes to the
-foreground and from the background task.
+**`notify` jobs** are registered in advance as exact alarms. Alarms are registered for the next
+14 days, with at most 64 per job and 400 in total. They are registered again when the app starts,
+whenever a job changes, when the app comes back to the foreground, and when the background task
+runs.
 
-`check` and `agent` jobs run in JavaScript. In the foreground a timer fires them on the minute.
-When the app is in the background or killed, an exact alarm wakes a headless task. That task runs
-whatever is due, arms the next alarm and removes the placeholder.
+**`check` and `agent` jobs** run in JavaScript. While the app is in the foreground, a timer runs
+them on the minute. When the app is in the background or has been closed by the system, an exact
+alarm wakes a background (headless) task. That task runs every job that is due, registers the
+next alarm and removes the placeholder notification.
 
-All of this needs the notification permission and the "Alarms & reminders" special access, which
-Android 14+ denies by default. Battery optimisation is advisory. `services.notify.readiness()`
-reports all three, `deliveryBlocker(readiness)` names the first blocker, and
-`services.notify.fix(kind)` opens the matching system prompt or screen. Call `fix` from a tap.
+On-time delivery needs two permissions: the notification permission and the special
+"Alarms & reminders" access. Android 14 and later deny the second one by default. Turning off
+battery optimisation is recommended but not required.
 
-## Unattended-run policy
+Plugins can check and fix these settings with the following functions.
 
-Nobody is watching when a check runs, so it is limited, logged, and loud when it fails:
+- `services.notify.readiness()` reports the state of all three.
+- `deliveryBlocker(readiness)` names the first thing that prevents on-time delivery.
+- `services.notify.fix(kind)` opens the matching system prompt or settings screen. Call `fix`
+  only from a tap.
+
+## Limits on unattended runs [#unattended-run-policy]
+
+Nobody is watching when a scheduled check runs. For this reason, what it can do is limited, every
+run is logged, and failures are reported to you clearly.
 
 | Rule | Value |
 | --- | --- |
-| Tools a scheduled run may call | `read` only, re-checked at run time; an `ask` mode means declined |
-| Enabled jobs | ≤ 50 (`MAX_ACTIVE_JOBS`) |
-| Check frequency | at most every 15 min (`MIN_CHECK_GAP_MS`); no duplicate check (same tool, args, condition) |
-| Agent jobs | ≤ 10 (`MAX_AGENT_JOBS`), at most hourly (`MIN_AGENT_GAP_MS`), ≤ 8 steps per run (`AGENT_MAX_STEPS`) |
-| Late runs | A run more than 2 h late (`MAX_LATE_MS`) is logged as missed instead of alerting hours late |
-| Run log | Last 20 runs (`HISTORY_LIMIT`): due vs actual time, result, value, error |
-| Failures | 2 in a row (`FAIL_ALERT_AFTER`) tell the user once, again after 6 h; 10 (`DISABLE_AFTER`) turn the job off and say so |
+| Tools a scheduled run may call | `read` tools only |
+| Enabled jobs | At most 50 (`MAX_ACTIVE_JOBS`) |
+| Check frequency | At most every 15 minutes (`MIN_CHECK_GAP_MS`) |
+| Number of agent jobs | At most 10 (`MAX_AGENT_JOBS`) |
+| Agent job frequency | At most once an hour (`MIN_AGENT_GAP_MS`) |
+| Steps per agent run | At most 8 (`AGENT_MAX_STEPS`) |
+| Late runs | More than 2 hours late (`MAX_LATE_MS`) counts as missed |
+| Run log | The last 20 runs (`HISTORY_LIMIT`) |
+| Failures before a warning | 2 in a row (`FAIL_ALERT_AFTER`) |
+| Failures before the job is turned off | 10 in a row (`DISABLE_AFTER`) |
+
+Some of these rules need a few more words.
+
+- The tool's effect is checked again at run time. If its mode is `ask`, the call counts as
+  declined.
+- Duplicate checks are not allowed, meaning checks with the same tool, arguments and condition.
+- A late run counts as missed so that you don't get an out-of-date alert hours later.
+- The run log records the planned and actual time, the result, the value read and any error.
+- After 2 failures in a row, the app tells you once, and again after 6 hours if the job is still
+  failing. After 10 failures in a row, the app turns the job off and tells you.
 
 ## For plugin authors
 
-- Write tools that are easy to check: `read`, fast, with a stable numeric or boolean field to
-  compare (`balance`, `unread`, `available`). List them in `dataSources` so the agent can find them.
-- Only create jobs with `services.scheduler.create({ …, source: 'plugin' })` in response to
-  something the user did. Keep the job id (in `meta` or your `kv`) so you can update or remove the
-  job later.
-- The SDK exports the pure engine (`occurrencesAfter`, `nextOccurrence`, `describeTrigger`,
-  `evaluate`, …). See [SDK → scheduler](/en/docs/sdk/scheduler).
+- **Make your tools easy to check.** Such a tool has the `read` effect, responds quickly, and has
+  a stable number or boolean field to compare, such as `balance`, `unread` or `available`. List
+  these tools in `dataSources` so that the agent can find them.
+- **Create jobs only in response to something the user did,** with
+  `services.scheduler.create({ …, source: 'plugin' })`. Keep the job id, in `meta` or in your
+  `kv`, so that you can update or remove the job later.
+- **The SDK exports the scheduler's pure calculation functions,** such as `occurrencesAfter`,
+  `nextOccurrence`, `describeTrigger` and `evaluate`. See [SDK → scheduler](/en/docs/sdk/scheduler).

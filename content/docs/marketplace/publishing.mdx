@@ -1,48 +1,61 @@
 ---
 title: 发布
-description: 提交仓库、在一个 monorepo 里发布多个插件、推送即更新，以及下架插件。
+description: 提交仓库、在一个仓库里发布多个插件、推送代码来更新，以及下架插件。
 icon: Send
 ---
 
+本页介绍如何把插件上架到插件市场、如何更新，以及如何下架。插件市场直接从公开的 GitHub 仓库读取插件，所以大部分工作都在你自己的仓库里完成。
+
 ## 提交之前 [#before-you-submit]
 
-- 每个插件是一个带 `PLUGIN.md` 的文件夹，frontmatter 里点名的每个文件（`tools/`、`widgets/`、`screens/`）都已提交。见[清单参考](/docs/marketplace/manifest)和[声明式插件](/docs/build/declarative-plugins)。
-- 如果是远程 MCP 插件：服务器已通过 HTTPS 部署（或者你写清楚了怎么自建），并且它的 `name` 等于 `id`。可以从 [`templates/remote-plugin`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/templates/remote-plugin) 起步。
+请先确认以下几点：
+
+- 每个插件是一个带 `PLUGIN.md` 的文件夹。frontmatter 点名的每个文件（位于 `tools/`、`widgets/` 或 `screens/`）都已提交。见[清单参考](/docs/marketplace/manifest)和[声明式插件](/docs/build/declarative-plugins)。
+- 如果是远程插件，也就是 MCP（Model Context Protocol，模型上下文协议）服务器，服务器已经通过 HTTPS 部署好，或者你写清楚了如何自行部署。服务器的 `name` 与插件的 `id` 相同。可以从 [`templates/remote-plugin`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/templates/remote-plugin) 模板开始。
 - 仓库在 github.com 上是**公开**的。
-- 你遵守[审核规则](/docs/marketplace/review)：不碰校园密码、如实声明效果、返回数据而不是指令、写好云服务数据说明。
+- 插件遵守[审核规则](/docs/marketplace/review)。简单地说：绝不索要校园密码，如实声明效果，工具只返回数据、不返回指令，使用云服务时写明数据说明。
 
-## 提交 [#submit]
+## 提交仓库 [#submit]
 
-1. 打开 [/marketplace/submit](/marketplace/submit)，粘贴 `owner/repo`、仓库 URL 或文件夹 URL（`https://github.com/owner/repo/tree/main/plugins`）。
-2. 修好预览里显示的所有错误。每次 push 之后重新检查一遍（结果会缓存大约一分钟）。
-3. 点击**提交上架**。它会在 [`pkuinfo/pkuharness-website`](https://github.com/pkuinfo/pkuharness-website/issues) 打开一个预填好的 issue，带 `plugin-submission` 标签。
-4. GitHub Action 会再扫描一遍仓库，把报告评论到 issue 上。扫描通过的话，它会开一个 pull request，把仓库加进 `data/sources.json`。编辑 issue 会重新触发。
-5. 维护者合并 pull request 后，插件会在下次部署时出现在插件市场里。
+1. 打开 [/marketplace/submit](/marketplace/submit)，粘贴 `owner/repo`、仓库 URL 或文件夹 URL，例如 `https://github.com/owner/repo/tree/main/plugins`。
+2. 修好预览里显示的所有错误。每次 push 之后重新检查一遍。检查结果会缓存大约一分钟。
+3. 点击**提交上架**。网站会在 [`pkuinfo/pkuharness-website`](https://github.com/pkuinfo/pkuharness-website/issues) 打开一个预先填好内容的 issue，并带上 `plugin-submission` 标签。
+4. GitHub Action 会再扫描一次仓库，把报告作为评论发到 issue 上。扫描通过后，它会开一个 pull request，把仓库加进 `data/sources.json`。你编辑 issue 后，Action 会重新运行。
+5. 维护者合并 pull request 后，插件会在网站下次部署时出现在插件市场里。
 
-你也可以在本地完成，然后自己开 pull request：
+你也可以在自己的电脑上扫描并添加仓库，然后自己开 pull request：
 
 ```bash
 bun scripts/marketplace.ts scan owner/repo   # 打印报告（有错误时退出码为 1）
 bun scripts/marketplace.ts add owner/repo    # 扫描，然后加进 data/sources.json
 ```
 
-设置 `GITHUB_TOKEN`（比如 `GITHUB_TOKEN=$(gh auth token)`）后，GitHub API 的额度从每小时 60 次提高到 5000 次。
+不带 token 时，GitHub API 每小时只允许 60 次请求。设置 `GITHUB_TOKEN`（例如 `GITHUB_TOKEN=$(gh auth token)`）后，额度会提高到每小时 5000 次。
 
 ## 一个仓库放多个插件 [#many-plugins-in-one-repo]
 
-不需要任何额外操作。扫描器会找出仓库里的每个 `PLUGIN.md`，每个都有自己的标识 `owner/repo/<folder>` 和安装链接。大型 monorepo 可以在根目录加一个 `pku-harness.json`，列出插件所在的文件夹。这样扫描更快、顺序固定，示例或测试用的清单也不会混进来：
+一个仓库可以放任意多个插件，不需要额外设置。扫描器会找出仓库里的每个 `PLUGIN.md`，每个插件都有自己的标识 `owner/repo/<folder>` 和自己的安装链接。
+
+扫描器会跳过存放依赖、测试和测试数据的文件夹，例如 `node_modules`、`tests`、`fixtures` 和 `e2e`。所以你放在这些文件夹里做测试用的 `PLUGIN.md` 不会被上架。完整列表见[清单参考](/docs/marketplace/manifest#where-the-scanner-looks)。
+
+大型 monorepo 还可以在根目录加一个 `pku-harness.json`，列出插件所在的文件夹。这样扫描器只按顺序检查这些文件夹，扫描更快，其他清单也不会混进来：
 
 ```json title="pku-harness.json"
 { "plugins": ["services/canteen", "services/library-seat", "services/bus"] }
 ```
 
-## 更新 [#updating]
+## 更新插件 [#updating]
 
-直接 push 就行。插件市场大约每小时从默认分支重新扫描一次已上架的仓库，App 也会从链接重新拉取已安装的 `PLUGIN.md` 插件。声明没变的话，更新静默生效；声明变多了（新的校园服务、主机、宿主能力，或者某个工具的效果更强了），更新会等用户同意后才生效。新增插件文件夹就会上架，删掉就会下架。请保持 `id` 不变：用户的安装、小组件和定时检查都靠它来引用插件。
+更新插件只需要推送到默认分支。插件市场大约每小时重新扫描一次已上架的仓库。新增插件文件夹会让新插件上架，删除文件夹则会让插件下架。
 
-如果某次 push 引入了错误，只有出错的那个插件会被撤下。仓库页面会显示扫描出的问题，方便你修复。
+已经安装了 `PLUGIN.md` 插件的手机，会从插件的链接重新下载它。如果声明没有变化，App 会直接应用更新；如果插件申请了更多权限，更新要等用户同意后才生效。「更多权限」指新增的校园服务、主机或宿主能力，或者某个工具的效果比以前更强。
 
-## 下架 [#removal]
+请让每个插件的 `id` 在各个版本之间保持不变。用户的安装记录、小组件和定时检查都靠 id 来找到插件。
 
-- **你自己下架：** 删除 `PLUGIN.md` 文件（或删除仓库、把仓库设为私有）。下次重新扫描时插件就会消失。如果想把仓库条目也删掉，开一个 pull request，从 `data/sources.json` 里移除它。
-- **维护者下架：** 违反[审核规则](/docs/marketplace/review)的插件，会通过从 `data/sources.json` 里删除仓库来下架，作者可能会被禁止再次提交。
+如果某次 push 引入了错误，只有出错的那个插件会从插件市场撤下。仓库页面会显示扫描器发现的问题，方便你修复。
+
+## 下架插件 [#removal]
+
+**下架自己的插件。** 删除 `PLUGIN.md` 文件、删除仓库，或者把仓库设为私有。下次扫描时插件就会从列表中消失。如果想把仓库条目也删掉，请开一个 pull request，从 `data/sources.json` 里移除它。
+
+**维护者下架。** 如果插件违反了[审核规则](/docs/marketplace/review)，维护者会从 `data/sources.json` 里删除这个仓库，还可能禁止作者再次提交。

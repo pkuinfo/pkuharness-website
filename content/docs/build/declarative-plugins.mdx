@@ -1,50 +1,54 @@
 ---
 title: 声明式插件（PLUGIN.md）
-description: 插件就是一个可以分享的文件夹：PLUGIN.md 清单加上给助手的说明、用 YAML 步骤写的工具，以及生成式界面小组件。由 App 解释执行，贴个链接就能安装。不用写代码，不用构建，也不用等 App 发版。
+description: 插件语言的说明。插件是一个文件夹，包含 PLUGIN.md 清单、给助手的说明、用 YAML 步骤写的工具和生成式界面小组件。App 解释执行它，通过链接安装，不需要构建代码，也不需要 App 发版。
 icon: FileCode
 ---
 
+本页介绍插件语言：插件文件夹怎样组织，清单里写什么，工具怎样用步骤和表达式写成，以及插件怎样安装和更新。如果你还没写过插件，请先完成[快速上手](/docs/build/quickstart)。
+
 <Callout title="规范 v1">
-  语言规范见 [`docs/PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md)（规范版本 1），实现在 `@pku-harness/sdk` 的 `lang/` 目录（schema、解释器、宿主能力、加载器）。App 通过链接安装和更新 `PLUGIN.md` 插件，官方的校园接入也都以插件文档的形式发布。本页是规范的摘要，App 实际执行的校验以 SDK 里的 [`schema.ts`](https://github.com/pkuinfo/pku-harness-plugins/blob/main/packages/sdk/src/lang/schema.ts) 和 [`abilities.ts`](https://github.com/pkuinfo/pku-harness-plugins/blob/main/packages/sdk/src/lang/abilities.ts) 为准。
+  语言规范见 [`docs/PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md)（规范版本 1），实现位于 `@pku-harness/sdk` 的 `lang/` 目录，其中有 schema、解释器、宿主能力和加载器。本页是规范的摘要。两者不一致时，App 以 SDK 里的 [`schema.ts`](https://github.com/pkuinfo/pku-harness-plugins/blob/main/packages/sdk/src/lang/schema.ts) 和 [`abilities.ts`](https://github.com/pkuinfo/pku-harness-plugins/blob/main/packages/sdk/src/lang/abilities.ts) 为准。
 </Callout>
 
-声明式插件之于 PKU Harness，就像 `SKILL.md` 文件夹之于 Agent：**一个能以链接形式分享的文件夹**。App 读取它，用一个小巧、安全的解释器执行其中声明的步骤。App 从不下载或运行插件代码，所以发布新插件或更新插件，既不用 App 发版，也不需要服务器。
+声明式插件是一个由文本文件组成的文件夹，可以作为链接分享。它在 PKU Harness 里的作用，和 `SKILL.md` 文件夹在 AI Agent 里的作用相同。App 读取这个文件夹，用一个小而安全的解释器执行其中声明的步骤。App 从不下载或运行插件代码，因此发布新插件或更新插件既不需要 App 发版，也不需要服务器。
 
-只要任务是“几个校园或公开请求，再加一点数据提取”，就适合用声明式插件：空闲教室、食堂人流和营业时间、班车时刻表、成绩、校园活动、通知。插件语言没法安全表达的东西，会做成框架里的**宿主能力**（ability），之后所有插件都能用。如果你有自己的服务器，请改写[远程插件](/docs/build/remote-plugin)。你也可以在 App 里[让 AI 帮你写](/docs/build/ai-authoring)。
+如果一项任务只是向校园网站或公开网站发几个请求，再提取一些数据，就适合写成声明式插件。例如空闲教室、食堂人流和营业时间、班车时刻表、成绩、校园活动和通知。
+
+有些事情无法用插件语言安全地表达，比如读取短信验证码、添加待办。App 把这类功能做成「宿主能力」（host ability）：它们内置在 App 里，任何插件声明之后都可以调用。如果你有自己的服务器，请改写[远程插件](/docs/build/remote-plugin)。你也可以在 App 里[让 AI 帮你写插件](/docs/build/ai-authoring)。
 
 ## 官方插件文档 [#official-documents]
 
-[`pku-harness-plugins/plugins`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins) 里的官方校园接入都是插件文档，每个都带有录制好的测试，很适合当范例来读：
+[`pku-harness-plugins/plugins`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins) 里的官方校园接入都是插件文档，每个都附有录制好的测试，很适合当作范例来读。它们分别演示了插件语言的不同部分：
 
-| 插件 | 演示了什么 |
-| --- | --- |
-| [`classrooms`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/classrooms) | 并行发出公开请求（`each`）、在 `constants` 里定义别名、看板小组件 |
-| [`campus-events`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/campus-events) | 通过 `verify.treehole` 读取树洞日历 |
-| [`grades`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/grades) | 用 `verify.treehole` 和 `verify.treeholeSendCode` 处理二次验证（短信或手机令牌） |
-| [`canteen`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/canteen) | `shared:` 文件、带过期兜底的 KV 缓存、含合并单元格的 HTML 表格 |
-| [`shuttle`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/shuttle) | 完全不联网：静态时刻表直接写成数据，小组件每分钟刷新 |
-| [`notices`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/notices) | 通配域名（`*.pku.edu.cn`）加公众号文章、`shared:` 里的来源表、按页 KV 缓存并带过期兜底、处理第三方文本的 `untrusted: true` 工具、快捷指令 |
+- [`classrooms`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/classrooms) 用 `each` 并行发出公开请求，在 `constants` 里定义别名，并提供一个看板小组件。
+- [`campus-events`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/campus-events) 通过 `verify.treehole` 读取树洞日历。
+- [`grades`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/grades) 用 `verify.treehole` 和 `verify.treeholeSendCode` 处理二次验证，验证方式可以是短信，也可以是手机令牌（北大统一身份认证 IAAA 的身份验证器）。
+- [`canteen`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/canteen) 使用 `shared:` 文件，把结果缓存在键值（KV）存储里、请求失败时退回旧数据，并读取含合并单元格的 HTML 表格。
+- [`shuttle`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/shuttle) 完全不联网：时刻表直接作为数据写在插件里，小组件每分钟刷新一次。
+- [`notices`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/notices) 访问通配域名（`*.pku.edu.cn`）和微信公众号文章。它在 `shared:` 里维护一张来源表，按页面缓存到 KV 并在失败时退回旧数据，用 `untrusted: true` 标记返回第三方文本的工具，还提供一条快捷指令。
 
-App 内置了这些官方插件文档，并像其他插件一样从各自的 GitHub 链接更新，所以修个解析器不需要 App 发版。
+App 内置了这些插件文档，并像其他插件一样从各自的 GitHub 链接更新。所以修复其中某个解析器，不需要 App 发版。
 
 ## 目录结构 [#layout]
 
 ```
 classrooms/
   PLUGIN.md              # 清单（YAML frontmatter）+ 给助手的说明（Markdown）
-  tools/free.yaml        # 每个文件一个工具（也可以内联在 frontmatter 里）
-  shared.yaml            # 可选：所有工具共享的 constants 和 functions
+  tools/free.yaml        # 每个文件一个工具（也可以直接写在 frontmatter 里）
+  shared.yaml            # 可选：所有工具共用的 constants 和 functions
   widgets/overview.json  # 看板小组件：生成式界面 spec + 数据绑定
   screens/…json          # 整页的生成式界面
-  tests/free.yaml        # 给 CLI 和 CI 用的录制响应；App 从不拉取
-  README.md, assets/     # 给人和插件市场看的；App 会忽略
+  tests/free.yaml        # 供 CLI 和 CI 使用的录制响应；App 从不拉取
+  README.md, assets/     # 给人和插件市场看；App 会忽略
 ```
 
-- 一个文件夹一个插件，一个仓库可以放很多个。插件市场里的标识是 `owner/repo/path`。
-- App 只加载 **frontmatter 里写明的文件**（相对路径，不能有 `..`），所以放在任何静态托管上都行：GitHub、gist 或者你自己的服务器。
-- 文件为 UTF-8 文本，App 加载的文件总大小不超过 **512 KB**。
+- 一个文件夹放一个插件，一个仓库可以放很多个。在插件市场里，插件用 `owner/repo/path` 标识。
+- App 只加载 **frontmatter 里写明的文件**。路径必须是相对路径，不能包含 `..`。由于 App 从不列出文件夹内容，插件放在任何静态托管上都可以：GitHub、gist 或你自己的服务器。
+- 文件必须是 UTF-8 文本。App 加载的文件加起来不能超过 **512 KB**。
 
 ## 清单 [#the-manifest]
+
+清单就是 `PLUGIN.md` 顶部的 YAML frontmatter。下面是一个简化版 `classrooms` 插件的清单：
 
 ```md title="classrooms/PLUGIN.md"
 ---
@@ -63,32 +67,64 @@ widgets:
 dataSources:
   overview: { tool: free, args: { day: today }, ttl: 30m }
 i18n:
-  en: { name: Free classrooms, description: Free classrooms in each teaching building. }
+  en:
+    name: Free classrooms
+    description: Free classrooms in each teaching building.
+    tools: { free: { title: Free classrooms, summary: Find free classrooms in a building } }
 ---
 
 Use `free` when the user asks where to study or which rooms are free. Periods are 1–12
 (1 = 08:00). Answer with the building and room, and the free period ranges.
 ```
 
-必填字段：`spec: 1`、`id`、`name`、`description`（4–200 个字符）、`version`（semver）和 `author`。最要紧的是那几项声明，同学们在安装前都会看到：
+必填字段有六个：`spec: 1`、`id`、`name`、`description`（4 到 200 个字符）、`version`（语义化版本号，如 `1.2.0`）和 `author`。
 
-| 字段 | 声明内容 |
-|---|---|
-| `campus` | 插件可以**带着用户的会话**调用的校园服务（`card`、`its`、`treehole`、`blackboard`、`elective`、`cwfw`、`cwpay`、`bdkj`、`library`、`library-space` 等）。这些请求由框架签名，插件永远看不到密码、cookie 或 token。 |
-| `network` | 可以访问的公开域名（`example.com` 或 `*.example.com`；只允许 HTTPS）。 |
-| `abilities` | [宿主能力](#host-abilities)：`verify`、`otp`、`todos`、`timetable`、`scheduler`、`browser`、`campusPage`、`sms`、`files`、`crypto`、`cloud`。 |
-| `tools` | 每个工具的 `effect`：`read`、`write`、`money` 或 `public`。 |
+### 插件声明的范围 [#what-the-plugin-declares]
 
-其他可选字段：`shared`（一个 YAML 文件，里面的 `constants` 和 `functions` 所有工具都能用；工具自己定义的同名项优先）、`dataSources`、`widgets`、`screens`、`settings`、`commands`、`defaultModes`、`cloud`、`i18n`、`remote: { mcp, auth }`（用 `PLUGIN.md` 描述一个远程 MCP 服务器），以及 `server`（[见下文](#server-functions)）。`requires` 由 `campus`、`network`、`cloud` 和 `server` 自动推导，可以不写。逐个字段的说明，以及插件市场会检查什么，见[清单参考](/docs/marketplace/manifest)。
+有四个字段最重要，因为同学们在安装前会在审核页上看到它们。
 
-**Markdown 正文**会作为插件说明发给模型。写短一点：什么时候用哪个工具，数字分别是什么意思。在正文里，工具以 `<id>__<tool>` 的形式命名（例如 `classrooms__free`）。
+`campus` 列出插件可以**带着用户的登录状态**调用的校园服务，名称有 `card`、`its`、`treehole`、`blackboard`、`elective`、`cwfw`、`cwpay`、`bdkj`、`library`、`library-space` 等。这些请求由 App 自己签发，所以插件永远看不到密码、cookie 或 token。
+
+`network` 列出插件可以访问的公开域名，写成 `example.com` 或 `*.example.com` 的形式，只允许 HTTPS。
+
+`abilities` 列出插件用到的[宿主能力](#host-abilities)：`verify`、`otp`、`todos`、`timetable`、`scheduler`、`browser`、`campusPage`、`sms`、`files`、`crypto` 和 `cloud`。
+
+`tools` 写明每个工具所在的文件，每个工具再各自声明 `effect`：`read`、`write`、`money` 或 `public`。
+
+### 可选字段 [#optional-fields]
+
+- `shared` 指向一个 YAML 文件，其中的 `constants` 和 `functions` 所有工具都能使用。如果工具自己定义了同名项，以工具自己的为准。
+- `dataSources`、`widgets` 和 `screens` 用来添加实时数据和生成式界面。
+- `settings` 和 `commands` 用来添加设置项和快捷指令。
+- `defaultModes` 设置每种效果的初始授权方式。
+- `i18n` 放英文文字，可以翻译名称、简介、说明，以及每个工具的 `title` 和 `summary`（`i18n.en.tools.<name>`）。
+- `remote: { mcp, auth }` 用 `PLUGIN.md` 描述一个远程 MCP 服务器。
+- `cloud` 声明插件对 PKU Harness Cloud 的使用，包括 `cloud.disclosure`；`server` 声明服务端函数（[见下文](#server-functions)）。
+
+`requires` 不用写，它由 `campus`、`network`、`cloud` 和 `server` 自动推导。每个字段的详细说明，以及插件市场会检查什么，见[清单参考](/docs/marketplace/manifest)。
+
+### 给助手的说明 [#the-instructions]
+
+**Markdown 正文**会作为插件说明发给模型。请写得简短：什么问题用哪个工具，返回的数字分别表示什么。在正文里，工具要写成 `<id>__<tool>` 的形式，例如 `classrooms__free`，因为模型看到的就是这个名字。
 
 ## 工具 [#tools]
 
-工具（tool）就是一份数据：给用户看的 `title`、给模型看的 `description`、如实声明的 `effect`、带类型的 `input`、可选的 `constants` 和 `functions`，然后是发请求、转换响应的**步骤**，最后是一个 `return` 表达式。`untrusted: true` 表示结果里有第三方文本；`userOnly: true` 表示只有用户亲手点击才能运行这个工具。
+工具（tool）是一份数据，由以下几部分组成：
 
-```yaml title="tools/free.yaml (abridged)"
+- `title`：工具的名字，显示给用户，不超过 60 个字符。
+- `summary`（可选）：给人看的一行说明，不超过 80 个字符，显示在安装审核页和插件市场插件页的工具名下方。英文版写在 `i18n.en.tools.<name>.summary`；不写的话，App 不会给使用英文界面的用户显示这一行。
+- `description`：只给模型看，从不显示给用户。
+- `effect`：`read`、`write`、`money` 或 `public`，必须如实声明。
+- `input`：带类型的输入字段。
+- `constants` 和 `functions`（可选）：这个工具自己用的常量和辅助表达式。
+- `steps`：按顺序执行的请求和数据转换。
+- `return`：组装结果的表达式。
+
+还有两个标记会改变 App 对待工具的方式。`untrusted: true` 表示工具的结果里含有第三方文本，比如帖子或文章。`userOnly: true` 表示只有用户亲手点击才能运行这个工具，助手不能调用。
+
+```yaml title="tools/free.yaml（节选）"
 title: 空闲教室
+summary: 查某栋楼哪些教室空着
 description: Free rooms in one building (or all) for today, tomorrow or the day after.
 effect: read
 input:
@@ -108,65 +144,87 @@ steps:
 return: "page.rows.map(r => ({ room: r.room, seats: num(r.cap, 0) }))"
 ```
 
-**输入字段**的格式是 `{ type, enum?, default?, optional?, description?, min?, max?, pattern?, trim?, items? }`，`type` 取 `string`、`number`、`integer`、`boolean`、`array`、`object` 之一。`trim: true` 会在校验前去掉字符串首尾空白。任何步骤运行之前，输入都会先经过校验。
+每个**输入字段**的格式是 `{ type, enum?, default?, optional?, description?, min?, max?, pattern?, trim?, items? }`。`type` 取 `string`、`number`、`integer`、`boolean`、`array`、`object` 之一。`trim: true` 会在校验前去掉字符串首尾的空白。App 在任何步骤运行之前就会校验全部输入，所以步骤里可以放心使用它们。
 
 ### 步骤 [#steps]
 
-每个步骤只做一件事，可以用 `let: name` 绑定结果。后面的步骤和 `return` 能看到已绑定的名字，以及 `input`、`constants`、`functions` 和 `now`。
+每个步骤只做一件事，可以用 `let: name` 把结果绑定到一个名字上。后面的步骤和 `return` 能使用所有已绑定的名字，以及 `input`、`constants`、`functions` 和 `now`。
 
 | 步骤 | 作用 |
 | --- | --- |
-| `{ let, value: expr }` | 绑定一个表达式。 |
-| `{ let, request, as? }` | 发一个 HTTP 请求：`campus: <service>` 加路径，或者 `network` 域名下的公开 `https` URL。`as` 取 `json`、`text`、`html` 或 `response`（`{ status, url, headers, text }`；其他形式遇到非 2xx 会失败）。 |
-| `{ let, each, concurrency?, request \| steps \| value }` | 遍历列表（最多 50 项，同时 1–4 个）；作用域里有 `item` 和 `index`。 |
-| `{ let, paginate: { request, next, items, max } }` | `next` 不为 null 时重复请求（最多 30 页）。 |
-| `{ let, extract: { from, each, fields }, limit? }` | 用 CSS 选择器从 HTML 中提取条目，字段可接管道（`text`、`attr href`、`url`、`num`、`date`、`match <regex>` 等）。 |
-| `{ if, then, else? }` · `{ check, error }` · `{ try, catch }` | 分支、带消息失败、捕获错误（作用域里有 `error`）。 |
-| `{ let?, kv: get \| set \| delete, key, value?, ttl? }` | 插件自己的存储。 |
-| `{ let, cache: { key, ttl, staleOnError? }, steps }` | 把内部步骤的值缓存到 KV。 |
+| `{ let, value: expr }` | 绑定一个表达式的值。 |
+| `{ let, request, as? }` | 发出一个 HTTP 请求。 |
+| `{ let, each, concurrency?, request \| steps \| value }` | 对列表中的每一项执行一次。 |
+| `{ let, paginate: { request, next, items, max } }` | 逐页重复同一个请求。 |
+| `{ let, extract: { from, each, fields }, limit? }` | 从 HTML 中提取条目。 |
+| `{ if, then, else? }` | 条件分支。 |
+| `{ check, error }` | 条件不成立时带着信息失败。 |
+| `{ try, catch }` | 捕获错误；`catch` 里可以使用 `error`。 |
+| `{ let?, kv: get \| set \| delete, key, value?, ttl? }` | 读写插件自己的存储。 |
+| `{ let, cache: { key, ttl, staleOnError? }, steps }` | 把内部步骤的结果缓存到 KV。 |
 | `{ let?, call: <tool>, input }` | 调用同一插件的另一个工具。 |
 | `{ let?, ability: <group>.<op>, args }` | 调用一项[宿主能力](#host-abilities)。 |
 
-每次运行的上限：200 个步骤、60 个请求（同时最多 4 个）、60 秒、单个响应 2 MB、结果 1 MB、100,000 次表达式运算，每个插件 256 KB 的 KV。没有无界循环，没有 `eval`，也没有 JavaScript。
+其中几种步骤需要多说几句。
+
+**请求**有两种写法：用 `campus: <service>` 指定校园服务，再写该服务上的路径；或者写一个属于 `network` 域名的公开 `https` URL。`as` 决定怎样读取回复，可以是 `json`、`text`、`html` 或 `response`。用 `response` 时，无论状态码是多少，都会得到 `{ status, url, headers, text }`；其他几种写法在状态码不是 2xx 时会失败。
+
+**`each`** 遍历的列表最多 50 项，同时运行 1 到 4 个，其中可以使用 `item` 和 `index`。**`paginate`** 在 `next` 不为 null 时重复请求，最多 30 页。
+
+**`extract`** 用 CSS 选择器从 HTML 中选出元素。每个字段的值可以经过管道处理，例如 `text`、`attr href`、`url`、`num`、`date` 和 `match <regex>`。
+
+每次运行都有固定的上限：200 个步骤，60 个请求（同时最多 4 个），60 秒，单个响应 2 MB，结果 1 MB，100,000 次表达式运算，每个插件 256 KB 的 KV 存储。插件语言里没有无界循环，没有 `eval`，也没有 JavaScript。
 
 ### 表达式 [#expressions]
 
-表达式字段（`value`、`each`、`if`、`check`、`return`、`next`、`items`、`from`、`call` 的 input、`ability` 的 args、`functions` 的函数体）里写的是单个表达式，语法是 JavaScript 的一个安全小子集：字面量、`.` `?.` `[]`、算术运算、严格的 `==` / `!=`、`&& || ?? !`、`a ? b : c`，以及作为参数的箭头函数。不能赋值，不能 `new`，没有全局变量，用到未绑定的名字会报错。其余字符串都是**模板**：`${expr}` 会被替换成它的值；如果整个模板就是一个 `${expr}`，则保留值原本的类型。
+有些字段写的是「表达式」：`value`、`each`、`if`、`check`、`return`、`next`、`items`、`from`，以及 `call` 的 input、`ability` 的 args 和 `functions` 的函数体。表达式只能有一个，语法是 JavaScript 的一个安全子集。可以使用字面量、`.` `?.` `[]`、算术运算、严格的 `==` 和 `!=`、`&& || ?? !`、`a ? b : c`，以及作为参数的箭头函数。不能赋值，不能用 `new`，也访问不到任何全局变量。使用未绑定的名字会报错。
 
-标准库覆盖列表（`map`、`filter`、`sortBy`、`groupBy`、`sum`、`reduce` 等）、对象、字符串、数字、北京时间日期、URL、JSON 和 HTML（`html`、`select`、`first`、`tableRows`、`htmlText` 等）。完整列表见规范 §6.2，以及 App 里的 `plugins.reference`。
+其余的字符串都是「模板」。模板里的 `${expr}` 会被替换成表达式的值。如果整个模板正好就是一个 `${expr}`，值会保留原来的类型，不会变成字符串。
 
-- **正则是字符串**，只编译一次，长度有上限。需要忽略大小写之类的匹配时，在模式开头写内联标志：`'(?i)^yanyuan'`（支持 `i`、`m`、`s`、`u`）。
-- **字符串转义。** `\\`、`\'`、`\"`、`\n`、`\t` 和 `\r` 和 JavaScript 一样。其他转义**保留反斜杠**，所以 `'\d+'` 就是正则 `\d+`。这里故意和 JavaScript 不同，好让模式经过 YAML 后不变形。不过正则还是建议写在单引号 YAML 字符串或 `|` 块里。
-- **注释**：表达式里可以用 `// …` 和 `/* … */`。
-- **合并单元格**：`tableRows(node, { header: true })` 返回以表头文字为键的行对象，rowspan 和 colspan 都已展开。`tableRows(node, { cells: true })` 返回由 `{ text, row, col, rowspan, colspan, id }` 组成的网格行，同一个合并单元格覆盖的所有格子共用一个 `id`。
+标准库包括列表（`map`、`filter`、`sortBy`、`groupBy`、`sum`、`reduce` 等）、对象、字符串、数字、北京时间的日期、URL、JSON 和 HTML（`html`、`select`、`first`、`tableRows`、`htmlText` 等）。完整列表见规范 §6.2，在 App 里可以查看 `plugins.reference`。
 
-<Callout type="warn" title="YAML 的坑">
-  表达式里含有 `: `，或者以 `{`、`[`、`'`、`"` 开头时，要加引号，或者写成块标量（`return: |`）。不加引号的话，YAML 会把它读成映射或列表。出现这种情况时，校验器会指出具体行号。
+下面几点经常让人出错：
+
+- **正则表达式写成字符串。** 每个正则只编译一次，长度有上限。需要忽略大小写之类的匹配时，在模式开头写内联标志，例如 `'(?i)^yanyuan'`。支持的标志有 `i`、`m`、`s` 和 `u`。
+- **字符串转义。** `\\`、`\'`、`\"`、`\n`、`\t` 和 `\r` 的含义和 JavaScript 相同。其他转义**会保留反斜杠**，所以 `'\d+'` 就是正则 `\d+`。这里有意与 JavaScript 不同，目的是让模式经过 YAML 之后保持原样。不过，正则仍然建议写在单引号 YAML 字符串或 `|` 块里。
+- **注释。** 表达式里可以使用 `// …` 和 `/* … */`。
+- **合并单元格。** `tableRows(node, { header: true })` 为每一行返回一个对象，键是表头文字，rowspan 和 colspan 都已展开。`tableRows(node, { cells: true })` 返回由 `{ text, row, col, rowspan, colspan, id }` 组成的网格行，同一个合并单元格覆盖的所有格子 `id` 相同。
+
+<Callout type="warn" title="YAML 里表达式的引号">
+  如果表达式含有 `: `，或者以 `{`、`[`、`'`、`"` 开头，就要加引号，或者写成块标量（`return: |`）。不加引号时，YAML 会把它当成映射或列表。遇到这种情况，校验器会指出出错的行。
 </Callout>
 
 ### 返回结果 [#results]
 
-返回纯 JSON，不要返回指令。框架认得几种约定格式：`{ status: 'verification_required', kind, methods, message }`（需要用户提供验证码）、`{ status: 'needs_input', fields, message }`，以及列表用的 `{ items, hasMore, truncated }`。
+返回普通的 JSON，不要返回指令。App 能识别几种结果格式：
+
+- `{ status: 'verification_required', kind, methods, message }` 表示需要用户提供验证码。
+- `{ status: 'needs_input', fields, message }` 表示工具还需要用户补充输入。
+- `{ items, hasMore, truncated }` 是列表的格式。
 
 ## 宿主能力 [#host-abilities]
 
-宿主能力（ability）是框架提供的功能，插件在 `abilities` 里列出对应的分组后就能使用。每个操作的效果是固定的，调用它的工具声明的效果**至少**要达到这一级。不在列表里的名字一律拒绝。新的宿主能力只能加进框架（统一审核一次），插件自己加不了。
+宿主能力是 App 提供的功能。插件在 `abilities` 里列出对应的分组后，就可以使用它。每个操作的效果是固定的，调用它的工具声明的效果**至少**要达到这一级。例如，`read` 工具不能调用 `todos.add`，因为它是 `write` 操作。不在下表里的名字一律拒绝。
+
+插件不能自己添加宿主能力。新的宿主能力只能加进 App 本身，在那里统一审核一次，之后所有插件都能使用。
 
 | 宿主能力 | 操作（效果） |
 | --- | --- |
 | `verify` | `treehole { request, code?, via?: sms \| otp, kind?: login \| course }`（read），`treeholeSendCode { kind? }`（write） |
-| `otp` | `code`（read）：当前的 IAAA 手机令牌验证码，没有则为 null |
+| `otp` | `code`（read）：手机令牌当前的验证码，没有则为 null |
 | `todos` | `list`（read）；`add`、`update`、`setDone`、`remove`（write） |
 | `timetable` | `get`（read）；`upsert`、`remove`（write） |
 | `scheduler` | `list`（read）；`create`、`update`、`remove`（write） |
 | `browser` | `open { url }`（read）：在 App 外打开一个 https URL |
 | `campusPage` | `open { service }`（read）：以已登录状态打开校园网站 |
-| `sms` | `awaitCode`（read）：一键填入短信验证码，用户授权读取一条短信 |
-| `files` | `pick { types?, multiple? }`（read）：由用户选择文件 |
+| `sms` | `awaitCode`（read）：用户允许读取一条短信后，一键填入短信验证码 |
+| `files` | `pick { types?, multiple? }`（read）：让用户选择文件 |
 | `crypto` | `sha256 { text }`（read） |
 | `cloud` | `call { fn, input }`（read）：调用本插件的某个[服务端函数](#server-functions) |
 
-```yaml title="A tool step with an ability"
+调用宿主能力的步骤写法如下：
+
+```yaml title="调用宿主能力的步骤"
 - let: data
   ability: verify.treehole
   args: "{ request: { url: '/chapi/api/course/score_v2' }, code: input.code, via: input.method ?? 'sms' }"
@@ -174,63 +232,67 @@ return: "page.rows.map(r => ({ room: r.room, seats: num(r.cap, 0) }))"
 
 ### 二次验证（`verify`） [#second-factors-verify]
 
-树洞有时会要求短信验证，或者要求课程数据令牌。`verify.treehole` 把一次树洞请求包起来，插件就不用自己重写这套状态机：
+树洞有时会先要求额外验证才肯回答：登录时要短信验证码，读取课程数据前要一个令牌。处理这些需要按正确的顺序发好几个请求。`verify.treehole` 把一次树洞请求包装起来，替你完成这些工作，插件就不用自己实现。它的行为如下：
 
-- 传了 `code` 时，先兑换验证码，再发请求。`via` 说明验证码是通过 `sms` 收到的，还是手机令牌的 `otp` 码；没有待处理的验证时，`kind` 指明是哪种验证（`login` 或 `course`）。
-- 需要课程令牌但没传验证码时，会自动尝试已绑定的身份验证器生成的 OTP。
-- 其他情况返回 `{ status: 'verification_required', kind, methods, message, next }`，由助手向用户要验证码。
-- 树洞的回复里没有 `success: true` 就算失败，工具会带着树洞返回的消息报错。
+- 如果传了 `code`，它会先提交验证码，再发出请求。`via` 说明验证码是通过 `sms` 收到的，还是来自手机令牌（`otp`）。如果当前没有待处理的验证，`kind` 指明验证码用于哪种验证：`login` 或 `course`。
+- 如果需要课程令牌而你没有传验证码，它会自动尝试用已绑定的手机令牌生成验证码。
+- 其他情况下，它返回 `{ status: 'verification_required', kind, methods, message, next }`，由助手向用户索要验证码。
+- 树洞的回复里没有 `success: true` 就算失败，工具会带着树洞返回的信息报错。
 
-`verify.treeholeSendCode { kind? }` 为当前待处理的验证发送短信（没有待处理的验证时用 `kind` 指定）。如果树洞提示上一条验证码还没过期，也算发送成功。
+`verify.treeholeSendCode { kind? }` 为当前待处理的验证发送短信。没有待处理的验证时，用 `kind` 指定一种。如果树洞提示上一条验证码还没过期，也算发送成功。
 
 ## 服务端函数 [#server-functions]
 
 <Callout type="warn" title="官方服务器暂未开放">
-  SDK 里已经有 `server:` 字段、`{ fn }` 绑定和 `cloud.call` 宿主能力，但插件的服务端函数**目前在官方服务器上没有开放**。请让插件在手机端运行，或者用你自己的后端（[远程插件](/docs/build/remote-plugin)）。
+  SDK 里已经有 `server:` 字段、`{ fn }` 绑定和 `cloud.call` 宿主能力，但插件的服务端函数**目前在官方服务器上没有开放**。请让插件在手机上运行，或者把你自己的后端做成[远程插件](/docs/build/remote-plugin)。
 </Callout>
 
-`server:` 段用同样的步骤和表达式声明函数，由 PKU Harness Cloud 服务器运行。服务器有自己的一套宿主能力（服务端 KV、`crypto.sha256` / `hmacSha256` / `randomId`、带运营方 `secrets` 访问 `server.network` 域名的 HTTPS 请求），并且永远没有校园访问权限。带 `server:` 的插件必须在 `cloud.disclosure` 里说明哪些数据会离开设备。设计和进展见 [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)（暂缓）；另见[云服务 → 插件作者指南](/docs/cloud/plugin-guide#server-functions)。
+`server:` 部分用同样的步骤和表达式声明函数，由 PKU Harness Cloud 服务器运行。服务器有一套自己的能力：服务端 KV 存储，`crypto.sha256`、`hmacSha256` 和 `randomId`，以及使用服务器运营方设置的密钥（secrets）向 `server.network` 里的域名发 HTTPS 请求。服务端函数永远拿不到校园访问权限。
+
+带有 `server:` 的插件必须在 `cloud.disclosure` 里写明哪些数据会离开设备。设计和进展见 [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)（目前暂缓）；另见[云服务 → 插件作者指南](/docs/cloud/plugin-guide#server-functions)。
 
 ## 安装链接 [#install-links]
 
-同学们可以这样安装插件：在 App 里粘贴链接（设置 → 插件 → 添加）、扫二维码、在[插件市场](/marketplace)点“在 App 中打开”，或者让助手来装（`plugins.install`）。App 接受以下形式：
+同学们有四种方式安装插件：在 App 里粘贴链接（设置 → 插件 → 添加）、扫描二维码、在[插件市场](/marketplace)点「在 App 中打开」，或者让助手安装（它会调用 `plugins.install`）。App 接受以下几种链接：
 
 | 形式 | 示例 |
 |---|---|
 | GitHub 文件夹 | `https://github.com/<owner>/<repo>/tree/<ref>/<path>` |
-| GitHub 仓库根目录 | `https://github.com/<owner>/<repo>`（PLUGIN.md 在根目录） |
+| GitHub 仓库根目录 | `https://github.com/<owner>/<repo>`（PLUGIN.md 位于根目录） |
 | GitHub 文件 | `https://github.com/<owner>/<repo>/blob/<ref>/<path>/PLUGIN.md` |
 | 任意指向 `PLUGIN.md` 的 HTTPS URL | gist 的 raw 链接、你自己的服务器 |
-| 深链接 | `pkuharness://plugin?src=<url-encoded link of any form above>` |
+| 深链接 | `pkuharness://plugin?src=<上面任意一种链接，经过 URL 编码>` |
 
-安装前，App 会拉取并校验所有文件，然后弹出**审核页**：
+安装之前，App 会拉取并校验所有文件，然后显示**审核页**。审核页告诉同学三件事：
 
-- **官方**还是**社区**。官方指 App 内置，或者链接指向 `github.com/pkuinfo/pku-harness-plugins`；其余都算社区插件。
-- 能访问什么：**校园服务**（使用用户已登录的会话，插件看不到密码）、**网站**（`network` 域名）和 **App 功能**（宿主能力）。
-- 能做什么：每个工具及其效果。
+- 这是**官方**插件还是**社区**插件。官方插件指 App 内置的插件，或者链接指向 `github.com/pkuinfo/pku-harness-plugins` 的插件，其余都是社区插件。
+- 插件能访问什么：**校园服务**（使用用户的登录状态调用，插件看不到密码）、**网站**（`network` 里的域名）和 **App 功能**（宿主能力）。
+- 插件能做什么：列出每个工具，以及它的说明和效果。
 
-社区插件的 `write`、`money` 和 `public` 工具默认都是“先询问”，它们的结果会作为不可信数据交给 AI，绝不会被当作指令。用户点“安装”之前，什么都不会装上。
+社区插件的 `write`、`money` 和 `public` 工具，初始设置都是「先询问」。它们的结果作为不可信数据交给 AI，不会被当作指令执行。用户点「安装」之前，什么都不会装上。
 
 ## 更新 [#updates]
 
-App 会在启动时（每天最多一次）以及在插件页面上重新拉取已安装插件的链接：
+App 会在启动时（每天最多一次）和用户打开插件页面时，重新检查已安装插件的链接。接下来怎么处理，取决于哪些内容有变化：
 
-- 内容哈希相同：什么都不做；
-- 内容有变化、声明不变：直接应用，并提示“已更新到 1.3.0”；
-- 声明范围变大（新的校园服务、域名、宿主能力或更强的效果）：先挂起，等用户审核同意。
+- 内容哈希没变：什么都不做。
+- 内容变了，但声明没变：直接应用更新，并显示「已更新到 1.3.0」之类的提示。
+- 声明范围变大了，比如新增了校园服务、域名或宿主能力，或者效果变强：更新会先暂停，等用户审核同意后再应用。
 
-用户可以关闭自动更新，也可以回滚到上一个版本。所以发布更新只需要一次 `git push`。
+用户可以关闭自动更新，也可以回滚到上一个版本。对作者来说，发布更新只需要一次 `git push`。
 
 ## 测试 [#test]
 
 ```bash
-bun run plugin validate path/to/my-plugin   # App 会做的所有检查，精确到文件和步骤
+bun run plugin validate path/to/my-plugin   # App 会做的全部检查，精确到文件和步骤
 bun run plugin test path/to/my-plugin       # 回放 tests/*.yaml（录制的响应）
 bun run plugin run path/to/my-plugin <tool> '{"k":"v"}'   # 真实请求，仅限公开域名
 ```
 
-请在 `pku-harness-plugins` 的检出目录里运行这些命令。校园请求只能在 App 里发，所以要把它们的响应录进 `tests/*.yaml`（见[快速上手](/docs/build/quickstart#record-a-test)）。插件仓库的 CI 会回放所有插件文档的测试（`plugins/documents.test.ts`）。
+请在 `pku-harness-plugins` 的本地副本里运行这些命令。校园请求只能在 App 里发出，所以要把它们的响应录进 `tests/*.yaml`（见[快速上手](/docs/build/quickstart#record-a-test)）。在插件仓库里，持续集成（CI）会通过 `plugins/documents.test.ts` 回放所有插件文档的测试。
 
 ## 发布 [#publish]
 
-把文件夹推到公开的 GitHub 仓库，然后在[插件市场](/marketplace/submit)提交这个仓库。它会找出所有 `PLUGIN.md`，检查路径和声明，并原样展示同学们将会看到的内容。见[发布](/docs/marketplace/publishing)和[审核规则](/docs/marketplace/review)。想让插件成为官方插件，就向 `pku-harness-plugins` 提一个 pull request，把文件夹加到 `plugins/` 下，并附上录制好的测试。
+把文件夹推送到公开的 GitHub 仓库，然后在[插件市场](/marketplace/submit)提交这个仓库。插件市场会找出所有 `PLUGIN.md`，检查路径和声明，并如实展示同学们将会看到的内容。见[发布](/docs/marketplace/publishing)和[审核规则](/docs/marketplace/review)。
+
+想让插件成为官方插件，就向 `pku-harness-plugins` 提交一个 pull request，把插件文件夹加到 `plugins/` 下，并附上录制好的测试。

@@ -1,62 +1,70 @@
 ---
 title: Review policy & safety
-description: The rules every listed plugin follows, what maintainers check before marking a plugin verified, and how to report one.
+description: The rules every listed plugin follows, what maintainers check before marking a plugin verified, and how to report a plugin.
 icon: ShieldCheck
 ---
 
-PKU Harness lets an agent act for a student with their campus identity. Plugins extend what the
-agent can do, so every plugin, official or community, has to meet the same bar. These rules come
-from the plugins repository's
+In PKU Harness, the agent acts for a student with that student's campus identity. Plugins add to
+what the agent can do, so every plugin, official or community, has to meet the same rules. This
+page lists those rules, explains what the "verified" badge means, and tells you how to report a
+plugin. The rules come from the plugins repository's
 [CONTRIBUTING.md](https://github.com/pkuinfo/pku-harness-plugins/blob/main/CONTRIBUTING.md).
 
 ## Rules
 
 <Callout type="error" title="Never ask for campus passwords">
-  Credentials stay on the student's phone. A plugin must not ask for, collect or proxy the
-  student's password, OTP codes or session cookies, whether in its tools, its UI or its docs. A
-  `PLUGIN.md` that needs a campus service declares it in `campus`; the app makes those requests
-  with the user's session, and the plugin never sees credentials. Remote MCP servers get no
-  campus session at all.
+  Credentials stay on the student's phone. A plugin must not ask for, collect or pass on the
+  student's password, one-time passcodes (OTP) or session cookies. This applies to its tools, its
+  UI and its docs. A `PLUGIN.md` that needs a campus service declares it in `campus`. The app then
+  makes those requests with the user's session, and the plugin never sees the credentials. Remote
+  MCP (Model Context Protocol) servers get no campus session at all.
 </Callout>
 
-1. **Tools are the API.** Give each tool a clear Chinese `title` for users, a `description` that
-   tells the model when and how to use it, and validated input (JSON Schema for MCP).
-2. **Declare effects honestly.** A `read` tool must not change anything. Anything that changes
-   state is `write`, spending money is `money`, and posting publicly is `public`. On an MCP
-   server, set `readOnlyHint: true` only on read-only tools; the app treats every other tool as
-   `write`. Students choose per effect whether the agent may act directly or must ask first, so a
-   wrong effect is a security bug.
+1. **Describe each tool clearly.** Tools are how both the user and the agent use a plugin. Give
+   each tool a clear Chinese `title`, and if you like a short `summary` (at most 80 characters)
+   that tells users what it does. Write a `description` that tells the model when and how to use
+   it. Validate the input; an MCP server does this with JSON Schema.
+2. **Declare each tool's effect honestly.** A `read` tool must not change anything. A tool that
+   changes state is `write`, one that spends money is `money`, and one that posts publicly is
+   `public`. On an MCP server, set `readOnlyHint: true` only on read-only tools; the app treats
+   every other tool as `write`. Students choose for each effect whether the agent may act
+   directly or must ask first. A wrong effect therefore lets the agent skip a confirmation, and we
+   treat it as a security bug.
 3. **Return data, not instructions.** Tool results reach the model as data. Don't put prompts,
-   hidden instructions or "ignore previous instructions"-style text in results. Mark tools that
-   return third-party text (forum posts, notices, emails) with `untrusted: true`, and never relay
-   such content as if it were instructions.
-4. **Declare exactly what you touch.** In `PLUGIN.md`, list every campus service (`campus`),
-   public host (`network`) and host ability (`abilities`) you need, and give every tool its real
-   `effect`. That list is the permission sheet students accept, and the app refuses anything
-   undeclared.
-5. **Disclose cloud use.** If the plugin uses PKU Harness Cloud, the manifest's `cloud` block
-   must say in plain words what leaves the device. Undisclosed data collection gets a plugin
-   removed.
-6. **Be accurate about reach.** `scopes` lists the hosts your server talks to, and `requires`
-   lists what the phone must provide. Don't depend on a shell or a filesystem on the phone.
+   hidden instructions or text like "ignore previous instructions" in results. If a tool returns
+   text written by other people, such as forum posts, notices or emails, mark it with
+   `untrusted: true`, and never pass that text on as if it were instructions.
+4. **Declare everything the plugin accesses.** In `PLUGIN.md`, list every campus service
+   (`campus`), public host (`network`) and host ability (`abilities`) the plugin needs, and give
+   every tool its real `effect`. This list is the permission sheet that students accept. The app
+   refuses anything that isn't declared.
+5. **Disclose cloud use.** If the plugin uses PKU Harness Cloud, the manifest's `cloud` block must
+   say in plain words what data leaves the device. A plugin that collects data without saying so
+   is removed.
+6. **Describe the plugin's reach accurately.** `scopes` lists the hosts your server talks to, and
+   `requires` lists what the phone must provide. Don't depend on a shell or a filesystem on the
+   phone.
 7. **Credit protocol sources.** If you port a campus protocol from
    [pkucli](https://github.com/pkuinfo/pkucli), cite the source file.
 
-## Automatic checks vs verification
+## Automatic checks and verification [#automatic-checks-vs-verification]
 
 Every listed plugin has passed the scanner
-([what it checks](/en/docs/marketplace/manifest#what-the-scanner-checks)). That proves the
-manifest is well-formed, not that the code is safe. **Verified** means a maintainer also:
+([what it checks](/en/docs/marketplace/manifest#what-the-scanner-checks)). Passing the scanner
+shows that the manifest is well-formed. It doesn't show that the plugin is safe.
 
-- read the `PLUGIN.md`, its tool files and the Markdown instructions, and confirmed that the
-  declarations match what the steps do (campus services, hosts, abilities, effects, cloud
-  disclosure), with no prompt-like text in the instructions or results;
-- confirmed that the public endpoint runs that source (or that the plugin is self-hosted);
-- checked the rules above, especially credentials and prompt injection.
+The **Verified** badge means that a maintainer has also done the following:
 
-### For maintainers: marking a plugin verified
+- read the `PLUGIN.md`, its tool files and its Markdown instructions, and confirmed that the
+  declarations match what the steps do. This covers campus services, hosts, abilities, effects
+  and the cloud disclosure. The maintainer also checked that the instructions and results contain
+  no text that reads like a prompt;
+- confirmed that the public endpoint runs that source, or that the plugin is self-hosted;
+- checked the rules above, especially the ones about credentials and prompt injection.
 
-Verification is stored per repo in `data/sources.json`:
+### Marking a plugin verified (for maintainers) [#for-maintainers-marking-a-plugin-verified]
+
+Verification is recorded per repository in `data/sources.json`:
 
 ```json title="data/sources.json"
 {
@@ -66,17 +74,19 @@ Verification is stored per repo in `data/sources.json`:
 }
 ```
 
-Add the plugin `id` to `verified` in a pull request. `bun scripts/marketplace.ts check` fails if
-a verified id no longer exists in the repo; CI runs it on every change to `data/` and once a
-week. If a verified plugin later changes substantially, review it again, and remove the id when
-in doubt. Official plugins are verified through `registry.json` in `pku-harness-plugins`.
+To verify a plugin, add its `id` to `verified` in a pull request. `bun scripts/marketplace.ts
+check` fails if a verified id no longer exists in the repository. Continuous integration (CI) runs
+this check on every change to `data/` and once a week.
 
-The optional `sources[].path` limits a repo entry to a sub-folder. The submit flow sets it when
-someone submits a folder URL.
+If a verified plugin later changes a lot, review it again. When in doubt, remove its id. Official
+plugins are verified through `registry.json` in `pku-harness-plugins` instead.
+
+The optional `sources[].path` field limits a repository entry to one sub-folder. The submit flow
+sets it when someone submits a folder URL.
 
 ## Reporting a plugin
 
-Open an issue in [`pkuinfo/pkuharness-website`](https://github.com/pkuinfo/pkuharness-website/issues)
-with the plugin's handle (`owner/repo/id`) and what you observed. For a vulnerability in the app
-or in an official plugin, follow the
+Open an issue in [`pkuinfo/pkuharness-website`](https://github.com/pkuinfo/pkuharness-website/issues).
+Include the plugin's handle (`owner/repo/id`) and what you observed. For a security vulnerability
+in the app or in an official plugin, follow the
 [security policy](https://github.com/pkuinfo/pku-harness-plugins/blob/main/SECURITY.md) instead.

@@ -1,16 +1,23 @@
 ---
-title: Your first plugin in 5 minutes
-description: Write a PLUGIN.md plugin with one tool, test it against recorded responses, and share it as a link. The worked example is the free-classrooms plugin.
+title: Your first plugin
+description: Write a PLUGIN.md plugin with one tool, test it against a recorded response, and share it as a link. The example is a cut-down version of the free-classrooms plugin.
 icon: Rocket
 ---
 
-We'll build a cut-down version of a real plugin,
-[`plugins/classrooms`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/classrooms)
-from the plugins repo, keeping only its smallest tool: **how many classrooms are free in each
-teaching building right now**. It calls one public campus endpoint, so no login is involved.
+On this page you write a small plugin document with one tool. The tool answers one question: **how
+many classrooms are free in each teaching building right now**. You then test it offline and share
+it as a link.
 
-The full language reference is [Declarative plugins](/en/docs/build/declarative-plugins), and the
-spec is [`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md).
+The example is a cut-down version of a real plugin,
+[`plugins/classrooms`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/classrooms)
+in the plugins repository. It calls one public campus endpoint, so it needs no login.
+
+Before you start, install [bun](https://bun.sh) and git. You don't need the app or a phone until
+the last step.
+
+For the full language, see [Declarative plugins](/en/docs/build/declarative-plugins). The
+specification itself is
+[`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md).
 
 <Steps>
 
@@ -18,7 +25,8 @@ spec is [`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/maste
 
 ### Get the author CLI
 
-The CLI lives in the plugins repo and needs bun:
+The plugins repository contains a command-line tool (CLI) for plugin authors. It runs the same
+checks as the app, so you can find mistakes on your computer before anyone installs the plugin.
 
 ```bash
 git clone https://github.com/pkuinfo/pku-harness-plugins
@@ -26,7 +34,7 @@ cd pku-harness-plugins
 bun install
 ```
 
-Usage: `bun run plugin validate|test|run <plugin-dir> [tool] [json-input]`.
+The command has this form: `bun run plugin validate|test|run <plugin-dir> [tool] [json-input]`.
 
 </Step>
 
@@ -34,8 +42,11 @@ Usage: `bun run plugin validate|test|run <plugin-dir> [tool] [json-input]`.
 
 ### Write `PLUGIN.md`
 
-Each plugin is one folder. The frontmatter is the manifest, and the Markdown body tells the agent
-when and how to use your tools.
+A plugin is one folder, and `PLUGIN.md` is its main file. The file has two parts.
+
+The YAML frontmatter at the top, between the `---` lines, is the _manifest_. It names the plugin,
+lists its tools and declares which websites it may reach. The Markdown body below it is written for
+the AI assistant. It tells the assistant when and how to use your tools.
 
 ```md title="my-classrooms/PLUGIN.md"
 ---
@@ -52,13 +63,18 @@ i18n:
   en:
     name: Classroom overview
     description: How many classrooms are free in each teaching building right now.
+    tools: { overview: { title: Free rooms by building, summary: Free classrooms in each building } }
 ---
 
 my-classrooms__overview：各楼现在空闲教室数量。用户想找自习的地方时先用它挑楼。
 ```
 
-`network` lists every public host the plugin may call; requests anywhere else fail. Every file
-the app loads is named in the frontmatter. The app never lists folders, so any static host works.
+`network` lists every public host the plugin may call. A request to any other host fails, so this
+list is also what students see before they install. `i18n.en` holds the English text that
+English-speaking users see instead of the Chinese.
+
+The app loads only the files the frontmatter names, such as `tools/overview.yaml` here. It never
+lists the folder's contents, so you can host the plugin on any static file server.
 
 </Step>
 
@@ -66,8 +82,12 @@ the app loads is named in the frontmatter. The app never lists folders, so any s
 
 ### Write the tool
 
+A tool file describes one operation. It has fields for people, a field for the model, a declared
+effect, and a list of steps that run in order.
+
 ```yaml title="my-classrooms/tools/overview.yaml"
 title: 各楼空闲教室数
+summary: 各教学楼现在的空闲教室数量
 description: 'How many classrooms are free right now in each teaching building: building, free, total.'
 effect: read
 steps:
@@ -84,14 +104,27 @@ return: |
   }
 ```
 
-- `title` is what users see (write it in Chinese first); `description` is for the model.
-- `effect` is `read`, `write`, `money` or `public`. Users decide per effect whether the agent may
-  act without asking, so declare it honestly.
-- Return data, never instructions. The model sees the result as data.
+The fields work as follows:
 
-<Callout type="warn" title="YAML gotcha">
-  Quote any expression or `${…}` template that contains `: ` or starts with `{` or `[`.
-  Unquoted, YAML parses it as a map or a list. `validate` prints this hint when it happens.
+- `title` is the tool's name in the app. Write it in Chinese; the English version goes in
+  `i18n.en.tools.overview.title`.
+- `summary` is optional. It is one line of at most 80 characters that tells people what the tool
+  does, and the app shows it under the title on the install review sheet. Its English version goes
+  in `i18n.en.tools.overview.summary`. If you leave that out, the app shows
+  English users no summary line.
+- `description` is for the model only and is never shown to users. Say what the tool returns and
+  when to use it.
+- `effect` is `read`, `write`, `money` or `public`. Users decide for each effect whether the
+  assistant may run a tool without asking, so the effect must be honest.
+- The first step sends the request and binds the parsed JSON to the name `r`. The `check` step
+  stops with an error message if the response is not what you expect. `return` builds the result.
+
+Return data, never instructions. The model reads the result as data.
+
+<Callout type="warn" title="Quoting expressions in YAML">
+  Put quotes around any expression or `${…}` template that contains `: ` or starts with `{` or `[`.
+  Without quotes, YAML reads it as a map or a list instead of a string. `validate` prints a hint
+  when this happens.
 </Callout>
 
 </Step>
@@ -100,9 +133,10 @@ return: |
 
 ### Record a test
 
-Tests replay recorded responses, so they run offline and always give the same result. Paste a
-(trimmed) real response as the `body`, or save it as a file next to the test and point `file:` at
-it:
+A test replays a recorded response instead of calling the real website. It therefore runs offline
+and gives the same result every time, even after the campus page changes. Paste a real response,
+trimmed to the parts you need, as the `body`. For a long response, save it as a file next to the
+test and refer to it with `file:`.
 
 ```yaml title="my-classrooms/tests/overview.yaml"
 tool: overview
@@ -113,16 +147,18 @@ responses:
 expect: { buildings: [{ building: 一教, free: 16, total: 32 }] }
 ```
 
-A test has a `tool`, optional `input` and `now`, and the `responses` to serve. Each response
-`match`es a URL substring and has a `body` or a `file` (add `campus` for campus requests). Then
-comes either `expect`, compared **exactly** with the result, or `expectError`, a pattern the error
-message must match.
+A test names the `tool` to run. It may also give an `input` and a fixed time, `now`. Under
+`responses`, each entry is served to any request whose URL contains the `match` text, and its
+content comes from `body` or `file`. For a campus request, also add `campus` with the service name.
+
+Finish the test with one of two fields. `expect` is compared **exactly** with the tool's result.
+`expectError` is a pattern that the error message must match.
 
 </Step>
 
 <Step>
 
-### Validate, test, run
+### Validate, test and run [#validate-test-run]
 
 ```bash
 bun run plugin validate path/to/my-classrooms
@@ -130,9 +166,10 @@ bun run plugin test path/to/my-classrooms
 bun run plugin run path/to/my-classrooms overview '{}'
 ```
 
-`validate` checks the manifest, tool schemas, expressions and file paths, the same checks the app
-and the marketplace run. `run` makes real requests, but only to public hosts. Campus requests need
-the app, so record those in tests.
+`validate` checks the manifest, the tool schemas, every expression and every file path. These are
+the same checks the app and the marketplace run. `test` replays the files in `tests/`. `run`
+calls the tool for real, but only for public hosts. Campus requests need the app, because only the
+app holds the user's sign-in, so cover them with recorded tests.
 
 </Step>
 
@@ -140,17 +177,19 @@ the app, so record those in tests.
 
 ### Share it
 
-Push the folder to a public GitHub repo. The folder URL is the install link:
+Push the folder to a public GitHub repository. The folder's URL is the install link:
 
 ```
 https://github.com/<you>/<repo>/tree/main/my-classrooms
 ```
 
-Students paste it in the app, scan its QR code, or open
-`pkuharness://plugin?src=<url-encoded link>`. The app first shows a review sheet: community or
-official, the websites the plugin can reach (here `portal.pku.edu.cn`), and each tool with its
-effect. Every `git push` becomes an update. To list the plugin in the marketplace,
-[submit the repo](/en/marketplace/submit); one repo can hold any number of plugins. See
+Other students can paste the link in the app, scan its QR code, or open
+`pkuharness://plugin?src=<url-encoded link>`. Before anything is installed, the app shows a review
+sheet. It says whether the plugin is community or official, lists the websites it can reach (here
+`portal.pku.edu.cn`), and shows each tool with its summary and effect.
+
+After that, every `git push` becomes an update. To list the plugin in the marketplace,
+[submit the repository](/en/marketplace/submit). One repository can hold any number of plugins. See
 [Publishing](/en/docs/marketplace/publishing).
 
 </Step>
@@ -159,7 +198,7 @@ effect. Every `git push` becomes an update. To list the plugin in the marketplac
 
 ## Next
 
-- Inputs, steps, expressions, abilities and errors: [Declarative plugins](/en/docs/build/declarative-plugins)
-- Draft, validate and try a plugin together with the agent in the app: [Write a plugin with the AI](/en/docs/build/ai-authoring)
-- Calls that need the student's campus session: declare `campus` (see the spec, §4 and §9)
+- Inputs, steps, expressions, host abilities and errors: [Declarative plugins](/en/docs/build/declarative-plugins)
+- Draft, validate and try a plugin together with the assistant in the app: [Write a plugin with the AI](/en/docs/build/ai-authoring)
+- Requests that need the student's campus session: declare `campus` (see the spec, §4 and §9)
 - What reviewers check: [Review and safety](/en/docs/marketplace/review)

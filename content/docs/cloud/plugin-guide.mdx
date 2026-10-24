@@ -4,7 +4,11 @@ description: 在内置插件里使用 PKU Harness Cloud：声明云服务清单�
 icon: Plug
 ---
 
-## 1. 声明 [#1-declare-it]
+本页说明内置插件（用 TypeScript 编写、随 App 打包的插件）怎样使用云服务。我们以 `card-share` 插件为例，它把校园卡付款码实时分享给朋友。下面的步骤按开发顺序排列：先在清单里声明，再处理授权和可用性，然后使用存储或通道。
+
+## 1. 在清单里声明云服务 [#1-declare-it]
+
+插件要在 `definePlugin` 的 `cloud` 字段里说明自己用到哪些云服务、数据是否端到端加密，以及哪些数据会离开设备。宿主（运行插件的 App）会按这份声明限制插件的调用，并把其中的说明展示给你。
 
 ```ts
 import { definePlugin } from '@pku-harness/sdk';
@@ -31,29 +35,37 @@ export const cardSharePlugin = definePlugin({
 });
 ```
 
+各字段的规则如下：
+
 | 字段 | 规则 |
 | --- | --- |
-| `protocol` | `1` |
-| `uses` | 只列你实际调用的服务。调用其他服务会被宿主拒绝。 |
-| `disclosure.zh` | `uses` 非空时**必填**。用大白话写清楚哪些数据会离开设备、服务器能看到什么，一行一件事。如果写了 `en`，必须逐行对应翻译。 |
-| `e2e` | 设为 `true` 后，宿主会拒绝明文写入存储。能开就开。 |
-| `optional` | 插件离开云服务也能用时设为 `true`。这时不要在 `requires` 里写 `'cloud'`，并检查 `ctx.cloud?.available`。 |
-| `pages` | `plugins/<id>/web` 下的静态查看页，部署在 `/w/<plugin>/<page>`，给没装 App 的人看。 |
-| `functions`、`backend` | 服务端函数，或外部后端 URL（会在用户授权前展示）。服务端函数目前在官方服务器上不开启，见[下文](#server-functions)。 |
+| `protocol` | 固定为 `1` |
+| `uses` | 只列出你实际调用的服务。调用未列出的服务会被宿主拒绝。 |
+| `disclosure.zh` | `uses` 不为空时必填，说明见下文。 |
+| `e2e` | 设为 `true` 后，宿主会拒绝明文写入存储。只要可行，就应该开启。 |
+| `optional` | 插件不依赖云服务也能工作时设为 `true`。 |
+| `pages` | 给没装 App 的人使用的静态查看页，源码在 `plugins/<id>/web`，部署在 `/w/<plugin>/<page>`。 |
+| `functions`、`backend` | 服务端函数，或外部后端 URL。外部后端会在你授权前展示出来。 |
 
-## 2. 授权 [#2-consent]
+`disclosure` 是写给用户看的数据说明。请用通俗的话写清楚哪些数据会离开设备、服务器能看到什么，每行只写一件事。如果同时写了 `en`，英文必须与中文逐行对应。
 
-每个插件都要单独获得用户授权。插件在设置里的详情页有一个**云服务**区块，显示服务商主机、你写的数据说明、端到端加密标识、用到的服务和配额用量，还有一个**允许使用云服务**开关和**清除此插件云端数据**按钮。
+如果设置了 `optional: true`，就不要在 `requires` 里写 `'cloud'`，并在使用前检查 `ctx.cloud?.available`。服务端函数在官方服务器上不开启，见[下文](#server-functions)。
 
-用户允许之前，所有调用都会抛出 `CloudError('consent_required')`。在页面里，先调用 `cloud.requestConsent()` 询问：它会弹出宿主的授权面板，用户同意时返回 `true`（已经同意过的话立即返回），拒绝时返回 `false`。Agent 工具调用永远不会弹窗：让错误直接抛出去，助手会告诉用户去哪里开启。
+## 2. 获取用户授权 [#2-consent]
+
+每个插件都要单独获得用户授权。在设置里打开插件的详情页，可以看到一个**云服务**区块。它显示服务商的主机名、你写的数据说明、端到端加密标识、用到的服务和配额用量，并提供**允许使用云服务**开关和**清除此插件云端数据**按钮。
+
+用户允许之前，插件的所有云服务调用都会抛出 `CloudError('consent_required')`。在页面里，你可以先调用 `cloud.requestConsent()` 询问用户。它会弹出宿主的授权面板，用户同意时返回 `true`，拒绝时返回 `false`。如果用户之前已经同意过，它会立即返回 `true`。
 
 ```tsx
 const start = async () => {
-  if (!(await props.cloud?.requestConsent())) return; // declined, or no cloud on this host
+  if (!(await props.cloud?.requestConsent())) return; // 用户拒绝，或者当前宿主没有云服务
   const channel = await props.cloud!.channels.open({ ttlS: 30 * 60, maxPeers: 1, page: 'view' });
   // …
 };
 ```
+
+AI 助手调用插件工具时，宿主不会弹出授权面板。工具里不需要特别处理，让错误直接抛出即可，助手会告诉用户去哪里开启授权。如果你想返回更明确的结果，也可以像下面这样捕获错误：
 
 ```ts
 import { isCloudError } from '@pku-harness/sdk';
@@ -67,19 +79,25 @@ try {
 }
 ```
 
-## 3. 可用性 [#3-availability]
+## 3. 检查云服务是否可用 [#3-availability]
+
+用户可能没有配置服务商、没有授权，或者服务商暂时连不上。这些情况下 `ctx.cloud?.available` 都是 `false`，插件应该直接返回明确的结果，不再发起调用。
 
 ```ts
 const cloud = ctx.cloud;
 if (!cloud?.available) {
-  // provider not configured, no consent, or unreachable
+  // 没有配置服务商、没有授权，或者连不上
   return { status: 'cloud_unavailable', provider: cloud?.status().provider ?? 'off' };
 }
 ```
 
-`status()` 返回 `{ provider: 'official' | 'custom' | 'off', baseURL?, consented, online }`。离线时，存储的读操作会退回本地镜像；写操作和函数调用会立即以 `offline` 失败（没有静默的待发队列）；通道会按退避策略自动重连。
+`status()` 返回 `{ provider: 'official' | 'custom' | 'off', baseURL?, consented, online }`。
 
-## 4. 存储 [#4-store]
+手机离线时，各项操作的表现不同。存储的读操作会改为读取本地镜像。写操作和函数调用会立即以 `offline` 失败，宿主不会把它们放进待发队列，事后悄悄补发。通道会按退避策略自动重连。
+
+## 4. 使用存储 [#4-store]
+
+存储是一个键值存储，适合保存小份的设置或状态。下面的例子读出一个计数器，加一后写回：
 
 ```ts
 const cur = await ctx.cloud!.store.get<{ count: number }>('counter');
@@ -88,17 +106,18 @@ const keys = await ctx.cloud!.store.list('history/');
 ```
 
 - 服务商按 `(device, plugin)` 划分命名空间，其他插件读不到你的数据。
-- `ifVersion` 用来做乐观并发控制（`0` 表示这个键必须还不存在）。版本不匹配时服务器返回 `409 conflict`，宿主会把它抛成 `CloudError('protocol')`。
-- `ttlS` 让值到期自动删除。默认配额：每台设备每个插件 1 MB、1,000 个键，单个值最大 64 KB。
+- `ifVersion` 用来做乐观并发控制：只有当前版本与给出的版本一致时，写入才会成功。`0` 表示这个键必须还不存在。版本不一致时服务器返回 `409 conflict`，宿主会把它抛成 `CloudError('protocol')`。
+- `ttlS` 设置值的有效期（秒），到期后自动删除。
+- 默认配额是每台设备每个插件 1 MB、1,000 个键，单个值最大 64 KB。
 
-## 5. 通道 [#5-channels]
+## 5. 使用中继通道 [#5-channels]
 
-通道在机主手机和打开分享链接的人之间转发端到端加密的帧。服务商只转发密文、把关谁能加入，只有持有链接的人才能解密。
+通道在机主的手机和打开分享链接的人之间转发端到端加密的数据帧。服务商只负责转发密文，并控制谁能加入通道。只有持有分享链接的人才能解密。
 
 ```ts
 const channel = await cloud.channels.open({
-  ttlS: 30 * 60,          // 必填，60 秒 – 24 小时
-  maxPeers: 1,            // 第一个加入的人占住名额；转发出去的链接没用
+  ttlS: 30 * 60,          // 必填，60 秒到 24 小时
+  maxPeers: 1,            // 第一个加入的人占住名额，转发出去的链接没有用
   page: 'view',           // 给没装 App 的人看的查看页
   meta: { nameHint: '王_明', pinRequired: true },  // 已加密；查看者加入前就能读到
 });
@@ -117,15 +136,17 @@ await channel.close();
 off();
 ```
 
-- `send(peerId | '*', msg)` 为每个对端分别加密。每帧最大 4 KB，每分钟最多 60 帧。
-- `mailbox.put(slot, msg, ttlS)` 留下加密数据块，你离线时对端也能读取。
-- `kick(peerId)` 踢掉一个查看者并释放名额，同一个链接可以给新的查看者用。
-- `channels.get(id)` 和 `list()` 在 App 重启后依然有效，因为密钥保存在系统密钥库里。
+通道还提供以下方法：
+
+- `send(peerId | '*', msg)` 为每个对端分别加密并发送。每帧最大 4 KB，每分钟最多 60 帧。
+- `mailbox.put(slot, msg, ttlS)` 留下一个加密数据块。你离线时，对端也能读到它。
+- `kick(peerId)` 踢掉一个查看者并释放名额，之后同一个链接可以给新的查看者使用。
+- `channels.get(id)` 和 `list()` 在 App 重启后依然有效，因为通道密钥保存在系统密钥库里。
 - 在 Android 上做长时间分享时，用 `services.ongoing.start({ title, until, onStop })` 让 App 保持运行。`services.ongoing` 只在 Android 上存在。
 
-### 展示链接 [#showing-the-link]
+### 展示分享链接 [#showing-the-link]
 
-`channel.link` 是一个 `SecretLink`：你读不到其中的 URL，序列化后只是 `"[secret link]"`。
+`channel.link` 是一个 `SecretLink` 对象。插件代码读不到其中的 URL，把它序列化也只会得到 `"[secret link]"`。要把链接交给用户，请使用宿主提供的组件：
 
 ```tsx
 const { QRCode, Button } = host.components;
@@ -133,11 +154,11 @@ const { QRCode, Button } = host.components;
 <Button title="分享给朋友" onPress={() => void host.shareLink?.(channel.link, { message: '我的付款码' })} />
 ```
 
-**绝对不要**从工具里返回链接，也不要把链接写进日志。工具应该返回 `{ status: 'awaiting_user' }`，然后打开一个页面让用户操作。
+不要从工具里返回链接，也不要把链接写进日志。工具应该返回 `{ status: 'awaiting_user' }`，然后打开一个页面，由用户在页面上完成分享。
 
-## 6. 注册表条目 [#6-registry-entry]
+## 6. 在注册表里登记 [#6-registry-entry]
 
-把云服务声明复制到你在 `registry.json` 里的条目中，这样插件市场在安装前就能显示「使用云服务」：
+插件市场在安装前就会显示插件是否使用云服务。为此，请把云服务声明复制到你在 `registry.json` 里的条目中：
 
 ```json
 {
@@ -150,16 +171,22 @@ const { QRCode, Button } = host.components;
 }
 ```
 
-注册表校验器会检查：`uses` 非空时必须有 `disclosure.zh`；如果写了 `en`，必须逐行翻译；外部 `backend.url` 必须是 HTTPS。
+注册表校验器会检查三件事：`uses` 不为空时必须有 `disclosure.zh`；如果写了 `en`，必须与中文逐行对应；外部 `backend.url` 必须使用 HTTPS。
 
 ## 服务端函数 [#server-functions]
 
-<Callout type="warn" title="官方服务器暂不开启">
+<Callout type="warn" title="官方服务器不开启">
   请让插件在手机端完成工作，或者使用你自己的后端。
 </Callout>
 
-`PLUGIN.md` 插件在 `server:` 段里声明服务端函数（步骤和表达式与工具相同），再通过 `cloud.call { fn, input }` 能力调用；小组件可以绑定 `{ fn }`。有这一段就意味着 `uses: [functions]`，并且必须写 `disclosure`。参考服务器在 `POST /v1/fn/<plugin>/<name>` 运行 `access: user` 的函数，在 `/v1/p/<plugin>/<name>` 运行 `access: public` 的函数，提供服务端 KV、加密工具，以及访问已声明主机的 HTTPS 请求。详见[云服务 → 服务端函数](/docs/cloud#server-functions)和 [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)（已暂停）。
+`PLUGIN.md` 插件可以在 `server:` 段里声明服务端函数，使用的步骤和表达式与工具相同，再通过 `cloud.call { fn, input }` 能力调用。小组件也可以绑定 `{ fn }`。写了这一段就等于声明了 `uses: [functions]`，并且必须写 `disclosure`。
+
+参考服务器在 `POST /v1/fn/<plugin>/<name>` 运行 `access: user` 的函数，在 `/v1/p/<plugin>/<name>` 运行 `access: public` 的函数。它为函数提供服务端键值存储、加密工具，以及访问已声明主机的 HTTPS 请求。详见[云服务 → 服务端函数](/docs/cloud#server-functions)和 [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)（已暂停推进）。
 
 ## 查看页 [#viewer-pages]
 
-没装 App 的人打开 `https://<provider>/s/<id>#k=…`，会被重定向到 `/w/<plugin>/<page>?c=<id>#k=…`（片段在重定向后依然保留）。在 `plugins/<id>/web` 里把页面做成静态站点（比如 Vite + Preact），从 `location.hash` 读出 `k`，再用 [`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package) 派生密钥、加入通道并解密。页面必须能在微信内置浏览器里运行，所以不要依赖 WebCrypto（这个包用的是纯 JS 的 noble 加密库），并在 WebSocket 不可用时退回 SSE。完整的查看页可以参考 `plugins/card-share/web`。
+查看页是给没装 App 的人使用的网页。对方打开 `https://<provider>/s/<id>#k=…` 后，会被重定向到 `/w/<plugin>/<page>?c=<id>#k=…`。`#` 之后的部分叫作 URL 片段，它在重定向后依然保留，并且浏览器不会把它发给服务器。
+
+请在 `plugins/<id>/web` 里把查看页做成静态站点，例如用 Vite + Preact。页面从 `location.hash` 读出 `k`，再用 [`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package) 派生密钥、加入通道并解密。
+
+查看页必须能在微信内置浏览器里运行，因此要注意两点。第一，不要依赖 WebCrypto，这个包使用的是纯 JavaScript 实现的 noble 加密库。第二，WebSocket 不可用时，要退回服务器推送事件（Server-Sent Events，SSE）。完整的查看页可以参考 `plugins/card-share/web`。

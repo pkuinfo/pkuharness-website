@@ -1,32 +1,90 @@
 ---
 title: Plugins
-description: Plugin documents (PLUGIN.md) are interpreted by the app and installed by link. Bundled TypeScript plugins ship inside the app. Remote plugins are MCP servers added by URL. All of them share one registry, one permission system and one agent loop.
+description: Plugins come in three kinds. Plugin documents (PLUGIN.md) are interpreted by the app and installed by link. Bundled TypeScript plugins ship inside the app. Remote plugins are MCP servers added by URL. All three share one registry, one permission system and one agent loop.
 icon: Puzzle
 ---
 
-Every capability in PKU Harness is a plugin, and all plugins are equal. A plugin is either a
-**document** the app interprets, a **TypeScript** module bundled in the app, or a **remote** MCP
-server. The agent, the permission system and the marketplace treat all three the same way.
+In PKU Harness, each feature that connects to a campus service is provided by a plugin. There are
+three kinds of plugin. The most common is a _plugin document_: a folder with a `PLUGIN.md` file
+that the app reads and follows. The other two kinds are TypeScript modules built into the app,
+and _remote plugins_, which run on a server and connect through the Model Context Protocol (MCP).
 
-## Three kinds, one contract
+The agent, the permission system and the marketplace handle all three kinds in the same way.
+Built-in and community plugins use the same permission system.
 
-| | Document (`PLUGIN.md`) | Bundled TypeScript | Remote |
+## The three kinds of plugin [#three-kinds-one-contract]
+
+### Plugin documents
+
+A plugin document is a folder. It contains a YAML manifest, instructions for the agent, and tools
+written as YAML steps. If the plugin has widgets, they are described as generative-UI JSON.
+
+A plugin document runs on the phone, where the app interprets it. No plugin code runs at any
+point.
+
+It is published as a link, either to a GitHub folder or to any `PLUGIN.md` URL. To update the
+plugin, you `git push`. The official plugin documents are also bundled with the app, and they too
+update from their links.
+
+A plugin document can reach the campus services it declares (using the user's session) and
+public websites, and it can use [host abilities](/en/docs/build/declarative-plugins#host-abilities).
+It can provide widgets, screens, Settings rows and commands.
+
+### Bundled TypeScript plugins [#bundled-plugins]
+
+A bundled plugin is a TypeScript module built on `@pku-harness/sdk` with `definePlugin`. It runs on
+the phone inside the app, and it ships with a new app release or a signed over-the-air (OTA)
+update.
+
+A bundled plugin can use host services, native UI and PKU Harness Cloud. Native UI here means
+screens, widgets, Settings rows, commands and tabs.
+
+### Remote plugins
+
+A remote plugin is an MCP server that communicates over Streamable HTTP. You can write it in any
+language, and it runs on any HTTPS server you control.
+
+To publish a remote plugin, you deploy your server. Users then add its URL, or install it from
+the marketplace. A remote plugin can only provide tools, and its results are passed to the model
+as data.
+
+### The three kinds compared [#comparison]
+
+| | Plugin document | Bundled plugin | Remote plugin |
 | --- | --- | --- | --- |
-| What it is | A folder: YAML manifest + agent instructions + tools as YAML steps, widgets as generative-UI JSON | A TypeScript module built on `@pku-harness/sdk` (`definePlugin`) | An MCP server over Streamable HTTP, in any language |
-| Where it runs | On the phone, interpreted by the app (no plugin code runs) | On the phone, inside the app | On any HTTPS server you control |
-| How it ships | A link (GitHub folder or any `PLUGIN.md` URL); updates are a `git push`. Official documents are also bundled with the app and update from their link | With an app release (or a signed OTA update) | Deploy your server; users add its URL or install it from the marketplace |
-| Can use | Declared campus services (with the user's session), public hosts and [host abilities](/en/docs/build/declarative-plugins#host-abilities); widgets, screens, Settings rows, commands | Host services, native UI (screens, widgets, Settings rows, commands, tabs), PKU Harness Cloud | Tools only (results are shown to the model as data) |
-| Sees campus credentials | No: the harness signs its campus requests | No: it gets responses through `services.campus.request` | No, never |
-| Trust | Official (bundled or from `pkuinfo/pku-harness-plugins`) or community; community tools ask before `write` / `money` / `public` and their results are untrusted | Reviewed in the plugins repository | Third party: write effects ask first by default; every result taints the turn |
-| Tool ids | `<plugin id>.<tool>`, e.g. `classrooms.free` | `<plugin id>.<tool>`, e.g. `wallet.cardBalance` | `mcp-<server name>.<tool>`, e.g. `mcp-demo-canteen.menu` |
+| Runs on | The phone, interpreted by the app | The phone, inside the app | Your HTTPS server |
+| Published as | A link | Part of the app | A deployed server |
+| Sees campus credentials | No | No | No |
+| Tool ids | `<plugin id>.<tool>` | `<plugin id>.<tool>` | `mcp-<server name>.<tool>` |
+| Example tool id | `classrooms.free` | `wallet.cardBalance` | `mcp-demo-canteen.menu` |
 
-App stores forbid downloading executable code. A document is data, so community plugins can run on
-the phone as documents, or remotely over MCP. The official campus integrations classrooms,
-campus-events, grades, canteen, shuttle and notices are all documents. TypeScript is kept for the
-harness's own features (UI, dashboard, scheduler, schedule, to-dos, memory, model providers…) and
-for integrations the language can't express yet.
+None of the three kinds ever sees campus credentials. For a plugin document, the harness signs
+the campus requests itself. A bundled plugin only receives responses through
+`services.campus.request`. A remote plugin has no campus session at all.
 
-## Choosing
+### Trust
+
+Plugin documents are either official or community. Official documents are bundled with the app or
+come from the `pkuinfo/pku-harness-plugins` repository. Tools from community documents ask you
+before any `write`, `money` or `public` effect, and their results are treated as untrusted.
+
+Bundled plugins are all reviewed in the plugins repository.
+
+Remote plugins are third-party code. By default, any tool that changes data asks you first. Every
+result from a remote plugin _taints_ the current turn of the conversation. The
+[security model](/en/docs/concepts/security) explains what this means.
+
+### Why most plugins are documents [#why-documents]
+
+App stores forbid apps from downloading executable code. A plugin document is data, not code, so
+community plugins can run on the phone as documents, or remotely over MCP.
+
+The official campus plugins classrooms, campus-events, grades, canteen, shuttle and notices are
+all plugin documents. TypeScript is used only for the harness's own features, such as UI, the
+dashboard, the scheduler, the schedule, to-dos, memory and model providers. It is also used for
+services that the plugin language can't express yet.
+
+## How to choose a kind [#choosing]
 
 ```
 Is it campus or public requests plus extraction (with the user's campus session if needed)?
@@ -37,45 +95,70 @@ Is it campus or public requests plus extraction (with the user's campus session 
               → bundled TypeScript plugin (open an issue first), or propose a host ability.
 ```
 
+Most campus services only need to send requests and extract data from the responses. A plugin
+document is enough for these. Start from the [quickstart](/en/docs/build/quickstart), or ask the
+AI in the app to write one for you.
+
+If you need general code or your own server, write a remote plugin, starting from the
+`templates/remote-plugin` template. Write a bundled TypeScript plugin only when you need a device
+feature or native UI that the plugin language doesn't support yet, and open an issue first. You
+can also propose a new host ability so that plugin documents can do the job.
+
 ## Lifecycle in the app
 
-1. **Registered**: bundled plugins and bundled documents at start-up. A document installed by link
-   is registered once the user accepts the review sheet; the files and a content hash are stored
-   on the device. A remote plugin is registered when the user installs it: the app connects, lists
-   the tools and caches the manifest.
-2. **Available**: the device meets its `requires` [capabilities](/en/docs/concepts/capabilities).
-   Unavailable plugins are hidden from the agent, and Settings explains why.
-3. **Enabled**: on by default. The user can turn off any non-core plugin. Core plugins
-   (`core: true`, e.g. generative UI, memory) can't be disabled.
-4. **Called**: every call takes one path. It validates the input (zod), checks the per-effect mode,
-   asks for approval if needed, runs the tool and returns the result.
-5. **Updated** (documents only): the app re-fetches the link at most once a day. New content with
-   the same declarations applies right away; wider declarations wait for the user. See
+From installation to use, a plugin goes through five stages.
+
+1. **Registered.** Bundled plugins and bundled documents are registered when the app starts. A
+   document installed by link is registered after you accept its review sheet, and its files and
+   a content hash are stored on the phone. A remote plugin is registered when you install it: the
+   app connects to the server, lists its tools and caches its manifest.
+2. **Available.** A plugin is available when the phone meets the
+   [capabilities](/en/docs/concepts/capabilities) it lists in `requires`. Unavailable plugins are
+   hidden from the agent, and Settings explains why.
+3. **Enabled.** Plugins are on by default. You can turn off any plugin that is not a core plugin.
+   Core plugins are marked `core: true`, for example generative UI and memory, and can't be
+   turned off.
+4. **Called.** Every call follows the same path. The app validates the input with zod, checks the
+   mode set for the tool's effect, asks for your approval if needed, runs the tool and returns the
+   result.
+5. **Updated.** This stage applies only to plugin documents. The app fetches the plugin's link
+   again at most once a day. If the new content declares the same access, it takes effect at
+   once. If it declares wider access, it waits until you confirm. See
    [Declarative plugins → Updates](/en/docs/build/declarative-plugins#updates).
 
 ## Remote plugins in detail
 
-- The user (or the agent, after approval) adds an MCP Streamable-HTTP URL and an optional bearer
-  token. The token goes to the keystore.
-- The plugin id is `mcp-` plus a slug of the MCP server `name` from the `initialize` response. Use
-  your registry id as the server name so the marketplace can match the two.
-- Each MCP tool becomes a registry tool. Its input schema is converted from JSON Schema to zod.
-  `annotations.readOnlyHint: true` makes it a `read` tool; anything else is `write`.
-- Default modes for remote plugins: `read` runs automatically, `write`/`money`/`public` ask.
-- Results are wrapped as `{ source, data }` (the `structuredContent`, or the text parsed as JSON).
-  The plugin's system-prompt section tells the model to treat them as data and never follow them
-  as instructions.
-- MCP tool names are sanitised to `[a-zA-Z0-9_-]` (anything else becomes `_`) and cut to 40
-  characters. Keep them short ASCII camelCase.
+**Adding.** You, or the agent with your approval, add an MCP Streamable HTTP URL and, optionally,
+a bearer token. The token is stored in the keystore.
+
+**Plugin id.** A remote plugin's id is `mcp-` followed by a slug of the MCP server's `name`, which
+comes from the `initialize` response. Use your registry id as the server name, so that the
+marketplace can match the two.
+
+**Tools.** Each MCP tool becomes one tool in the registry, and its input schema is converted from
+JSON Schema to zod. A tool marked `annotations.readOnlyHint: true` becomes a `read` tool. Every
+other tool becomes a `write` tool.
+
+**Default modes.** For remote plugins, `read` tools run automatically, and `write`, `money` and
+`public` tools ask you first.
+
+**Results.** Results are wrapped as `{ source, data }`. The `data` is taken from
+`structuredContent`, or from the text parsed as JSON. The system prompt has a section about the
+plugin that tells the model to treat these results as data and never to follow them as
+instructions.
+
+**Tool names.** MCP tool names are cleaned to contain only `[a-zA-Z0-9_-]`. Any other character
+becomes `_`, and names are cut to 40 characters. Keep them short and in ASCII camelCase.
 
 ## Merging and renaming plugins
 
-`PluginDef.legacy` lets a plugin take over old ids. For example, `wallet` replaced `campus-card`,
-`netfee` and `utilities`. The host then maps old plugin ids, old tool ids and old widget keys to
-the new ones, and carries the user's settings over once. See
-[SDK → plugin](/en/docs/sdk/plugin#pluginlegacy).
+The `PluginDef.legacy` field lets a plugin take over the ids of older plugins. For example, the
+`wallet` plugin replaced `campus-card`, `netfee` and `utilities`.
 
-## Next
+With this field set, the host maps the old plugin ids, tool ids and widget keys to the new ones,
+and moves your existing settings over once. See [SDK → plugin](/en/docs/sdk/plugin#pluginlegacy).
+
+## Further reading [#next]
 
 - [Tools and effects](/en/docs/concepts/tools-and-effects)
 - [Your first plugin](/en/docs/build/quickstart) and [Declarative plugins](/en/docs/build/declarative-plugins)

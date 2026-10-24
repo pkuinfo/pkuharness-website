@@ -1,12 +1,16 @@
 ---
-title: 5 分钟写出第一个插件
-description: 写一个只有一个工具的 PLUGIN.md 插件，用录制的响应测试它，再以链接形式分享。示例是空闲教室插件。
+title: 编写第一个插件
+description: 写一个只有一个工具的 PLUGIN.md 插件，用录制的响应测试它，再以链接的形式分享。示例是空闲教室插件的简化版。
 icon: Rocket
 ---
 
-我们以插件仓库里真实存在的 [`plugins/classrooms`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/classrooms) 为例，只保留它最小的一个工具：**现在各教学楼分别有多少间空闲教室**。它只调用一个公开的校园接口，所以不需要登录。
+本页带你写一个只有一个工具的小型插件文档。这个工具回答一个问题：**现在各教学楼分别有多少间空闲教室**。写好之后，你会离线测试它，并把它作为链接分享出去。
 
-完整的语言参考见[声明式插件](/docs/build/declarative-plugins)，规范原文见 [`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md)。
+示例是插件仓库里真实插件 [`plugins/classrooms`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/classrooms) 的简化版。它只调用一个公开的校园接口，所以不需要登录。
+
+开始之前，请装好 [bun](https://bun.sh) 和 git。在最后一步之前，你都不需要 App 或手机。
+
+完整的语言说明见[声明式插件](/docs/build/declarative-plugins)，规范原文见 [`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md)。
 
 <Steps>
 
@@ -14,7 +18,7 @@ icon: Rocket
 
 ### 获取作者 CLI [#get-the-author-cli]
 
-CLI 在插件仓库里，需要先装好 bun：
+插件仓库里有一个给插件作者用的命令行工具（CLI）。它做的检查和 App 完全一样，所以你在自己电脑上就能发现错误，不必等到有人安装时才出问题。
 
 ```bash
 git clone https://github.com/pkuinfo/pku-harness-plugins
@@ -22,7 +26,7 @@ cd pku-harness-plugins
 bun install
 ```
 
-用法：`bun run plugin validate|test|run <plugin-dir> [tool] [json-input]`。
+命令的格式是：`bun run plugin validate|test|run <plugin-dir> [tool] [json-input]`。
 
 </Step>
 
@@ -30,7 +34,9 @@ bun install
 
 ### 编写 `PLUGIN.md` [#write-pluginmd]
 
-一个插件（plugin）就是一个文件夹。frontmatter 是清单，Markdown 正文写给助手看，告诉它什么时候、怎样使用你的工具（tool）。
+一个插件就是一个文件夹，`PLUGIN.md` 是其中的主文件。这个文件分为两部分。
+
+顶部两行 `---` 之间的 YAML frontmatter 是插件的「清单」（manifest）。它写明插件的名字、包含哪些工具、可以访问哪些网站。下面的 Markdown 正文是写给 AI 助手看的，告诉它什么时候、怎样使用你的工具。
 
 ```md title="my-classrooms/PLUGIN.md"
 ---
@@ -47,12 +53,15 @@ i18n:
   en:
     name: Classroom overview
     description: How many classrooms are free in each teaching building right now.
+    tools: { overview: { title: Free rooms by building, summary: Free classrooms in each building } }
 ---
 
 my-classrooms__overview：各楼现在空闲教室数量。用户想找自习的地方时先用它挑楼。
 ```
 
-`network` 列出插件可以访问的所有公开域名，访问其他地址的请求都会失败。App 加载的每个文件都要在 frontmatter 里写明。App 从不列目录，所以放在任何静态托管上都能用。
+`network` 列出插件可以访问的全部公开域名。访问其他域名的请求都会失败，而同学们在安装前看到的也正是这份列表。`i18n.en` 里放英文文字，使用英文界面的用户会看到它们，而不是中文。
+
+App 只加载 frontmatter 里写明的文件，比如这里的 `tools/overview.yaml`。它从不列出文件夹的内容，所以插件放在任何静态文件服务器上都能用。
 
 </Step>
 
@@ -60,8 +69,11 @@ my-classrooms__overview：各楼现在空闲教室数量。用户想找自习的
 
 ### 编写工具 [#write-the-tool]
 
+一个工具文件描述一个操作。它包含给人看的字段、给模型看的字段、声明的效果，以及按顺序执行的一组步骤。
+
 ```yaml title="my-classrooms/tools/overview.yaml"
 title: 各楼空闲教室数
+summary: 各教学楼现在的空闲教室数量
 description: 'How many classrooms are free right now in each teaching building: building, free, total.'
 effect: read
 steps:
@@ -78,12 +90,18 @@ return: |
   }
 ```
 
-- `title` 显示给用户（优先写中文）；`description` 写给模型。
-- `effect`（效果）取 `read`、`write`、`money` 或 `public`。用户会按效果分别决定助手能否不经询问直接执行，所以请如实声明。
-- 返回数据，不要返回指令。模型会把结果当作数据看待。
+各字段的作用如下：
 
-<Callout type="warn" title="YAML 的坑">
-  如果表达式或 `${…}` 模板里含有 `: `，或者以 `{`、`[` 开头，就要加引号。不加引号的话，YAML 会把它解析成映射或列表。出现这种情况时，`validate` 会给出提示。
+- `title` 是工具在 App 里显示的名字，用中文写；英文版写在 `i18n.en.tools.overview.title`。
+- `summary` 可以不写。它是一行不超过 80 个字符的说明，告诉用户这个工具做什么，App 会把它显示在安装审核页的工具名下方。英文版写在 `i18n.en.tools.overview.summary`；如果不写英文版，App 就不会给使用英文界面的用户显示这一行说明。
+- `description` 只给模型看，从不显示给用户。写清楚工具返回什么、什么时候该用。
+- `effect`（效果）取 `read`、`write`、`money` 或 `public`。用户会按效果分别决定助手能否不经询问直接运行工具，所以必须如实声明。
+- 第一个步骤发出请求，把解析后的 JSON 绑定到名字 `r` 上。如果响应和预期不符，`check` 步骤会带着错误信息停止。`return` 负责组装结果。
+
+返回数据，不要返回指令。模型会把结果当作数据来读。
+
+<Callout type="warn" title="YAML 里表达式的引号">
+  如果表达式或 `${…}` 模板里含有 `: `，或者以 `{`、`[` 开头，就要给它加引号。不加引号时，YAML 会把它当成映射或列表，而不是字符串。遇到这种情况，`validate` 会给出提示。
 </Callout>
 
 </Step>
@@ -92,7 +110,7 @@ return: |
 
 ### 录制测试 [#record-a-test]
 
-测试回放的是录制好的响应，因此可以离线运行，每次结果都一样。把一段（裁剪过的）真实响应贴进 `body`，或者存成测试旁边的文件，再用 `file:` 引用：
+测试回放事先录好的响应，而不去访问真实网站。所以它可以离线运行，每次结果都一样，校园网页改版后也不受影响。把一段真实响应裁剪到需要的部分，贴进 `body`。如果响应很长，可以存成测试旁边的文件，再用 `file:` 引用。
 
 ```yaml title="my-classrooms/tests/overview.yaml"
 tool: overview
@@ -103,7 +121,9 @@ responses:
 expect: { buildings: [{ building: 一教, free: 16, total: 32 }] }
 ```
 
-一个测试包含 `tool`、可选的 `input` 和 `now`，以及要返回的 `responses`。每条响应用 `match` 匹配 URL 子串，内容来自 `body` 或 `file`（校园请求再加上 `campus`）。最后是 `expect`（与结果**严格**比较）或 `expectError`（错误信息必须匹配的模式），二选一。
+测试用 `tool` 指明要运行的工具，还可以给出 `input` 和一个固定的时间 `now`。`responses` 里的每一项，会回应 URL 中包含 `match` 文字的请求，内容来自 `body` 或 `file`。如果是校园请求，还要加上 `campus`，写明服务名。
+
+测试的最后写下面两个字段之一。`expect` 会和工具的结果做**严格**比较；`expectError` 是一个模式，错误信息必须与它匹配。
 
 </Step>
 
@@ -117,7 +137,7 @@ bun run plugin test path/to/my-classrooms
 bun run plugin run path/to/my-classrooms overview '{}'
 ```
 
-`validate` 检查清单、工具 schema、表达式和文件路径，和 App 以及插件市场做的检查完全一样。`run` 会发出真实请求，但只限公开域名。校园请求必须在 App 里才能发，所以要把它们录进测试。
+`validate` 检查清单、工具的 schema、每个表达式和每个文件路径，和 App 以及插件市场做的检查完全一样。`test` 回放 `tests/` 里的文件。`run` 会真实调用工具，但只限公开域名。校园请求必须在 App 里发出，因为只有 App 掌握用户的登录状态，所以要用录制的测试覆盖它们。
 
 </Step>
 
@@ -125,13 +145,15 @@ bun run plugin run path/to/my-classrooms overview '{}'
 
 ### 分享 [#share-it]
 
-把文件夹推到一个公开的 GitHub 仓库。文件夹的 URL 就是安装链接：
+把文件夹推送到一个公开的 GitHub 仓库。文件夹的 URL 就是安装链接：
 
 ```
 https://github.com/<you>/<repo>/tree/main/my-classrooms
 ```
 
-同学们可以在 App 里粘贴链接、扫二维码，或者打开 `pkuharness://plugin?src=<url-encoded link>`。App 会先弹出审核页：标明是社区插件还是官方插件，列出它能访问的网站（这里是 `portal.pku.edu.cn`），以及每个工具和它的效果。之后每次 `git push` 都是一次更新。想上架插件市场，就去[提交仓库](/marketplace/submit)；一个仓库里放多少个插件都行。见[发布](/docs/marketplace/publishing)。
+其他同学可以在 App 里粘贴这个链接、扫描它的二维码，或者打开 `pkuharness://plugin?src=<url-encoded link>`。安装之前，App 会先显示审核页：标明这是社区插件还是官方插件，列出它能访问的网站（这里是 `portal.pku.edu.cn`），并列出每个工具及其说明和效果。
+
+此后每一次 `git push` 都是一次更新。想把插件登记到插件市场，就去[提交仓库](/marketplace/submit)。一个仓库里可以放任意多个插件。见[发布](/docs/marketplace/publishing)。
 
 </Step>
 
@@ -141,5 +163,5 @@ https://github.com/<you>/<repo>/tree/main/my-classrooms
 
 - 输入、步骤、表达式、宿主能力和错误处理：[声明式插件](/docs/build/declarative-plugins)
 - 在 App 里和助手一起起草、校验、试运行插件：[让 AI 帮你写插件](/docs/build/ai-authoring)
-- 需要用到同学校园会话的请求：声明 `campus`（见规范 §4 和 §9）
-- 审核会看什么：[审核与安全](/docs/marketplace/review)
+- 需要用到同学校园登录状态的请求：声明 `campus`（见规范 §4 和 §9）
+- 审核会检查什么：[审核与安全](/docs/marketplace/review)

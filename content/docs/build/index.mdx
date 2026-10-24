@@ -1,76 +1,87 @@
 ---
 title: 开发插件
-description: 在 PLUGIN.md 插件文档、远程（MCP）插件和内置（SDK）插件之间做选择，准备好仓库，从写第一个工具一路走到上架插件市场。
+description: 怎样在 PLUGIN.md 插件文档、远程插件和内置 TypeScript 插件之间做选择，需要克隆哪些仓库，以及从写第一个工具到上架插件市场的工作顺序。
 icon: Hammer
 ---
 
-插件（plugin）把 PKU Harness 接到某个校园服务上，或者给它加一项能力。助手和用户调用的是同一套带类型的工具（tool），所以写插件主要就三件事：找到服务的接口，把它包成好用的工具，在需要的地方加个小组件或页面。
+插件（plugin）负责把 PKU Harness 接到某一个校园服务上，或者给 App 增加一项功能。每个插件提供一组「工具」（tool），也就是带类型的小操作，比如「列出空闲教室」「查询校园卡余额」。AI 助手和用户在界面上的点击，调用的都是同一套工具。
+
+所以写插件主要是三件事：弄清楚服务怎样响应请求，把这些请求包装成工具，再在合适的地方加一个小组件或页面。
+
+阅读本章需要你能看懂 YAML 或 TypeScript，并会使用终端。你不需要了解 App 的内部实现。
 
 ## 选择插件类型 [#choose-the-kind]
 
-| | 插件文档（`PLUGIN.md`） | 远程插件 | 内置 TypeScript 插件 |
-| --- | --- | --- | --- |
-| 适合 | 大多数校园接入：校园或公开请求加数据提取，需要时带上用户的校园会话 | 你自己的服务、重活，或需要通用代码的场景 | 框架自身的功能（看板、日程、定时任务、记忆、模型服务商……），以及插件语言暂时表达不了的接入 |
-| 语言 | YAML 步骤 + 安全表达式，由 App 解释执行 | 任意（基于 Streamable HTTP 的 MCP） | TypeScript + zod + React Native |
-| 发布 | `git push`；通过链接安装和更新 | 部署你的服务器，不用发 App 新版 | 随 App 版本发布（先开 issue） |
-| 从这里开始 | [快速上手](/docs/build/quickstart)、[声明式插件](/docs/build/declarative-plugins)，或[让 AI 帮你写](/docs/build/ai-authoring) | [`templates/remote-plugin`](/docs/build/remote-plugin) | [`definePlugin`](/docs/build/bundled-plugin) |
+插件有三种。大多数情况下，你应该写第一种。
 
-官方的校园接入里，classrooms、campus-events、grades、canteen、shuttle 和 notices 已经是插件文档。其余接入目前还是 TypeScript，正在逐个迁移。
+**插件文档**是一个包含 `PLUGIN.md` 文件的文件夹。它的工具用 YAML 步骤和安全的小型表达式写成，由 App 在手机上解释执行。你用 `git push` 发布，同学们通过链接安装和更新。大多数校园接入都适合写成插件文档：向校园网站或公开网站发请求，提取需要的数据，必要时带上用户的校园登录状态。建议先看[快速上手](/docs/build/quickstart)，再读[声明式插件](/docs/build/declarative-plugins)。你也可以在 App 里[让 AI 帮你写](/docs/build/ai-authoring)。
+
+**远程插件**是你自己运行的服务器。它使用 MCP（Model Context Protocol，模型上下文协议）。MCP 是 AI 应用通过 HTTP 调用工具的一种标准协议，这里使用它的 Streamable HTTP 传输方式。远程插件可以用任何语言编写，部署服务器就等于发布更新，不需要 App 发版。它适合你自己的服务、计算量大的任务，或者需要通用代码的场景。从 [`templates/remote-plugin`](/docs/build/remote-plugin) 开始。
+
+**内置插件**是用 TypeScript、zod 和 React Native 编写的模块，打包在 App 里。它只能随 App 版本发布，所以动手之前请先开一个 issue。内置插件用于 App 自身的功能（看板、日程、定时任务、记忆、模型服务商等），以及插件语言暂时表达不了的接入。从 [`definePlugin`](/docs/build/bundled-plugin) 开始。
+
+| | 插件文档 | 远程插件 | 内置插件 |
+| --- | --- | --- | --- |
+| 编写方式 | YAML 步骤和表达式 | 任意语言（MCP） | TypeScript |
+| 运行位置 | 手机上，由 App 解释执行 | 你的服务器 | 手机上，App 内部 |
+| 更新方式 | `git push` | 重新部署服务器 | 随 App 发版 |
+
+官方的校园接入中，classrooms、campus-events、grades、canteen、shuttle 和 notices 已经是插件文档。其余官方接入目前仍是 TypeScript，我们正在逐个迁移。
 
 ## 开发流程 [#the-path]
 
 <Steps>
 <Step>
 
-### 读概念 [#read-the-concepts]
+### 阅读概念 [#read-the-concepts]
 
-[插件](/docs/concepts/plugins)、[工具与效果](/docs/concepts/tools-and-effects)、[权限](/docs/concepts/permissions)和[安全](/docs/concepts/security)这几页定下了每个插件都要遵守的规则。
-
-</Step>
-<Step>
-
-### 找到协议 [#find-the-protocol]
-
-如果 [`pkucli`](https://github.com/pkuinfo/pkucli) 已经对接过这个服务，就从那里移植，并注明出处文件。见[从 pkucli 移植](/docs/build/porting-from-pkucli)。
+[插件](/docs/concepts/plugins)、[工具与效果](/docs/concepts/tools-and-effects)、[权限](/docs/concepts/permissions)和[安全](/docs/concepts/security)这四页规定了每个插件都要遵守的规则。审核会按照这些规则检查你的插件，所以请先读它们。
 
 </Step>
 <Step>
 
-### 写工具 [#write-the-tools]
+### 弄清协议 [#find-the-protocol]
 
-一个操作一个工具，效果（effect）如实声明，输入有边界，描述写给模型看。写插件文档看[声明式插件](/docs/build/declarative-plugins)，写代码看[工具与 schema](/docs/build/tools)。
+你需要知道服务用哪些地址、返回什么内容。如果 [`pkucli`](https://github.com/pkuinfo/pkucli) 已经对接过这个服务，就移植它的代码，并注明参考的文件。具体做法见[从 pkucli 移植](/docs/build/porting-from-pkucli)。
 
 </Step>
 <Step>
 
-### 加界面 [#add-ui]
+### 编写工具 [#write-the-tools]
 
-插件文档可以添加生成式界面的小组件和页面、设置项和快捷指令，内置插件还能加原生页面。见[界面扩展](/docs/build/ui)和[多语言](/docs/build/i18n)。
+一个操作写成一个工具。如实声明它的效果，给每个输入加上限制，描述要写给模型看。插件文档的写法见[声明式插件](/docs/build/declarative-plugins)，代码插件的写法见[工具与 schema](/docs/build/tools)。
+
+</Step>
+<Step>
+
+### 添加界面 [#add-ui]
+
+插件文档可以添加生成式界面的小组件和页面（用 JSON 描述，由 App 绘制），还可以添加设置项和快捷指令。内置插件还能添加原生页面。见[界面扩展](/docs/build/ui)和[多语言](/docs/build/i18n)。
 
 </Step>
 <Step>
 
 ### 测试 [#test]
 
-插件文档用 `bun run plugin validate|test` 配合录制的响应来测；TypeScript 逻辑用 `bun test`；Agent 循环用模拟模型；MCP 用演示远程插件。见[测试](/docs/build/testing)。
+每种插件有各自的测试方法。插件文档用 `bun run plugin validate|test` 检查文件、回放录制好的响应；TypeScript 逻辑用 `bun test`；想在没有 API key 的情况下跑通助手的调用流程，可以用模拟模型；远程插件可以拿演示用的远程插件来对照。四种方法都在[测试](/docs/build/testing)里介绍。
 
 </Step>
 <Step>
 
 ### 发布 [#publish]
 
-分享安装链接，并在插件市场登记。见[发布](/docs/build/publishing)，以及插件市场的[清单参考](/docs/marketplace/manifest)和[提交流程](/docs/marketplace/publishing)。
+先分享安装链接，再把插件登记到插件市场。见[发布](/docs/build/publishing)，以及插件市场部分的[清单参考](/docs/marketplace/manifest)和[提交流程](/docs/marketplace/publishing)。
 
 </Step>
 </Steps>
 
 ## 需要的仓库 [#repositories-you-need]
 
-| 仓库 | 用途 |
-| --- | --- |
-| [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) | SDK 和插件语言、作者 CLI（`bun run plugin`）、官方插件文档和内置插件、注册表、远程插件模板和示例。从这里开始。 |
-| [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness) | App 本体，用来在真机或模拟器上跑你的内置插件。插件文档在你要实际发校园请求之前都用不到它。 |
-| [`pkuinfo/pkucli`](https://github.com/pkuinfo/pkucli) | 北大各服务协议的参考实现（Rust）。 |
+从 [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) 开始。这个仓库包含 SDK 和插件语言、作者命令行工具（`bun run plugin`）、官方插件文档和内置插件、插件市场的注册表，以及远程插件的模板和示例。
+
+[`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness) 是 App 本体，只有在手机或模拟器上运行内置插件时才需要。写插件文档时，在你想实际发出校园请求之前都用不到它。
+
+[`pkuinfo/pkucli`](https://github.com/pkuinfo/pkucli) 是一组访问北大各项服务的 Rust 命令行工具，可以用来查阅各个服务的协议细节。
 
 ```bash
 mkdir pku-info && cd pku-info
@@ -80,15 +91,15 @@ cd pku-harness-plugins && bun install && bun test
 ```
 
 <Callout title="没有 npm 包">
-  SDK 和插件直接从 GitHub 仓库使用。在 `pku-harness-plugins` 的检出目录里开发即可：它的 bun workspace 和 `tsconfig.json` 会把 `@pku-harness/sdk` 解析到 `packages/sdk/src`。App 也是把这个仓库作为 git 子模块 `plugins/` 引入的。远程插件完全不需要 SDK。
+  SDK 和插件都不发布到 npm，而是直接从 GitHub 仓库使用。请在 `pku-harness-plugins` 的本地副本里开发：它的 bun workspace 和 `tsconfig.json` 会把 `@pku-harness/sdk` 解析到 `packages/sdk/src`。App 也以 git 子模块 `plugins/` 的形式引入同一个仓库。远程插件完全不需要 SDK。
 </Callout>
 
 ## 基本规则（摘自 CONTRIBUTING.md） [#ground-rules-from-contributingmd]
 
-1. **工具就是 API。** 每个工具要有清楚的中文 `title`（给用户看），以及写给模型的 `description`，说明什么时候用、怎么用。校验输入：插件文档用 `input` 字段，内置插件用 zod，MCP 用 JSON Schema。
-2. **如实声明效果。** 只读工具设置 `effect: read`（插件文档和内置插件）或 `readOnlyHint: true`（MCP）。凡是会改状态、花钱或公开发布的，都必须声明出来。
-3. **绝不索要校园密码。** 凭据只留在用户手机上。
-4. **返回数据，不要返回指令。** 模型把工具结果当作数据看待。
-5. **声明你要访问什么。** 插件文档里写 `campus`、`network` 和 `abilities`（`requires` 会自动推导）；代码里写 `requires`。不要依赖手机上的 shell 或文件系统。
-6. **校园协议从 pkucli 移植**（如果它已经实现了），并注明来源。
-7. **中英双语。** 插件文档写 `i18n.en`；内置插件要给清单里每个面向用户的字符串配英文覆盖，页面和小组件文字放在 `src/strings.ts` 表里。
+1. **工具就是 API。** 每个工具要有清楚的中文 `title`，给用户看；还要有写给模型的 `description`，说明什么时候用、怎么用。每个输入都要校验：插件文档用 `input` 字段，内置插件用 zod，远程插件用 JSON Schema。
+2. **如实声明效果。** 只读工具设置 `effect: read`（插件文档和内置插件）或 `readOnlyHint: true`（MCP）。会修改状态、花钱或公开发布内容的工具，必须声明出来。
+3. **绝不索要校园密码。** 账号凭据只保存在用户的手机上。
+4. **返回数据，不要返回指令。** 模型会把工具结果当作数据看待。
+5. **声明要访问的范围。** 插件文档写 `campus`、`network` 和 `abilities`，`requires` 由它们自动推导；代码插件写 `requires`。不要依赖手机上的 shell 或文件系统。
+6. **校园协议从 pkucli 移植**（如果它已经实现），并注明来源。
+7. **中英文都要写。** 插件文档要有 `i18n.en` 部分。内置插件要给清单里每个面向用户的字符串提供英文版本，页面和小组件里的文字放在 `src/strings.ts` 表里。

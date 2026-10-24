@@ -1,15 +1,17 @@
 ---
 title: scheduler
-description: Trigger、Action、Condition、Job 类型及其 zod schema，纯函数的重复规则引擎，方便模型使用的 ScheduleInput 格式，条件判断，以及无人值守运行的策略常量。
+description: 调度器的类型和工具函数：Trigger、Action、Condition、Job 及其 zod schema，计算重复规则的纯函数，便于模型使用的 ScheduleInput 格式，条件判断，以及无人值守运行的限制常量。
 ---
 
-源码：`packages/sdk/src/scheduler/{types,recurrence,schedule-input,check,policy}.ts`。概念：
-[调度器](/docs/concepts/scheduler)。这里的代码都不依赖 React Native，所有时间都是设备本地时间。
+调度器负责在指定时间运行任务，例如按时发出提醒，或者每天早上查一次校园卡余额，低于某个值时通知用户。这个模块定义了任务的数据结构，并提供计算重复时间、判断条件和检查运行频率的函数。插件创建定时任务，或者在界面上显示任务的下次运行时间时，会用到这些内容。
+
+源码：`packages/sdk/src/scheduler/{types,recurrence,schedule-input,check,policy}.ts`。概念介绍见
+[调度器](/docs/concepts/scheduler)。这里的代码都不依赖 React Native，所有时间都按设备本地时间计算。
 
 ## 类型与 schema [#types-and-schemas]
 
 ```ts
-/** "HH:MM", 24-hour, local time. */
+/** "HH:MM"，24 小时制，本地时间。 */
 const timeOfDay = z.string().regex(/^([01]?\d|2[0-3]):[0-5]\d$/, 'time must be HH:MM (24h)');
 
 const triggerSchema = z.discriminatedUnion('type', [
@@ -18,21 +20,21 @@ const triggerSchema = z.discriminatedUnion('type', [
     type: z.literal('every'),
     unit: z.enum(['minute', 'hour', 'day', 'week']),
     interval: z.number().int().min(1).max(1000),
-    /** day/week units: times of day; default = the time of `startAt`. */
+    /** 单位为 day/week 时：每天的时刻；默认为 `startAt` 的时刻。 */
     times: z.array(timeOfDay).min(1).max(24).optional(),
-    /** week unit: 0 = Sunday … 6 = Saturday; default = weekday of `startAt`. */
+    /** 单位为 week 时：0 = 周日 … 6 = 周六；默认为 `startAt` 所在的星期几。 */
     weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7).optional(),
-    startAt: z.number(), // epoch ms; first possible occurrence
-    /** Total occurrences in the series, then stop. */
+    startAt: z.number(), // epoch 毫秒；最早可能的一次
+    /** 整个序列的总次数，达到后停止。 */
     count: z.number().int().min(1).optional(),
-    /** Last possible occurrence (inclusive), epoch ms. */
+    /** 最晚可能的一次（包含在内），epoch 毫秒。 */
     until: z.number().optional(),
   }),
 ]);
 type Trigger = z.infer<typeof triggerSchema>;
 
 const conditionSchema = z.object({
-  /** Dot path into the data source result, e.g. "balance". Empty = the whole result. */
+  /** 数据源结果中的点分路径，例如 "balance"。为空表示整个结果。 */
   path: z.string().default(''),
   op: z.enum(['<', '<=', '>', '>=', '==', '!=', 'changed', 'always']),
   value: z.union([z.number(), z.string(), z.boolean()]).optional(),
@@ -43,10 +45,10 @@ const actionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('notify'), title: z.string().min(1), body: z.string().optional(), url: z.string().optional() }),
   z.object({
     type: z.literal('check'),
-    tool: z.string(),                                      // `<plugin>.<tool>`, read-only
+    tool: z.string(),                                      // `<plugin>.<tool>`，只读
     args: z.record(z.string(), z.unknown()).optional(),
     condition: conditionSchema,
-    title: z.string().min(1),                              // `{value}` is replaced by the checked value
+    title: z.string().min(1),                              // `{value}` 会替换成检查得到的值
     body: z.string().optional(),
     url: z.string().optional(),
   }),
@@ -58,7 +60,7 @@ type JobSource = 'user' | 'agent' | 'plugin';
 
 type JobRun = {
   at: number;
-  /** The occurrence it ran for (null for a manual run). */
+  /** 这次运行对应的计划时间（手动运行时为 null）。 */
   scheduledAt: number | null;
   ok: boolean;
   notified: boolean;
@@ -66,9 +68,9 @@ type JobRun = {
   error?: string;
   ms: number;
   manual?: boolean;
-  /** `agent` jobs: the reply (empty when it stayed silent). */
+  /** `agent` 任务：助手的回复（保持沉默时为空）。 */
   output?: string;
-  /** Not run: more than MAX_LATE_MS late. */
+  /** 未运行：延迟超过 MAX_LATE_MS。 */
   missed?: boolean;
 };
 
@@ -92,28 +94,34 @@ type Job = {
   updatedAt: number;
 };
 
-/** Jobs whose runs execute in JS (a check or an agent run) rather than as a pre-armed notification. */
+/** 为 true 表示任务在 JS 中运行（检查或助手运行）；为 false 表示任务以预先设好的通知发出。 */
 const runsInJs: (action: Action) => boolean;
 ```
 
-`timeOfDay`、`triggerSchema`、`conditionSchema` 和 `actionSchema` 都有导出。如果 `check` 任务调用的工具不是 `effect: 'read'`，宿主会拒绝运行。
+任务的动作（Action）有三种：`notify` 直接发出通知；`check` 调用一个只读工具，满足条件时才通知；`agent` 让助手按一段提示词运行。
+
+`timeOfDay`、`triggerSchema`、`conditionSchema` 和 `actionSchema` 都有导出。如果 `check` 任务调用的工具不是 `effect: 'read'`，宿主会拒绝运行这个任务。
 
 ## 重复规则引擎 [#recurrence-engine]
+
+这些纯函数根据触发器计算任务在什么时间运行。
 
 ```ts
 type Occurrence = { at: number; index: number };
 
-function nextOccurrence(trigger: Trigger, after: number): Occurrence | null;           // first strictly after `after`
+function nextOccurrence(trigger: Trigger, after: number): Occurrence | null;           // `after` 之后（不含）的第一次
 function occurrencesAfter(trigger: Trigger, after: number, limit: number, before?: number): Occurrence[];
-function lastOccurrence(trigger: Trigger, t: number): Occurrence | null;               // latest at or before t
-function runsBy(trigger: Trigger, t: number): number;                                  // occurrences by t
-function totalOccurrences(trigger: Trigger): number | null;                            // null = open-ended
+function lastOccurrence(trigger: Trigger, t: number): Occurrence | null;               // t 及之前的最后一次
+function runsBy(trigger: Trigger, t: number): number;                                  // 到 t 为止的次数
+function totalOccurrences(trigger: Trigger): number | null;                            // null 表示没有终点
 function describeTrigger(trigger: Trigger, now?: number, locale?: 'zh-Hans' | 'en'): string;
 function parseTime(t: string): [number, number];                                       // "08:30" → [8, 30]
 const formatTime: (h: number, m: number) => string;                                    // (8, 5) → "08:05"
 ```
 
-一个序列由一串周期组成：一个分钟或小时步长、一天，或者从周一开始的一周。每个周期里的时间槽都相同（时刻 × 星期）。早于 `startAt` 的时间槽会跳过，其余的依次编号 0、1、2……，到 `count` 或 `until` 为止。夏令时切换不会让它错位。
+一个重复序列由一串长度相同的周期组成。周期可以是若干分钟或若干小时、一天，或者从周一开始的一周。每个周期里的时间槽都相同，由时刻和星期组合而成。早于 `startAt` 的时间槽会被跳过，其余的依次编号为 0、1、2……，直到达到 `count` 或 `until` 为止。夏令时切换不会让序列错位。
+
+下面的例子是「从 10 月 20 日起，每 3 天早上 9 点一次，共 16 次」：
 
 ```ts
 const every3Days16Times: Trigger = {
@@ -127,18 +135,20 @@ describeTrigger(every3Days16Times, Date.now(), 'en'); // 例如 "Every 3 days at
 
 ## ScheduleInput（方便模型和表单使用） [#scheduleinput-model--and-form-friendly]
 
+`Trigger` 用 epoch 毫秒表示时间，模型和表单不容易直接填写。`ScheduleInput` 改用 `"YYYY-MM-DD HH:mm"` 格式的本地时间字符串，再用 `toTrigger` 转换成 `Trigger`。
+
 ```ts
 const scheduleInputSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('once'), at: localDateTime }),
   z.object({
     type: z.literal('repeat'),
     unit: z.enum(['minute', 'hour', 'day', 'week']),
-    interval: z.number().int().min(1),          // every N units
+    interval: z.number().int().min(1),          // 每 N 个单位
     times: z.array(timeOfDay).optional(),       // day/week
-    weekdays: z.array(z.number().int().min(0).max(6)).optional(),  // week: 0 = Sunday
-    start: localDateTime.optional(),            // default now
+    weekdays: z.array(z.number().int().min(0).max(6)).optional(),  // week：0 = 周日
+    start: localDateTime.optional(),            // 默认为现在
     count: z.number().int().min(1).optional(),
-    until: localDateTime.optional(),            // inclusive
+    until: localDateTime.optional(),            // 包含在内
   }),
 ]);
 // localDateTime: /^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}(:\d{2})?$/  ("YYYY-MM-DD HH:mm")
@@ -146,32 +156,36 @@ type ScheduleInput = z.infer<typeof scheduleInputSchema>;
 
 function toTrigger(input: ScheduleInput, now?: number): Trigger;
 function toScheduleInput(t: Trigger): ScheduleInput;
-function parseLocal(s: string): number;      // throws on bad or non-existent dates
+function parseLocal(s: string): number;      // 日期格式错误或不存在时抛出异常
 function formatLocal(ms: number): string;    // "2026-10-20 08:00 周二"
 function summarize(trigger: Trigger, now?: number, n?: number): {
   schedule: string;       // describeTrigger
-  next: string[];         // next n occurrences, formatLocal
+  next: string[];         // 接下来 n 次，用 formatLocal 格式化
   total: number | null;
   finished: boolean;
 };
 ```
 
-把 `scheduleInputSchema` 用作工具的输入，在结果里返回 `summarize` 的输出，模型就能把准确的时间念给用户确认。
+建议把 `scheduleInputSchema` 用作工具的输入，并在工具结果里返回 `summarize` 的输出。这样模型拿到的是准确的运行时间，可以复述给用户确认。
 
 ## 条件 [#conditions]
 
+`check` 任务用这些函数从工具结果中取值，判断是否需要通知，并生成通知文字。
+
 ```ts
-/** Read a dot path ("data.balance", "items.0.amount") from a tool result. */
+/** 从工具结果中读取点分路径（"data.balance"、"items.0.amount"）。 */
 function getPath(value: unknown, path: string): unknown;
-/** Does the checked value satisfy the condition? `previous` is the value from the last run. */
+/** 判断检查得到的值是否满足条件。`previous` 是上一次运行得到的值。 */
 function evaluate(cond: Condition, value: unknown, previous?: unknown): boolean;
-/** Replace `{value}` in notification text with the checked value (numbers rounded to 2 decimals). */
+/** 把通知文字中的 `{value}` 替换成检查得到的值（数字保留 2 位小数）。 */
 function fillTemplate(template: string, value: unknown): string;
 ```
 
-只有存在上一次的值、并且和这次不同（按 JSON 比较）时，`changed` 才为真。数值比较会把数字字符串转成数字，不是数字的一律判为假。
+运算符 `changed` 只在存在上一次的值、并且与这次的值不同（按 JSON 比较）时为真。数值比较运算符会把数字字符串转成数字；无法转成数字的值，比较结果一律为假。
 
 ## 策略常量 [#policy-constants]
+
+这些常量和函数规定了任务在无人值守时的运行限制，例如最多能有多少个任务、检查任务最短多久运行一次、连续失败多少次后停用。
 
 ```ts
 const MAX_ACTIVE_JOBS = 50;
@@ -187,12 +201,12 @@ const MAX_LATE_MS = 2 * 3_600_000;
 const LATE_MS = 5 * 60_000;
 const NO_REPLY = 'NO_REPLY';
 
-function minGap(trigger: Trigger, now: number): number;                    // Infinity for one-shots
-function checkScheduleProblem(trigger: Trigger, now: number): string | null; // why a check schedule is too frequent
+function minGap(trigger: Trigger, now: number): number;                    // 一次性任务返回 Infinity
+function checkScheduleProblem(trigger: Trigger, now: number): string | null; // 说明检查任务的计划为什么过于频繁
 function recordRun(job: Job, run: JobRun): { patch: Pick<Job, 'history' | 'failures' | 'alertedAt' | 'enabled'>; alert: 'none' | 'failing' | 'disabled' };
 const isLate: (run: Pick<JobRun, 'at' | 'scheduledAt'>) => boolean;
-const isSilentReply: (text: string) => boolean;                            // empty or starts with NO_REPLY
+const isSilentReply: (text: string) => boolean;                            // 为空或以 NO_REPLY 开头
 function agentJobHeader(job: { id: string; title: string; prompt: string }): string;
 ```
 
-这些限制由宿主的调度引擎强制执行。插件可以导入它们，提前向用户说明限制，而不是等用户撞上。
+这些限制由宿主的调度引擎强制执行。插件可以导入这些常量，在用户创建任务之前就说明限制，避免用户创建后才发现不能运行。

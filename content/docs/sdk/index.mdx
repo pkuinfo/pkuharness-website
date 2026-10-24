@@ -1,18 +1,20 @@
 ---
 title: SDK 参考
-description: '`@pku-harness/sdk`：插件契约（definePlugin、工具、模型服务商、HostServices、HostUI、能力需求）、插件语言，以及一组纯函数工具（重复规则、定时、课表、格式化）。在哪里获取，各模块导出了什么。'
+description: '`@pku-harness/sdk` 的获取方式和各模块的导出。SDK 包含插件的类型定义（definePlugin、工具、模型服务商、HostServices、HostUI、能力需求）、插件语言的解释器，以及重复规则、定时、课表、格式化等纯函数。'
 icon: Braces
 ---
 
-内置插件只依赖我们的 `@pku-harness/sdk`，其余引入的只有 `zod`、`react` 和 `react-native`。SDK 以
-TypeScript 源码的形式放在插件仓库里，由 App 的打包器（Metro）和 App 代码一起编译。对等依赖：
-`zod ^4`、`react >=19`。
+`@pku-harness/sdk` 是编写内置插件时用到的开发包。它定义了插件要导出的对象和宿主提供给插件的接口，还附带一些常用的纯函数。本节逐个模块列出它的类型和函数，写插件时可以随时查阅。
+
+内置插件从我们这里只依赖 `@pku-harness/sdk`，此外只引入 `zod`、`react` 和 `react-native`。SDK 以
+TypeScript 源码的形式放在插件仓库里，由 App 的打包器 Metro 和 App 代码一起编译。它的对等依赖（peer dependency）是
+`zod ^4` 和 `react >=19`。
 
 ## 安装 [#install]
 
 SDK 没有发布到 npm。它在
 [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) 仓库的 `packages/sdk`
-目录下，开发时直接在这个仓库的检出里工作：仓库的 bun workspace 和 `tsconfig.json` 会把
+目录下。开发时，你直接在这个仓库的本地副本里工作，仓库的 bun workspace 和 `tsconfig.json` 会把
 `@pku-harness/sdk` 解析到 `packages/sdk/src`。
 
 ```bash
@@ -28,9 +30,11 @@ App 把同一个仓库作为 git 子模块挂在 `plugins/`，所以你在这里
 import { definePlugin, defineTool, type PluginScreenProps } from '@pku-harness/sdk';
 ```
 
-所有内容都从包的根入口导出。插件语言的各个模块也可以单独通过 `@pku-harness/sdk/lang/<module>` 引入。
+所有内容都可以从包的根入口引入。插件语言的各个模块也可以通过 `@pku-harness/sdk/lang/<module>` 单独引入。
 
 ## 模块 [#modules]
+
+下表列出 SDK 的源码文件、对应的参考页面和主要导出。
 
 | 模块 | 页面 | 主要导出 |
 | --- | --- | --- |
@@ -51,8 +55,10 @@ import { definePlugin, defineTool, type PluginScreenProps } from '@pku-harness/s
 
 ## 约定 [#conventions]
 
-- 时间一律用 **epoch 毫秒**，需要当作钟点理解时按设备本地时区解释。给模型或表单看的字符串用本地时间
+SDK 的各个模块遵循下面几条共同的约定。
+
+- 时间一律用 **epoch 毫秒**（自 1970 年 1 月 1 日 UTC 起的毫秒数）表示。需要当作钟点理解时，按设备的本地时区解释。给模型或表单看的字符串使用本地时间格式
   `"YYYY-MM-DD HH:mm"`。
 - 课表的星期沿用 JavaScript 的编号（0 = 周日 … 6 = 周六），但 `weekdayName` 接收的是 1 = 周一 … 7 = 周日。
-- Schema 都是 zod 4 对象，类型由 `z.infer` 推出。
-- 纯函数工具不引入任何 React Native 模块，用 `bun test` 做单元测试。
+- Schema 都是 zod 4 对象，对应的 TypeScript 类型用 `z.infer` 从 schema 推出。
+- 纯函数不引入任何 React Native 模块，因此可以直接用 `bun test` 做单元测试。

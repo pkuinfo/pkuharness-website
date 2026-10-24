@@ -1,14 +1,19 @@
 ---
 title: Capabilities
-description: Plugins declare what they need from the device in `requires`. The harness hides plugins whose requirements the device can't meet and tells the user why.
+description: Plugins declare in `requires` what they need from the phone. If the phone can't provide it, the harness hides the plugin and tells the user why.
 icon: Smartphone
 ---
 
-A phone is not a workstation. Plugins get no shell and no user-visible filesystem, background time
-is limited, and some campus hosts only answer on the campus network. A plugin lists what it needs
-in `PluginDef.requires` (and in its registry entry's `requires`). The harness compares that list
-with what the device offers. If a requirement isn't met, the plugin is hidden from the agent, its
-tools are refused, and Settings shows the reason.
+A phone is different from a computer. Plugins on a phone have no shell and no filesystem that the
+user can see, and their time in the background is limited. Some campus websites can also only be
+reached from the campus network.
+
+For this reason, each plugin states what it needs from the phone. A plugin lists these
+_capabilities_ in `PluginDef.requires`, and its registry entry has the same `requires` list. The
+harness compares the list with what the phone actually offers. If any capability is missing, the
+plugin is hidden from the agent, its tool calls are refused, and Settings shows the reason.
+
+For example, the finance plugin needs a signed-in campus session and the campus network:
 
 ```ts
 definePlugin({
@@ -20,29 +25,46 @@ definePlugin({
 
 ## The capabilities
 
-| Capability | Meaning | Present today |
+| Capability | Meaning | Available today |
 | --- | --- | --- |
-| `network` | General internet access (plain `fetch`) | Yes |
-| `campus-network` | Hosts reachable only from the PKU network | Declared as available; the request fails off campus |
-| `campus-session` | Authenticated campus HTTP through the host (`services.campus`); credentials never exposed | Android (needs the native campus-http module; iOS after its Swift port) |
+| `network` | General internet access | Yes |
+| `campus-network` | Sites that can only be reached from the PKU network | Yes (see below) |
+| `campus-session` | Signed-in campus requests made through the host | Android only |
 | `notifications` | Local notifications | Yes |
-| `background` | Periodic background execution | Yes |
-| `cloud` | A [PKU Harness Cloud](/en/docs/cloud) provider is configured | While the user has a provider configured (reactive) |
-| `ongoing` | A persistent ongoing notification / foreground service (`services.ongoing`) | Android |
-| `shell` | A shell | **Never** on phones. A plugin that needs it must be remote. |
-| `filesystem` | A filesystem | Not offered to plugins. Use `services.files.pick` for user-chosen files. |
+| `background` | Running in the background from time to time | Yes |
+| `cloud` | A [PKU Harness Cloud](/en/docs/cloud) provider is set up | When a provider is set up |
+| `ongoing` | A persistent notification or foreground service | Android only |
+| `shell` | A command-line shell | Never on phones |
+| `filesystem` | A filesystem | Not offered to plugins |
+
+Some of these need a little more explanation.
+
+- **`network`** means internet access with a plain `fetch`.
+- **`campus-network`** is always declared as available in the app. If the phone is not on the
+  campus network, however, the request fails.
+- **`campus-session`** means signed-in campus requests made through the host's
+  `services.campus`. The plugin never sees the credentials. It depends on the native
+  campus-http module, so for now it is only available on Android. iOS will get it once the module
+  is ported to Swift.
+- **`cloud`** follows your settings as they change. It is available while you have a Cloud
+  provider set up, and unavailable once you remove it.
+- **`ongoing`** corresponds to `services.ongoing`, which shows a persistent notification or runs a
+  foreground service.
+- **`shell`** is never available on phones. A plugin that needs a shell must be a remote plugin.
+- **`filesystem`** is not offered to plugins. For a file the user chooses, use
+  `services.files.pick`.
 
 ## Rules
 
-- **MUST** list every capability the plugin's tools depend on. A plugin that calls
-  `services.campus.request` requires `campus-session`. If it also calls a campus-only host, it
-  requires `campus-network` too.
-- **MUST NOT** require `shell` or `filesystem` in a bundled plugin. Heavy work (scraping many
-  pages, OCR, long jobs) belongs in a remote plugin.
-- Remote plugins run on a server, so `shell` isn't a device requirement for them. The registry
-  validator rejects `requires: ['shell']` for remote entries.
-- **SHOULD** check optional services before using them: `services.ongoing` is `undefined` where
-  the `ongoing` capability is missing, and `ctx.cloud` is `undefined` on hosts without cloud
-  support.
-- A plugin that also works without the cloud declares `cloud.optional: true` instead of requiring
-  `cloud`, and checks `ctx.cloud?.available`.
+- You **must** list every capability that the plugin's tools depend on. A plugin that calls
+  `services.campus.request` requires `campus-session`. If it also reaches a site that only works on
+  the campus network, it requires `campus-network` too.
+- A bundled plugin **must not** require `shell` or `filesystem`. Heavy work, such as scraping many
+  pages, text recognition (OCR) or long-running jobs, belongs in a remote plugin.
+- Remote plugins run on a server, so `shell` is not something the phone has to provide for them.
+  The registry validator rejects `requires: ['shell']` in remote entries.
+- You **should** check that an optional service exists before using it. Without the `ongoing`
+  capability, `services.ongoing` is `undefined`. On a host without cloud support, `ctx.cloud` is
+  `undefined`.
+- A plugin that also works without the cloud should declare `cloud.optional: true` instead of
+  requiring `cloud`. Check `ctx.cloud?.available` before using it.

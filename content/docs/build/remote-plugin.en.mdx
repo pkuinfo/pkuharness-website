@@ -1,16 +1,23 @@
 ---
 title: 'Quickstart: remote plugin'
-description: Build a remote plugin as an MCP server over Streamable HTTP from templates/remote-plugin, run it locally, add it to the app and deploy it.
+description: Build a remote plugin, an MCP server that uses Streamable HTTP, from templates/remote-plugin. Run it locally, add it to the app, deploy it and register it in the marketplace.
 icon: Globe
 ---
 
-A remote plugin is an [MCP](https://modelcontextprotocol.io) server that speaks the Streamable HTTP
-transport. Users add it by URL or from the marketplace, and its tools join the same registry,
-permissions and agent loop as bundled plugins. None of your code runs on the phone, and a remote
-plugin never sees campus credentials.
+A remote plugin is a server you run yourself. The app connects to it over the internet and calls
+its tools. On this page you copy the template, write a tool, run the server on your computer, add it
+to the app, and then deploy and register it.
 
-The template, and this page, use TypeScript with the official MCP SDK. Any language with an MCP
-server library works the same way.
+The server speaks the [Model Context Protocol](https://modelcontextprotocol.io) (MCP), an open
+standard that lets AI apps discover and call tools on a server. PKU Harness uses MCP's Streamable
+HTTP transport, in which each call is an HTTP `POST` request.
+
+Users add a remote plugin by its URL or from the marketplace. Its tools then join the same registry
+as the tools of bundled plugins, follow the same permissions and are called by the same assistant.
+None of your code runs on the phone, and a remote plugin never sees campus credentials.
+
+You need bun and some TypeScript. The template uses TypeScript with the official MCP SDK, but any
+language with an MCP server library works the same way.
 
 ## 1. Start from the template
 
@@ -21,7 +28,7 @@ cd ../my-plugin
 bun install
 ```
 
-The template is a single `server.ts` plus a `package.json` that pulls in
+The template is one file, `server.ts`, plus a `package.json` that pulls in
 `@modelcontextprotocol/sdk`, `express` and `zod`:
 
 ```ts title="server.ts"
@@ -72,28 +79,37 @@ app.post('/mcp', async (req, res) => {
 app.listen(Number(process.env.PORT ?? 8787), () => console.log('MCP plugin ready on /mcp'));
 ```
 
+The `build()` function creates the server and registers its tools. The `/mcp` route checks the
+optional token, then hands the request to a fresh server. Replace the `hello` tool with your own.
+
 ## 2. Write real tools
 
-Here is how PKU Harness reads each MCP field of a tool:
+Each MCP field of a tool has a specific use in PKU Harness:
 
-| MCP field | How PKU Harness uses it |
-| --- | --- |
-| `name` (first argument) | Tool id `mcp-<server>.<name>`; model name `mcp-<server>__<name>`. Short ASCII camelCase; other characters become `_`, cut to 40 characters. |
-| `title` | Shown to users in chat chips, approvals and Settings. Chinese. |
-| `description` | Shown to the model: when and how to use the tool, units, formats. |
-| `inputSchema` | Converted to zod on the device and validated before every call. Describe every field. |
-| `annotations.readOnlyHint` | `true` → effect `read` (runs directly). Absent or `false` → effect `write` (asks the user first by default). |
-| result `structuredContent` | Returned to the model as `data` (preferred). Without it, the text content is parsed as JSON, or passed as text. |
-| result `isError: true` | The text becomes the error message the agent sees. |
+- **`name`**, the first argument of `registerTool`, becomes the tool id `mcp-<server>.<name>`. The
+  model sees it as `mcp-<server>__<name>`. Use a short ASCII camelCase name. Other characters become
+  `_`, and names longer than 40 characters are cut.
+- **`title`** is shown to users in chat, in approval prompts and in Settings. Write it in Chinese.
+- **`description`** is shown to the model. Say when and how to use the tool, and give units and
+  formats.
+- **`inputSchema`** is converted to zod on the device and checked before every call. Describe every
+  field.
+- **`annotations.readOnlyHint`** sets the effect. `true` gives the effect `read`, and the tool runs
+  directly. If the hint is missing or `false`, the effect is `write`, and by default the app asks the
+  user first.
+- **`structuredContent`** in the result is returned to the model as `data`. This is the preferred
+  form. Without it, the app tries to parse the text content as JSON, and passes it as text if that
+  fails.
+- **`isError: true`** in the result turns the text into the error message the assistant sees.
 
 The first 500 characters of the server's `instructions` go into the plugin's section of the system
-prompt, right after a line telling the model that this plugin's output is data and must not be
-followed as instructions.
+prompt. Just before them, the app adds a line telling the model that this plugin's output is data
+and must not be followed as instructions.
 
 <Callout type="warn" title="Effects for remote tools">
-  For now the app gives remote tools one of two effects: `read` (when `readOnlyHint: true`) or
-  `write` (everything else). A tool that spends money or posts publicly still ends up as `write`
-  and asks first by default, so say plainly in its `title` and `description` what it does.
+  For now the app gives a remote tool one of two effects: `read` when `readOnlyHint: true`, and
+  `write` for everything else. A tool that spends money or posts publicly is therefore also `write`,
+  and asks first by default. Say plainly in its `title` and `description` what it does.
 </Callout>
 
 ## 3. Run it and add it to the app
@@ -103,8 +119,8 @@ bun server.ts                       # MCP plugin ready on /mcp, port 8787
 # optional: PLUGIN_TOKEN=secret bun server.ts
 ```
 
-In the app, open **Settings → Plugins → Add remote plugin** and enter the URL, plus the token if
-you set one:
+In the app, open **Settings → Plugins → Add remote plugin**. Enter the URL, and the token if you set
+one. The URL depends on where the app runs:
 
 | Where the app runs | URL |
 | --- | --- |
@@ -112,34 +128,40 @@ you set one:
 | Phone on the same network | `http://<your machine's LAN IP>:8787/mcp` |
 | Deployed | `https://my-plugin.example.com/mcp` |
 
-The app connects, lists your tools and shows them with their effects on the plugin's page. Ask the
-agent something your tool can answer. You can also ask the agent to install the plugin for you: it
-calls `plugins.installRemote`, which asks for your approval first.
+The emulator reaches your computer at `10.0.2.2`. A real phone needs your computer's address on the
+local network (LAN).
 
-<Callout title="See a complete example">
-  `examples/demo-canteen` in `pku-harness-plugins` is a working remote plugin with mock data (one
-  read tool, one write tool, bearer token `demo-token`): `bun examples/demo-canteen/server.ts`.
+The app connects, lists your tools and shows each one with its effect on the plugin's page. Then ask
+the assistant something your tool can answer. You can also ask the assistant to install the plugin
+for you. It calls `plugins.installRemote`, which asks for your approval first.
+
+<Callout title="A complete example">
+  `examples/demo-canteen` in `pku-harness-plugins` is a working remote plugin with mock data. It has
+  one read tool and one write tool, and its bearer token is `demo-token`. Run it with
+  `bun examples/demo-canteen/server.ts`.
 </Callout>
 
 ## 4. Deploy
 
-Any host that serves HTTPS will do: a VPS, Fly.io, Railway, Cloudflare (with an MCP-compatible
-runtime), a campus server. What matters:
+Any host that serves HTTPS will do: a virtual private server (VPS), Fly.io, Railway, Cloudflare
+with an MCP-compatible runtime, or a campus server. Keep these points in mind:
 
-- Production needs HTTPS. Plain HTTP is only for local development.
-- `POST /mcp` must answer MCP Streamable HTTP. The template is **stateless** (a new server per
-  request), which suits serverless hosts.
-- If the campus host you call only answers on the PKU network, your server has to run on that
-  network too. The app can't lend it the user's campus session.
+- Production needs HTTPS. Use plain HTTP only for local development.
+- `POST /mcp` must answer MCP Streamable HTTP requests. The template is **stateless**: it builds a
+  new server for each request. That suits serverless hosts, which may start a fresh process for every
+  request.
+- Some campus hosts answer only inside the PKU network. If you call one of them, your server has to
+  run inside that network too. The app can't lend your server the user's campus session.
 - Your own secrets, such as API keys, stay on the server. To protect the endpoint, use a bearer
   token and set `"auth": "bearer"` in the registry entry.
 
 ## 5. Register it
 
-You have two options. Add a manifest to your repository and submit it through this website's
-marketplace ([manifest reference](/en/docs/marketplace/manifest),
-[submitting](/en/docs/marketplace/publishing)), or add an entry to `registry/registry.json` in
-`pku-harness-plugins`. Either way, the `id` must match your MCP server's `name`:
+Registering the plugin lists it in the marketplace, so students can find it. There are two ways to
+do this. You can add a manifest to your repository and submit it through this website's marketplace
+([manifest reference](/en/docs/marketplace/manifest), [submitting](/en/docs/marketplace/publishing)).
+Or you can add an entry to `registry/registry.json` in `pku-harness-plugins`. Either way, the `id`
+must match your MCP server's `name`:
 
 ```json
 {
@@ -157,14 +179,14 @@ marketplace ([manifest reference](/en/docs/marketplace/manifest),
 }
 ```
 
-Before opening a registry pull request, run `bun scripts/validate-registry.ts`. See
+Before you open a pull request against the registry, run `bun scripts/validate-registry.ts`. See
 [Publishing](/en/docs/build/publishing) and the [review policy](/en/docs/marketplace/review).
 
 ## Checklist
 
-- [ ] MCP server `name` equals the registry `id` (`^[a-z0-9][a-z0-9-]{1,40}$`).
-- [ ] Every tool has a Chinese `title`, a model-facing `description` and described input fields.
+- [ ] The MCP server's `name` equals the registry `id` (`^[a-z0-9][a-z0-9-]{1,40}$`).
+- [ ] Every tool has a Chinese `title`, a `description` for the model, and described input fields.
 - [ ] Read-only tools set `annotations.readOnlyHint: true`, and no other tool does.
 - [ ] Results are data (`structuredContent`), never instructions, and reasonably small.
 - [ ] The plugin never asks for a campus password.
-- [ ] HTTPS endpoint, with bearer auth declared if you use it.
+- [ ] The endpoint uses HTTPS, and bearer auth is declared if you use it.

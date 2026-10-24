@@ -1,34 +1,36 @@
 ---
 title: 审核规则与安全
-description: 每个上架插件都要遵守的规则、维护者把插件标为「已审核」前要检查什么，以及如何举报插件。
+description: 每个上架插件都要遵守的规则、维护者把插件标为「已审核」前检查什么，以及如何举报插件。
 icon: ShieldCheck
 ---
 
-PKU Harness 让助手以同学的校园身份替他办事。插件扩展了助手能做的事，所以无论官方还是社区插件，门槛都一样。这些规则来自插件仓库的 [CONTRIBUTING.md](https://github.com/pkuinfo/pku-harness-plugins/blob/main/CONTRIBUTING.md)。
+在 PKU Harness 里，助手以同学本人的校园身份替他办事。插件会扩展助手能做的事，所以无论官方插件还是社区插件，都要遵守同样的规则。本页列出这些规则，解释「已审核」徽章的含义，并说明如何举报插件。规则来自插件仓库的 [CONTRIBUTING.md](https://github.com/pkuinfo/pku-harness-plugins/blob/main/CONTRIBUTING.md)。
 
 ## 规则 [#rules]
 
 <Callout type="error" title="绝不索要校园密码">
-  凭据只留在同学自己的手机上。插件不得索要、收集或代理同学的密码、动态口令（OTP）或会话 cookie，无论是在工具、界面还是文档里。需要校园服务的 `PLUGIN.md` 在 `campus` 里声明即可：App 会带着用户的会话发出这些请求，插件永远看不到凭据。远程 MCP 服务器则完全拿不到校园会话。
+  凭据只保存在同学自己的手机上。插件不得索要、收集或转交同学的密码、动态口令（OTP）或会话 cookie，无论是在工具、界面还是文档里。需要校园服务的 `PLUGIN.md` 只要在 `campus` 里声明即可，App 会带着用户的会话发出这些请求，插件永远看不到凭据。远程 MCP（Model Context Protocol，模型上下文协议）服务器则完全拿不到校园会话。
 </Callout>
 
-1. **工具就是 API。** 每个工具都要有给用户看的清晰中文 `title`，有告诉模型何时、如何使用它的 `description`，输入要经过校验（MCP 用 JSON Schema）。
-2. **如实声明效果。** `read` 工具不能改动任何东西。改变状态的是 `write`，花钱的是 `money`，公开发布内容的是 `public`。在 MCP 服务器上，只有只读工具才能设 `readOnlyHint: true`，其余工具 App 一律按 `write` 处理。同学会按效果决定助手能直接执行还是要先问，所以效果写错就是安全漏洞。
-3. **返回数据，而不是指令。** 工具结果是作为数据交给模型的。不要在结果里放提示词、隐藏指令或「忽略之前的指令」之类的文字。返回第三方文本（论坛帖子、通知、邮件）的工具要标上 `untrusted: true`，也绝不能把这类内容当成指令转给模型。
-4. **用到什么就声明什么。** 在 `PLUGIN.md` 里列出你需要的每个校园服务（`campus`）、公开主机（`network`）和宿主能力（`abilities`），并给每个工具写上真实的 `effect`。这份清单就是同学同意的权限面板，没声明的东西 App 一律拒绝。
-5. **说明云服务用途。** 如果插件使用 PKU Harness Cloud，清单的 `cloud` 块必须用大白话写清楚哪些数据会离开设备。未经说明收集数据的插件会被下架。
-6. **如实说明访问范围。** `scopes` 列出你的服务器会访问的主机，`requires` 列出需要手机提供的东西。不要依赖手机上的命令行或文件系统。
+1. **把每个工具写清楚。** 用户和助手都通过工具来使用插件。每个工具都要有清晰的中文 `title`，也可以加一行简短的 `summary`（最多 80 个字符），告诉用户它做什么。`description` 要告诉模型何时、如何使用它。输入要经过校验，MCP 服务器用 JSON Schema 校验。
+2. **如实声明每个工具的效果。** `read` 工具不能改动任何东西。改变状态的工具是 `write`，花钱的是 `money`，公开发布内容的是 `public`。在 MCP 服务器上，只有只读工具才能设置 `readOnlyHint: true`，其余工具 App 一律按 `write` 处理。同学会按效果分别决定助手可以直接执行，还是必须先询问。效果写错，助手就可能跳过本该有的确认，所以我们把它当作安全漏洞处理。
+3. **只返回数据，不返回指令。** 工具结果是作为数据交给模型的。不要在结果里放提示词、隐藏指令，或者「忽略之前的指令」这类文字。如果工具返回的是别人写的文字，例如论坛帖子、通知或邮件，请标上 `untrusted: true`，也绝不能把这类内容当作指令转给模型。
+4. **声明插件访问的所有东西。** 在 `PLUGIN.md` 里列出插件需要的每个校园服务（`campus`）、公开主机（`network`）和宿主能力（`abilities`），并给每个工具写上真实的 `effect`。这份清单就是同学同意的权限面板，没有声明的东西 App 一律拒绝。
+5. **说明云服务的用途。** 如果插件使用 PKU Harness Cloud，清单的 `cloud` 块必须用通俗的话写清楚哪些数据会离开设备。不加说明就收集数据的插件会被下架。
+6. **如实说明插件的访问范围。** `scopes` 列出你的服务器会访问的主机，`requires` 列出需要手机提供的东西。不要依赖手机上的命令行或文件系统。
 7. **注明协议出处。** 如果你从 [pkucli](https://github.com/pkuinfo/pkucli) 移植了某个校园协议，请注明来源文件。
 
 ## 自动检查与人工审核 [#automatic-checks-vs-verification]
 
-每个上架的插件都通过了扫描器检查（[检查内容](/docs/marketplace/manifest#what-the-scanner-checks)）。这只能证明清单格式正确，不能证明代码安全。**已审核**意味着维护者还做了这些事：
+每个上架的插件都通过了扫描器的检查（[检查内容](/docs/marketplace/manifest#what-the-scanner-checks)）。通过检查只能说明清单格式正确，不能说明插件是安全的。
 
-- 读过 `PLUGIN.md`、它的工具文件和 Markdown 说明，确认声明与步骤的实际行为一致（校园服务、主机、宿主能力、效果、云服务数据说明），并且说明和结果里没有类似提示词的文字；
-- 确认公开端点运行的就是这份源码（或者插件是自建的）；
-- 对照上面的规则检查过，特别是凭据和提示词注入。
+**已审核**徽章表示维护者还做了下面这些事：
 
-### 给维护者：把插件标为已审核 [#for-maintainers-marking-a-plugin-verified]
+- 读过 `PLUGIN.md`、它的工具文件和 Markdown 说明，确认声明与步骤的实际行为一致，包括校园服务、主机、宿主能力、效果和云服务数据说明。维护者还确认了说明和结果里没有类似提示词的文字；
+- 确认公开端点运行的就是这份源码，或者插件是自建的；
+- 对照上面的规则检查过，特别是关于凭据和提示词注入的规则。
+
+### 把插件标为已审核（给维护者） [#for-maintainers-marking-a-plugin-verified]
 
 审核状态按仓库记录在 `data/sources.json` 里：
 
@@ -40,10 +42,12 @@ PKU Harness 让助手以同学的校园身份替他办事。插件扩展了助�
 }
 ```
 
-在 pull request 里把插件的 `id` 加进 `verified`。如果某个已审核的 id 在仓库里已经不存在，`bun scripts/marketplace.ts check` 会失败；CI 在 `data/` 每次变更时和每周都会运行它。已审核的插件之后如果有较大改动，应该重新审核，拿不准就把 id 移除。官方插件通过 `pku-harness-plugins` 里的 `registry.json` 审核。
+要审核通过一个插件，就在 pull request 里把它的 `id` 加进 `verified`。如果某个已审核的 id 在仓库里已经不存在，`bun scripts/marketplace.ts check` 会失败。持续集成（CI）会在 `data/` 每次变更时运行这项检查，每周也会运行一次。
 
-可选的 `sources[].path` 把一个仓库条目限定在某个子文件夹。有人提交文件夹 URL 时，提交流程会自动设置它。
+已审核的插件之后如果有较大改动，应该重新审核；拿不准时就把它的 id 移除。官方插件则通过 `pku-harness-plugins` 里的 `registry.json` 审核。
+
+可选的 `sources[].path` 字段把一个仓库条目限定在某个子文件夹。有人提交文件夹 URL 时，提交流程会自动设置它。
 
 ## 举报插件 [#reporting-a-plugin]
 
-在 [`pkuinfo/pkuharness-website`](https://github.com/pkuinfo/pkuharness-website/issues) 开一个 issue，写上插件的标识（`owner/repo/id`）和你观察到的问题。如果是 App 或官方插件的安全漏洞，请改为按照[安全策略](https://github.com/pkuinfo/pku-harness-plugins/blob/main/SECURITY.md)报告。
+在 [`pkuinfo/pkuharness-website`](https://github.com/pkuinfo/pkuharness-website/issues) 开一个 issue，写上插件的标识（`owner/repo/id`）和你看到的问题。如果是 App 或官方插件的安全漏洞，请按照[安全策略](https://github.com/pkuinfo/pku-harness-plugins/blob/main/SECURITY.md)报告。

@@ -1,72 +1,92 @@
 ---
 title: PKU Harness Cloud
-description: 一套可选的开放插件后端标准（存储、通道、推送、文件和服务端函数），任何符合标准的服务商都能提供，官方、自建或自定义均可。默认端到端加密，云端不保存任何校园身份。
+description: PKU Harness Cloud 是一套可选的插件后端标准，包含存储、中继通道、推送、文件和服务端函数。官方实例、自建服务器或任何符合标准的服务器都可以提供这些服务。数据默认端到端加密，云端不保存校园身份。
 icon: Cloud
 ---
 
-有些插件功能离不开服务器：比如把东西实时分享给没装 App 的朋友，或者在几台设备之间同步一小份状态。**PKU Harness Cloud（云服务）**就是为此定的标准。它的设计目标是：即使用了服务器，用户也不必信任它。
+大多数插件只在手机上运行，但有些功能需要服务器。例如，把校园卡付款码实时分享给一位没有安装 App 的朋友，或者在几台设备之间同步一小份数据。PKU Harness Cloud（下文简称「云服务」）是为这类功能制定的一套后端标准。它规定了服务器要提供哪些接口，以及 App 和插件如何使用这些接口。
 
-- **服务器默认是「瞎」的。** 数据在手机上加密，服务器只负责转发和存储密文。
-- **云端没有校园身份。** 设备只用一对密钥来标识。服务器不知道你的学号和姓名，也拿不到校园凭据或校园会话。
-- **一份协议，多家服务商。** 官方实例、自建的参考服务器，或者用户自己填的任意 URL 都行，插件分辨不出用的是哪一家。
-- **宿主负责隔离插件。** 每个插件拿到的客户端只绑定它自己，token、命名空间和用户授权都是独立的。
-- **助手只看得到工具。** 云端凭据、token 和分享链接它一概看不到。
+设计云服务时，我们的目标是让你在使用服务器的同时不必信任它。下面几段说明这一点是怎样做到的。
 
-<Callout title="进度（2026-10-23）">
-  已完成：协议 v1（`@pku-harness/cloud-protocol`）、SDK 类型、参考服务器（`packages/cloud-server`）、宿主客户端（设备身份、按插件绑定和授权、端到端加密的存储与通道、带连接测试的「设置 → 云服务」），以及第一个插件 `card-share`（实时分享校园卡付款码，全程端到端加密）。尚未完成：官方托管实例（在此之前请在设置里填自建服务器的 URL），以及 `push`（参考服务器目前返回 `501 unsupported`）。
+## 设计原则 [#design-principles]
 
-  官方实例还在筹备中，上线后也会刻意保持精简：只有实时分享用的盲中继（通道和信箱）、小容量的端到端加密存储，以及静态查看页。插件的[服务端函数](#server-functions)在参考服务器里已经实现，但**官方服务器暂不开启**。
+数据在离开手机之前就已经加密。这种方式叫作端到端加密（end-to-end encryption，E2E）：只有发送方和接收方持有密钥，服务器只负责转发和保存密文，自己无法解密。
+
+云端不保存你的校园身份。服务器只通过设备生成的一对密钥来识别设备，不知道你的学号和姓名，也收不到你的校园账号密码或登录会话。
+
+同一份协议可以由多家服务商提供。你可以使用官方实例、自己部署的参考服务器，或者任何实现了这份协议的服务器地址。插件调用的接口完全相同，也无法分辨当前连接的是哪一家。
+
+App 会把各个插件隔离开。App 是运行插件的一方，我们称它为「宿主」。宿主给每个插件一个只属于它自己的云服务客户端，每个插件有独立的 token、独立的存储空间，并且要单独获得你的授权。
+
+AI 助手只能通过插件提供的工具使用云服务。它看不到云服务的凭据和 token，也看不到分享链接。
+
+<Callout title="当前进度（2026-10-24）">
+  官方云服务实例还没有部署。在它上线之前，如果要使用云服务，请在「设置 → 云服务」里填写自建服务器的 URL。
+
+  已经完成的部分有：协议 v1（`@pku-harness/cloud-protocol`）、SDK 类型、参考服务器（`packages/cloud-server`），以及 App 内的云服务客户端。客户端支持设备身份、按插件绑定和授权、端到端加密的存储与通道，并在「设置 → 云服务」里提供连接测试。第一个使用云服务的插件是 `card-share`，它实时分享校园卡付款码，全程端到端加密。推送服务（`push`）还没有完成，参考服务器目前对它返回 `501 unsupported`。
+
+  官方实例上线后会刻意保持精简，只提供三样东西：实时分享用的中继（通道和信箱，服务器只转发看不懂的密文），小容量的端到端加密存储，以及静态查看页。插件的[服务端函数](#server-functions)已经在参考服务器里实现，但官方服务器不开启这项功能。
 </Callout>
 
 ## 三个组成部分 [#three-parts]
 
+云服务由三部分组成。第一部分是服务定义，也就是 SDK 里的类型和一份带版本号的 HTTP 协议。第二部分是服务商，即真正运行服务器的一方。第三部分是使用方，也就是调用云服务的插件。
+
 | 部分 | 内容 | 位置 |
 | --- | --- | --- |
-| **服务定义** | SDK 类型（`CloudManifest`、`PluginCloud`）和带版本号的 HTTP 协议（`/v1`） | `@pku-harness/sdk`（`cloud.ts`）、`@pku-harness/cloud-protocol`、[API 参考](/docs/cloud/api/meta) |
-| **服务商** | 官方实例、开源参考服务器（自建）、任何符合标准的 URL | [服务商与自建](/docs/cloud/providers) |
-| **使用方** | 插件，通过 `ctx.cloud` / `props.cloud` 访问 | [插件指南](/docs/cloud/plugin-guide) |
+| 服务定义 | SDK 类型（`CloudManifest`、`PluginCloud`）和 HTTP 协议（`/v1`） | `@pku-harness/sdk`（`cloud.ts`）、`@pku-harness/cloud-protocol`、[API 参考](/docs/cloud/api/meta) |
+| 服务商 | 官方实例、开源参考服务器（自建）、任何符合标准的 URL | [服务商与自建](/docs/cloud/providers) |
+| 使用方 | 插件，通过 `ctx.cloud` 或 `props.cloud` 访问 | [插件指南](/docs/cloud/plugin-guide) |
 
-## 服务 [#services]
+## 云服务提供的服务 [#services]
 
-| 服务 | 用途 | 加密 |
-| --- | --- | --- |
-| `store` | 按 `(device, plugin)` 隔离的键值存储，支持版本号（`If-Match`）和过期时间 | 插件声明了 `e2e` 时，值会先加密再上传 |
-| `channels` | 实时分享用的中继通道：设备开一个通道，查看者凭分享链接加入，服务器转发帧 | 始终端到端加密，每个对端的密钥都由链接里的密钥派生 |
-| `push` | 推送 token 和定时推送（计划中，官方实例不提供） | 内容加密，服务器只知道发送时间 |
-| `files` | 文件存储（计划中） | |
-| `functions` | `PLUGIN.md` 在 `server:` 里声明的服务端函数（[见下文](#server-functions)），官方服务器暂不开启 | 需要声明并经用户同意，是唯一可能处理明文的地方 |
+协议定义了五种服务。服务商可以只提供其中一部分。
 
-App 通过 `GET /v1/meta` 得知服务商提供哪些服务。如果插件 `uses` 里的某项服务对方不提供，App 会把插件标为不可用，并说明原因。
+`store` 是键值存储。每台设备上的每个插件各有一块独立的空间，按 `(device, plugin)` 划分。它支持版本号（`If-Match`）和过期时间（time to live，TTL）。如果插件声明了 `e2e`，值会先在手机上加密再上传。
+
+`channels` 是实时分享用的中继通道。设备开一个通道，查看者用分享链接加入，服务器在两者之间转发数据帧。通道始终端到端加密，每个查看者的密钥都由分享链接里的密钥派生。
+
+`push` 用于推送 token 和定时推送。这项服务还在计划中，官方实例不会提供。推送内容会加密，服务器只知道发送时间。
+
+`files` 是文件存储，目前也在计划中。
+
+`functions` 是插件在 `PLUGIN.md` 的 `server:` 段里声明的服务端函数，[下文](#server-functions)有详细说明。官方服务器不开启这项功能。服务端函数必须事先声明并经你同意，它也是整个云服务里唯一可能处理明文的地方。
+
+App 通过 `GET /v1/meta` 查询服务商提供哪些服务。如果插件在 `uses` 里列出的某项服务对方不提供，App 会把这个插件标为不可用，并说明原因。
 
 ## 一次请求的流程 [#how-a-request-flows]
 
+下面以插件写入一条存储为例。插件调用 `ctx.cloud.store.put`，宿主先检查授权、插件清单里的 `uses` 和 `e2e`。如果插件声明了 `e2e`，宿主用 XChaCha20-Poly1305 算法加密这个值。然后宿主用设备的 Ed25519 密钥签名一段挑战，换取一个有效期 10 分钟的 token，附在请求上发给服务商。服务商从 token 里读出设备和插件，确定存储空间，最后把密文保存下来。
+
 ```
-plugin ──ctx.cloud.store.put(key, value)──► host (bound client for this plugin)
-          │ checks consent, manifest `uses`, `e2e`
-          │ seals value (XChaCha20-Poly1305) when e2e
-          │ mints/refreshes a 10-min token (Ed25519-signed challenge)
+plugin ──ctx.cloud.store.put(key, value)──► host（为这个插件绑定的客户端）
+          │ 检查授权、清单里的 `uses` 和 `e2e`
+          │ 声明了 e2e 时加密值（XChaCha20-Poly1305）
+          │ 签发或刷新 10 分钟有效的 token（Ed25519 签名挑战）
           ▼
         provider  PUT /v1/store/<key>   Authorization: Bearer <token>
-          │ namespace = (deviceId, plugin) from the token
+          │ 存储空间 = token 里的 (deviceId, plugin)
           ▼
-        stores ciphertext
+        保存密文
 ```
 
 ## 服务端代码在哪里运行 [#where-server-code-runs]
 
-1. **标准服务**（store、channels、mailbox、push、files）：每个符合标准的服务器都会实现，上面不跑任何插件代码。能用这一层就用这一层。
-2. **插件服务端函数**：写在 `PLUGIN.md` 的 `server:` 段里，服务器用和 App 相同的解释器执行。官方服务器暂不开启。
-3. **外部后端**：任何实现了该协议的 URL，在清单里声明（`backend: { kind: 'external', url }`）并经用户同意。
+插件需要服务器参与时，有三种做法。我们建议按下面的顺序考虑。
+
+1. 标准服务，包括 store、channels、mailbox、push 和 files。每个符合标准的服务器都会实现它们，服务器上不运行任何插件代码。能用这一层解决问题时，请优先使用它。
+2. 插件服务端函数，写在 `PLUGIN.md` 的 `server:` 段里。服务器用和 App 相同的解释器执行它们。官方服务器不开启这项功能。
+3. 外部后端，即任何实现了这份协议的 URL。插件要在清单里声明它（`backend: { kind: 'external', url }`），并经你同意后才能使用。
 
 ## 服务端函数 [#server-functions]
 
-<Callout type="warn" title="官方服务器暂不开启">
-  请让插件在手机端完成工作，或者使用你自己的后端。设计文档 [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md) 已暂停推进：现有功能保留，但集合、定时、推送、群组和 webhook 都不再开发。
+<Callout type="warn" title="官方服务器不开启">
+  请让插件在手机端完成工作，或者使用你自己的后端。设计文档 [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md) 已暂停推进：已有的功能保留，但集合、定时任务、推送、群组和 webhook 都不再开发。
 </Callout>
 
-插件文档可以用和工具相同的步骤与表达式来声明服务端函数：
+插件文档可以声明服务端函数。服务端函数使用的步骤和表达式与插件工具相同，只是在服务器上执行。下面是一个例子：
 
-```yaml title="PLUGIN.md (frontmatter excerpt)"
+```yaml title="PLUGIN.md（frontmatter 节选）"
 cloud:
   disclosure: { zh: ['你输入的名字会发到云端服务器。'], en: ['The name you enter is sent to the cloud server.'] }
 server:
@@ -84,15 +104,17 @@ server:
       return: "{ count: c.count }"
 ```
 
-- 有 `server:` 段就意味着 `cloud.uses: [functions]`，并且必须写 `cloud.disclosure`。
-- 服务端步骤有自己的一套宿主能力：按用户隔离的服务端 KV（`kv.get/set/delete`），以及 `crypto.sha256`、`crypto.hmacSha256`（按名字引用密钥）和 `crypto.randomId`。它们访问不了校园服务。`caller.id` 是设备在该插件下的假名。
-- 手机端通过 `cloud.call { fn, input }` 能力调用函数，小组件也可以绑定 `{ fn }` 而不是 `{ tool }`。
-- token 里带着用户同意时的文档版本（链接加内容哈希），服务器只运行这个版本，前提是运营者的策略允许（`CLOUD_FN_POLICY`：`verified`、`allowlist` 或 `open`）。相关环境变量见参考服务器的 README。
+使用服务端函数时要注意以下几点：
+
+- 写了 `server:` 段，就等于声明了 `cloud.uses: [functions]`，并且必须同时写 `cloud.disclosure`。
+- 服务端步骤有自己的一组宿主能力：按用户隔离的服务端键值存储（`kv.get/set/delete`），以及 `crypto.sha256`、`crypto.hmacSha256`（按名字引用密钥）和 `crypto.randomId`。服务端步骤访问不了校园服务。`caller.id` 是设备在这个插件下的假名。
+- 手机端通过 `cloud.call { fn, input }` 能力调用函数。小组件也可以绑定 `{ fn }`，而不只是 `{ tool }`。
+- token 里记录了你同意时的插件文档版本（链接加内容哈希），服务器只运行这个版本。是否运行还取决于运营者的策略 `CLOUD_FN_POLICY`，可选值为 `verified`、`allowlist` 和 `open`。相关环境变量见参考服务器的 README。
 
 ## 继续阅读 [#next]
 
 - [插件指南](/docs/cloud/plugin-guide)：声明 `cloud`、获取授权、使用 `store` 和 `channels`。
-- [安全](/docs/cloud/security)：设备密钥、工作量证明、token、信封、分享链接。
-- [服务商与自建](/docs/cloud/providers)。
+- [安全](/docs/cloud/security)：设备密钥、工作量证明、token、信封和分享链接。
+- [服务商与自建](/docs/cloud/providers)：选择服务商，以及运行参考服务器。
 - [`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package)：服务器和查看页共用的 schema 与加密实现。
 - [API 参考](/docs/cloud/api/meta)：全部接口，由 OpenAPI 3.1 规范生成。

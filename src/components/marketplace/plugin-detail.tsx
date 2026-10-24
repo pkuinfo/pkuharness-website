@@ -91,7 +91,7 @@ function Crumbs({ plugin, lang, m }: { plugin: MarketplacePlugin; lang: Lang; m:
     [id, null, true],
   ];
   return (
-    <nav aria-label="Breadcrumb">
+    <nav aria-label={m.breadcrumb}>
       <ol className="flex flex-wrap items-center gap-1.5 text-sm text-fd-muted-foreground">
         {parts.map(([label, href, mono], i) => (
           <li key={label + String(i)} className="inline-flex min-w-0 items-center gap-1.5">

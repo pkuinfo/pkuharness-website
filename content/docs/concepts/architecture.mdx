@@ -1,48 +1,71 @@
 ---
 title: 架构
-description: 框架由 Agent 循环、设计系统和宿主服务组成，所有能力都由插件通过同一套约定提供。
+description: PKU Harness 的框架层由 Agent 循环、设计系统和宿主服务组成，具体功能都由插件通过同一套接口提供。
 icon: Layers
 ---
 
-PKU Harness 从 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 借来了两个想法：
-**一切皆插件**，以及 App **以 AI 为核心，但人和 AI 平等**。每项能力只实现一次，形式是一个有类型的工具（tool）。你点按钮时由界面调用它，聊天时由助手调用它。
+PKU Harness 的设计借鉴了 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的两个思路。第一，App 的功能都由插件提供。第二，App 以 AI 助手为核心，但你和助手能做的事情完全相同。
 
-## 分层 [#layers]
+为了做到第二点，每项功能只实现一次，形式是一个有类型的工具（tool）。你在界面上点按钮时，界面调用这个工具；你在对话里提出需求时，助手调用同一个工具。
+
+## 分层结构 [#layers]
+
+App 的代码分为四层，从上到下依次是界面、核心运行时、插件和原生模块。
 
 ```
-UI            routes · screens · design system (tokens, components, motion) · generative-UI catalog
+界面          路由 · 页面 · 设计系统（设计令牌、组件、动效）· 生成式界面组件目录
                    │
-Core runtime  plugin registry + permissions · agent loop · dashboard · scheduler · storage
-              campus session manager (IAAA, per-service sessions)
+核心运行时    插件注册表与权限 · Agent 循环 · 看板 · 定时任务 · 存储
+              校园会话管理（IAAA、各服务的会话）
                    │
-Plugins       PLUGIN.md documents (interpreted)  ·  bundled TypeScript  ·  remote MCP  ·  providers
+插件          PLUGIN.md 插件文档（解释执行）· 内置 TypeScript 插件 · 远程 MCP 插件 · 模型服务商
                    │
-Native        campus-http module (redirect control, per-session cookie jars, HTTP/1.1, no proxy)
+原生模块      campus-http 模块（控制重定向、每个会话独立的 cookie、HTTP/1.1、不走代理）
 ```
 
-依赖只能向下。插件（plugin）从不引用 App 的代码，凡是插件自身以外的事，都要经过**宿主服务**（`ctx.services`）；界面则经过 **`HostUI`**。
+依赖关系只能向下。插件从不导入 App 的代码。插件需要做自身以外的事情时，要通过**宿主服务**（`ctx.services`）；需要显示界面时，要通过 **`HostUI`**。
 
-## 框架本身 [#the-harness]
+## 框架层的组成 [#the-harness]
 
-| 部分 | 是什么 | 面向插件的接口 |
-| --- | --- | --- |
-| **Agent 循环** | 用所有已启用的工具驱动模型流式输出（AI SDK，模型由任意服务商插件提供），支持多步调用（每次回复最多 10 步）。按会话保存模型可见的历史，压缩较早的轮次，并记录用量。 | `tools`、`instructions`、`context`、`contributes.commands` |
-| **设计系统** | 设计令牌、原生控件和动效。插件界面基于它搭建，所以看起来是原生的，App 迭代后也不会坏。 | `HostUI`（`host.components`、`host.useTheme()`…） |
-| **宿主服务** | 校园 HTTP、定时任务、小组件、待办、课表、通知就绪状态、文件、浏览器、加密、插件注册表。 | `HostServices`（`ctx.services`、`props.services`） |
-| **生成式界面** | 一组组件目录，助手可以根据 JSON 描述在聊天和看板里渲染它们。 | `ui.render` 工具、`HostUI.components.GenUI` |
+我们把插件以下的这一层叫作框架（harness）。它由四个部分组成。
 
-## 四个标签页 [#the-four-tabs]
+| 部分 | 插件使用的接口 |
+| --- | --- |
+| Agent 循环 | `tools`、`instructions`、`context`、`contributes.commands` |
+| 设计系统 | `HostUI`（`host.components`、`host.useTheme()` 等） |
+| 宿主服务 | `HostServices`（`ctx.services`、`props.services`） |
+| 生成式界面 | `ui.render` 工具、`HostUI.components.GenUI` |
 
-| 标签页 | 归属 |
+**Agent 循环**负责和模型对话。它基于 AI SDK，模型由任意一个模型服务商插件提供。每次请求时，它把所有已启用的工具交给模型，并以流式方式接收回答。模型可以连续调用多个工具，每次回复最多 10 步。Agent 循环还为每个会话保存模型可见的历史记录，压缩较早的轮次，并记录 token 用量。
+
+**设计系统**包括设计令牌、原生控件和动效。插件的页面用它搭建，所以看起来和 App 的原生页面一致。App 更新后，这些页面也能继续正常工作。
+
+**宿主服务**是 App 提供给插件的一组服务，包括校园 HTTP 请求、定时任务、小组件、待办、课表、通知权限状态、文件、浏览器、加密和插件注册表。
+
+**生成式界面**是一个组件目录。助手写出一段 JSON 描述，App 就按描述在对话或看板里显示对应的组件。
+
+## 四个标签页由谁提供 [#the-four-tabs]
+
+| 标签页 | 提供者 |
 | --- | --- |
 | 对话 | 框架 |
-| 看板 | 一个标签页**插槽**，由 `dashboard` 插件填充（`contributes.tabs`） |
-| 日程 | 一个标签页插槽，由 `schedule` 插件填充 |
-| 设置 | 框架（另有插件贡献的设置项） |
+| 看板 | `dashboard` 插件 |
+| 日程 | `schedule` 插件 |
+| 设置 | 框架，其中部分设置项由插件提供 |
+
+看板和日程这两个标签页在框架里只是两个空的位置，我们叫它**插槽**。插件通过 `contributes.tabs` 填充插槽。
 
 ## 插件 [#plugins]
 
-插件有三种形式：App 解释执行的 `PLUGIN.md` 文档、用 `definePlugin` 写的 TypeScript 对象（内置插件），或者一个 MCP 服务器（远程插件）。框架会把它们统一成同一种结构：一组 id 为 `<plugin>.<tool>` 的工具，各自带有效果（effect）和输入 schema，外加可选的界面。
+插件有三种形式：
+
+- **插件文档**：一个 `PLUGIN.md` 文档，由 App 解释执行；
+- **内置插件**：用 `definePlugin` 写成的 TypeScript 对象，随 App 发布；
+- **远程插件**：一个 MCP 服务器。MCP 是 Model Context Protocol（模型上下文协议）的缩写。
+
+无论哪种形式，框架都会把它转换成同样的结构：一组工具，加上可选的界面。每个工具的 id 形如 `<plugin>.<tool>`，并带有效果（effect）和输入 schema。
+
+下面是一个最简单的内置插件。它只有一个工具 `greet`，用来打招呼。
 
 ```ts
 import { definePlugin, defineTool } from '@pku-harness/sdk';
@@ -66,32 +89,38 @@ export const helloPlugin = definePlugin({
 });
 ```
 
-同一个插件写成文档，就是一个带 `tools: { greet: … }` 的 `PLUGIN.md`，工具用 YAML 步骤来写，见[声明式插件](/docs/build/declarative-plugins)。三种插件的对比见[插件](/docs/concepts/plugins)。
+同一个插件也可以写成插件文档：一个带有 `tools: { greet: … }` 的 `PLUGIN.md`，工具的逻辑用 YAML 步骤来写，见[声明式插件](/docs/build/declarative-plugins)。三种插件的对比见[插件](/docs/concepts/plugins)。
 
 ## 数据存在哪里 [#where-data-lives]
 
 | 数据 | 位置 |
 | --- | --- |
-| 校园账号密码、模型 API key、远程插件 token | 设备密钥库（SecureStore） |
-| 聊天会话、用量、小组件、定时任务、待办、课表、插件 KV | 设备上的 SQLite |
-| 你主动开启的插件云端数据 | [PKU Harness Cloud](/docs/cloud) 服务商，端到端加密 |
+| 校园账号密码、模型 API 密钥、远程插件的令牌 | 手机的密钥库（SecureStore） |
+| 聊天会话、用量、小组件、定时任务、待办、课表、插件的键值存储 | 手机上的 SQLite 数据库 |
+| 你主动开启的插件云端数据 | [PKU Harness Cloud](/docs/cloud) 服务，端到端加密 |
 
-默认情况下不经过任何项目服务器。你配置的模型服务商会收到对话内容，校园服务收到的请求和浏览器发出的一样。
+默认情况下，数据不经过本项目的任何服务器。你配置的模型服务商会收到对话内容。校园服务收到的请求和浏览器发出的请求相同。
 
-## 代码如何到达用户 [#how-code-reaches-users]
+## 更新如何送达用户 [#how-code-reaches-users]
 
-| 改动内容 | 如何送达 |
+不同的代码有不同的更新方式。
+
+| 改动的内容 | 送达方式 |
 | --- | --- |
-| 插件文档（`PLUGIN.md`），包括随 App 内置的官方插件 | App 重新拉取它的链接（每天最多一次）；声明不变的直接生效，权限变宽的要等用户确认 |
-| 远程（MCP）插件 | 服务器自己更新，App 实时调用 |
-| 插件市场条目（`registry.json`） | App 实时拉取 |
-| App 的 JavaScript、SDK、内置 TypeScript 插件 | 从我们自己的更新服务器下发签名的 OTA 更新（空中更新），下次启动时生效（或者发布新版 App） |
-| 原生代码（模块、系统权限） | 发布新版 App |
+| 插件文档（`PLUGIN.md`），包括随 App 内置的官方插件 | App 重新拉取它的链接 |
+| 远程插件 | 服务器自己更新，App 每次实时调用 |
+| 插件市场的条目（`registry.json`） | App 实时拉取 |
+| App 的 JavaScript 代码、SDK、内置 TypeScript 插件 | 签名的空中更新（OTA），或者发布新版 App |
+| 原生代码（原生模块、系统权限） | 发布新版 App |
 
-OTA 更新基于 expo-updates，服务端是一个静态的、经过代码签名的服务器（`https://harness.novadiffusion.com/updates/`）。每次更新都由 CI 用只有维护者持有的密钥签名，App 内置证书，其他来源的更新一律拒绝。`runtimeVersion` 采用 fingerprint 策略，所以只要原生代码有改动，就需要新的 APK。插件文档完全不走 OTA，它们从各自的链接更新。
+**插件文档**的链接每天最多重新拉取一次。如果新版本的声明没有变化，它会直接生效。如果新版本要求更宽的权限，要等你确认后才生效。插件文档的更新完全不经过 OTA。
 
-## 下一步 [#next]
+**空中更新**（over-the-air update，简称 OTA）从我们自己的更新服务器下发，下次启动 App 时生效。它基于 expo-updates，服务端是一个静态的、经过代码签名的服务器（`https://harness.novadiffusion.com/updates/`）。每次更新都由持续集成（CI）用只有维护者持有的密钥签名。App 内置了对应的证书，会拒绝其他来源的更新。
 
-- [插件](/docs/concepts/plugins)：文档插件、内置插件和远程插件，以及怎么选。
-- [工具与效果](/docs/concepts/tools-and-effects)：唯一的 API 接口。
-- [安全模型](/docs/concepts/security)：账号凭据、提示词注入、用户授权。
+`runtimeVersion` 采用 fingerprint 策略。也就是说，只要原生代码有改动，运行时版本就会变化，旧的 APK 不会接收新的 OTA 更新，用户需要安装新的 APK。
+
+## 继续阅读 [#next]
+
+- [插件](/docs/concepts/plugins)：插件文档、内置插件和远程插件的区别，以及如何选择。
+- [工具与效果](/docs/concepts/tools-and-effects)：插件对外提供功能的唯一方式。
+- [安全模型](/docs/concepts/security)：账号凭据、提示词注入和用户授权。

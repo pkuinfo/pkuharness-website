@@ -1,11 +1,17 @@
 ---
 title: scheduler
-description: Trigger, Action, Condition and Job types with their zod schemas, the pure recurrence engine, the model-friendly ScheduleInput format, condition evaluation and the unattended-run policy constants.
+description: Types and helpers for the scheduler. Trigger, Action, Condition and Job with their zod schemas, the pure recurrence engine, the model-friendly ScheduleInput format, condition evaluation and the limits for unattended runs.
 ---
 
+The scheduler runs jobs at set times. For example, it sends a reminder on time, or checks the
+campus card balance every morning and notifies the user when it falls below a threshold. This
+module defines the data structure of a job and provides functions that compute repeat times,
+evaluate conditions and check how often a job may run. A plugin uses it when it creates scheduled
+jobs or shows a job's next run on a screen.
+
 Sources: `packages/sdk/src/scheduler/{types,recurrence,schedule-input,check,policy}.ts`. Concepts:
-[Scheduler](/en/docs/concepts/scheduler). Nothing here imports React Native, and all times are
-device-local.
+[Scheduler](/en/docs/concepts/scheduler). Nothing here imports React Native, and all times are in
+the device's local time.
 
 ## Types and schemas
 
@@ -97,10 +103,16 @@ type Job = {
 const runsInJs: (action: Action) => boolean;
 ```
 
+There are three kinds of action. A `notify` action sends a notification. A `check` action calls a
+read-only tool and notifies only when a condition holds. An `agent` action runs the agent with a
+prompt.
+
 `timeOfDay`, `triggerSchema`, `conditionSchema` and `actionSchema` are all exported. The host
 refuses to run a `check` job whose tool isn't `effect: 'read'`.
 
 ## Recurrence engine
+
+These pure functions work out when a job runs, based on its trigger.
 
 ```ts
 type Occurrence = { at: number; index: number };
@@ -115,9 +127,12 @@ function parseTime(t: string): [number, number];                                
 const formatTime: (h: number, m: number) => string;                                    // (8, 5) → "08:05"
 ```
 
-A series is a run of periods: one step of minutes or hours, one day, or one week starting on Monday.
-Every period has the same slots (times × weekdays). Slots before `startAt` are skipped, the rest are
-numbered 0, 1, 2… and `count` or `until` ends the series. Daylight-saving changes don't shift it.
+A repeating series is made of periods of equal length. A period can be a number of minutes or
+hours, one day, or one week starting on Monday. Every period has the same time slots, formed from
+the times of day and the weekdays. Slots before `startAt` are skipped, and the rest are numbered
+0, 1, 2… until `count` or `until` ends the series. Daylight-saving changes don't shift the series.
+
+The example below runs every 3 days at 9 am, 16 times, starting on October 20:
 
 ```ts
 const every3Days16Times: Trigger = {
@@ -130,6 +145,10 @@ describeTrigger(every3Days16Times, Date.now(), 'en'); // e.g. "Every 3 days at 0
 ```
 
 ## ScheduleInput (model- and form-friendly)
+
+A `Trigger` stores times as epoch milliseconds, which are hard for a model or a form to fill in.
+`ScheduleInput` uses local time strings in the form `"YYYY-MM-DD HH:mm"` instead, and `toTrigger`
+converts it to a `Trigger`.
 
 ```ts
 const scheduleInputSchema = z.discriminatedUnion('type', [
@@ -160,10 +179,14 @@ function summarize(trigger: Trigger, now?: number, n?: number): {
 };
 ```
 
-Use `scheduleInputSchema` as a tool's input and return `summarize` in its result. The model then has
-the exact times to read back to the user.
+We recommend using `scheduleInputSchema` as a tool's input and returning the output of `summarize`
+in the tool's result. The model then has the exact run times and can read them back to the user to
+confirm.
 
 ## Conditions
+
+A `check` job uses these functions to read a value from a tool result, decide whether to notify,
+and fill in the notification text.
 
 ```ts
 /** Read a dot path ("data.balance", "items.0.amount") from a tool result. */
@@ -174,10 +197,15 @@ function evaluate(cond: Condition, value: unknown, previous?: unknown): boolean;
 function fillTemplate(template: string, value: unknown): string;
 ```
 
-`changed` is true only when there is a previous value and it differs (compared as JSON). Numeric
-operators accept numeric strings; anything that isn't a number compares false.
+The `changed` operator is true only when there is a previous value and the new value differs from
+it (compared as JSON). The numeric operators convert numeric strings to numbers. Any value that
+isn't a number compares as false.
 
 ## Policy constants
+
+These constants and functions set the limits for jobs that run unattended. For example, they set
+how many jobs can be active, how often a check job may run, and how many failures in a row disable
+a job.
 
 ```ts
 const MAX_ACTIVE_JOBS = 50;
@@ -201,5 +229,6 @@ const isSilentReply: (text: string) => boolean;                            // em
 function agentJobHeader(job: { id: string; title: string; prompt: string }): string;
 ```
 
-The host's scheduler engine enforces these. Plugins import them to explain the limits up front
-instead of letting the user run into them.
+The host's scheduler engine enforces these limits. A plugin can import the constants to explain
+the limits before the user creates a job, so the user doesn't find out only after the job fails
+to run.

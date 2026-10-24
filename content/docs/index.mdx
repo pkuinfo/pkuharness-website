@@ -1,45 +1,49 @@
 ---
 title: 简介
-description: PKU Harness 是一款开源、AI 原生的北大校园生活 App。这份文档写给为它开发插件的同学和 AI 助手。
+description: PKU Harness 是一个开源的北大校园生活 App，核心是一个 AI 助手。这份文档写给为它开发插件的同学和 AI 助手。
 icon: House
 ---
 
-PKU Harness 是北大同学装一个就够的 App。用校园账号（IAAA 统一身份认证）登录一次，就能用上所有校园系统：课表、校园卡、网费、树洞、教学网、财务、场地预约，以及插件带来的任何服务。App 的核心是一个 AI 助手，它可以替你操作这些系统；它能用的每项功能，你在原生界面里也都点一下就能用到。
+PKU Harness 是一个帮北大同学处理校园事务的 Android 应用。你用校园账号登录一次，就能在 App 里使用课表、校园卡、网费、树洞、教学网、财务、场地预约等校园系统。登录走的是学校的统一身份认证系统 IAAA。插件还可以接入更多服务。
 
-## 一切皆插件 [#everything-is-a-plugin]
+App 的核心是一个 AI 助手。你在对话里提出需求，助手会替你操作这些系统。助手能用的每一项功能，在 App 的原生界面里也有对应的按钮，你可以自己点。
 
-App 本身只是一个 harness：一个 Agent 循环、一套设计系统，加上一组宿主服务。其余的一切都是**插件**（plugin）：每个校园服务、看板、提醒，甚至模型服务商。所有插件地位平等。随 App 一起发布的插件，和同学自己在服务器上跑的插件，遵循同一套约定，出现在同一个插件列表里，受同样的权限管理。
+## App 与插件的关系 [#everything-is-a-plugin]
+
+App 本身只提供三样基础设施：一个 Agent 循环（让 AI 助手反复思考、调用工具、再回答的那段程序），一套界面设计系统，以及一组宿主服务（例如校园登录、定时任务、小组件和待办）。我们把这一层叫作 harness（框架）。
+
+除此之外的功能都由**插件**（plugin）提供。每个校园服务、看板、提醒，甚至 AI 模型的服务商，都是一个插件。随 App 一起发布的插件和同学自己在服务器上运行的插件遵循同一套接口，显示在同一个插件列表里，也受同一套权限系统管理。
 
 ```
- ┌──────────────── PKU Harness app (the harness) ────────────────┐
- │  Agent loop      Design system (HostUI)     Host services      │
- │      │                  │                 (campus, scheduler,  │
- │      └────── tools ─────┴───── screens ──  widgets, todos, …)  │
- └──────────▲──────────────────────▲──────────────────▲───────────┘
-            │                      │                  │
-   bundled plugins          remote plugins       PKU Harness Cloud
-   (TypeScript, SDK)        (MCP over HTTPS)     (optional backend)
+ ┌──────────────── PKU Harness App（框架层） ────────────────┐
+ │  Agent 循环        设计系统（HostUI）        宿主服务     │
+ │      │                   │              （校园、定时任务、│
+ │      └───── 工具 ────────┴──── 页面 ───── 小组件、待办等）│
+ └──────────▲────────────────────▲───────────────────▲───────┘
+            │                    │                   │
+        内置插件             远程插件         PKU Harness Cloud
+   （TypeScript、SDK）  （基于 HTTPS 的 MCP）    （可选的后端）
 ```
 
-由此有两条规则，后面的文档会反复用到：
+这种结构带来两条规则，后面的文档会经常提到。
 
-- **人和 AI 是平等的操作者。** 每项能力都是一个有类型的工具（tool）。你点按钮时，界面调用它；对话里，助手调用它。你能做的事，助手都能做，反过来也一样。
-- **凭据不离开手机。** 由框架自己登录校园服务，插件拿到的只是响应结果，永远看不到密码和会话令牌。
+- **你和助手能做的事情完全相同。** 每项功能都是一个有类型的工具（tool）。你在界面上点按钮时，界面调用这个工具；你在对话里提出需求时，助手调用同一个工具。
+- **凭据不离开手机。** 校园服务由框架自己登录。插件只拿到服务返回的结果，看不到你的密码和会话令牌。
 
 ## 这份文档写给谁 [#who-these-docs-are-for]
 
 <Cards>
   <Card title="学生开发者" href="/docs/build">
-    把 App 还没覆盖的校园服务接进来：写一份插件文档、用任意语言搭一个远程 MCP 服务器，或者写一个内置的 TypeScript 插件。
+    把 App 还没覆盖的校园服务接进来。你可以写一份插件文档，用任意语言搭一个远程 MCP 服务器，或者写一个内置的 TypeScript 插件。
   </Card>
   <Card title="AI 助手" href="/docs/for-agents">
-    正在写插件的 Claude Code、Codex 或 App 内置助手。先看检查清单，再按需阅读它链接的页面。
+    正在写插件的 Claude Code、Codex 或 App 内置助手。请先看检查清单，再按需阅读其中链接的页面。
   </Card>
   <Card title="普通用户" href="/docs/getting-started/install">
-    安装 App，用校园账号登录，接入一个模型。
+    安装 App，用校园账号登录，再接入一个 AI 模型。
   </Card>
   <Card title="服务器运维" href="/docs/cloud">
-    运行一个 PKU Harness Cloud 服务：为插件提供可选的、端到端加密的后端。
+    运行一个 PKU Harness Cloud 服务。它是一个可选的后端，为插件提供端到端加密的存储和同步。
   </Card>
 </Cards>
 
@@ -47,27 +51,29 @@ App 本身只是一个 harness：一个 Agent 循环、一套设计系统，加�
 
 | 你想要 | 阅读 |
 | --- | --- |
-| 弄清 App 的整体结构 | 先读[架构](/docs/concepts/architecture)，再读[核心概念](/docs/concepts/plugins)里的其他页面 |
-| 不改 App，今天就发布一个插件 | [快速上手：远程插件](/docs/build/remote-plugin) |
+| 了解 App 的整体结构 | 先读[架构](/docs/concepts/architecture)，再读[核心概念](/docs/concepts/plugins)里的其他页面 |
+| 不改动 App，今天就发布一个插件 | [快速上手：远程插件](/docs/build/remote-plugin) |
 | 写一个随 App 发布的插件 | [内置插件](/docs/build/bundled-plugin)和 [SDK 参考](/docs/sdk) |
 | 把插件上架到插件市场 | [插件市场](/docs/marketplace) |
 | 在服务器上存数据或实时共享 | [PKU Harness Cloud](/docs/cloud) 及其 [API 参考](/docs/cloud/api/meta) |
 | 查看所有仓库和路线图 | [生态](/docs/ecosystem/repositories) |
 
-## 把文档喂给 AI 助手 [#feeding-these-docs-to-an-agent]
+## 把文档交给 AI 助手 [#feeding-these-docs-to-an-agent]
 
-每个页面都有 Markdown 版本，你可以只把需要的上下文交给助手。文档有简体中文（默认，路径 `/docs`）和英文（路径 `/en/docs`）两种语言。
+每个页面都有 Markdown 版本。这样你可以只把需要的内容交给 AI 助手，不必让它读整个网站。文档有简体中文和英文两种语言。中文是默认语言，路径以 `/docs` 开头；英文路径以 `/en/docs` 开头。
 
 | URL | 内容 |
 | --- | --- |
 | [`/llms.txt`](/llms.txt) | 两种语言所有页面的索引，每页附一句简介 |
-| [`/llms-full.txt`](/llms-full.txt) | 所有英文页面合成一个文件 |
-| [`/llms-full.zh.txt`](/llms-full.zh.txt) | 所有中文页面合成一个文件 |
+| [`/llms-full.txt`](/llms-full.txt) | 所有英文页面合成的一个文件 |
+| [`/llms-full.zh.txt`](/llms-full.zh.txt) | 所有中文页面合成的一个文件 |
 | `/docs/<page>.md` | 单个中文页面，例如 [`/docs/sdk/plugin.md`](/docs/sdk/plugin.md) |
 | `/en/docs/<page>.md` | 同一页面的英文版 |
-| 带 `Accept: text/markdown` 请求 `/docs/<page>` | 与 `.md` 相同（内容协商） |
+| `/docs/<page>`，请求头带 `Accept: text/markdown` | 与 `.md` 相同 |
 
-每页标题下方有 **Copy Markdown** 和 **Open in…** 按钮。Cloud API 参考页的 Markdown 版本会把接口和数据结构以纯文本列出。
+最后一行利用的是 HTTP 的内容协商：服务器根据请求头决定返回 HTML 还是 Markdown。
+
+每页标题下方有 **Copy Markdown** 和 **Open in…** 两个按钮。Cloud API 参考页的 Markdown 版本会把接口和数据结构以纯文本列出。
 
 ```bash
 # 把插件检查清单和 SDK 约定交给 Claude Code
@@ -75,5 +81,9 @@ curl -s https://<this-site>/docs/for-agents.md https://<this-site>/docs/sdk/plug
 ```
 
 <Callout title="当前状态">
-  PKU Harness 1.0.0 已发布 Android 版，iOS 版正在准备中。JavaScript 层面的修复会以签名的 OTA 更新（空中更新）推送到已安装的 App；原生代码的改动则需要发布新的 APK。这里描述的 SDK 和通信协议与 [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness) 和 [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) 的默认分支保持一致。插件和 SDK 直接从这个 GitHub 仓库获取，不走 npm。大多数校园服务都是[插件文档](/docs/build/declarative-plugins)（`PLUGIN.md`），通过链接安装。
+  PKU Harness 1.0.0 已发布 Android 版，iOS 版正在准备中。
+
+  JavaScript 代码的修复通过签名的空中更新（over-the-air update，简称 OTA）推送到已安装的 App。原生代码的改动则需要发布新的 APK。
+
+  这里描述的 SDK 和通信协议与 [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness) 和 [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) 两个仓库的默认分支一致。插件和 SDK 直接从 GitHub 仓库获取，不通过 npm 发布。大多数校园服务以[插件文档](/docs/build/declarative-plugins)（`PLUGIN.md`）的形式提供，通过链接安装。
 </Callout>

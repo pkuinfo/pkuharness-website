@@ -1,16 +1,22 @@
 ---
 title: Testing
-description: Unit-test parsers and pure logic with bun test, drive the agent loop end to end with the scripted mock model, and try remote plugins against the demo-canteen example.
+description: How to test each kind of plugin. Replay recorded responses for plugin documents, unit-test parsers and pure logic with bun test, run the assistant end to end with the scripted mock model, and try remote plugins with the demo-canteen example.
 icon: FlaskConical
 ---
 
-Most campus plugins have three layers: an HTTP call, a parser, and a tool that shapes the result.
-Cover the parser and the shaping with `bun test`, then try the whole thing in the app.
+Most campus plugins have three layers: an HTTP request, a parser that reads the response, and a
+tool that shapes the result. The request depends on a live campus server, so tests replace it with a
+recorded response. The parser and the shaping are ordinary code that you can test on your computer.
+After that, try the whole plugin in the app.
+
+This page starts with plugin documents, then covers TypeScript plugins, the mock model, the demo
+remote plugin and testing on a device. All commands run in the plugins repository unless the text
+says otherwise.
 
 ## Plugin documents (PLUGIN.md)
 
-You test a `PLUGIN.md` plugin with the author CLI in the plugins repository. It replays the
-recorded responses in the plugin's `tests/*.yaml`:
+You test a `PLUGIN.md` plugin with the author command-line tool (CLI) in the plugins repository.
+It replays the recorded responses in the plugin's `tests/*.yaml`:
 
 ```bash
 bun run plugin validate plugins/classrooms   # the checks the app runs
@@ -18,10 +24,14 @@ bun run plugin test plugins/classrooms       # replay tests/*.yaml
 bun run plugin run plugins/classrooms overview '{}'   # live, public hosts only
 ```
 
-`bun test` includes `plugins/documents.test.ts`, which loads every `plugins/<id>/PLUGIN.md` and
-replays all its recorded tests, so CI fails as soon as a document or its fixtures break. The test
-format is described in the [quickstart](/en/docs/build/quickstart#record-a-test). The rest of this
-page covers TypeScript plugins.
+`validate` runs the same checks the app runs at install time. `test` replays `tests/*.yaml`. `run`
+sends real requests, and only to public hosts.
+
+`bun test` includes `plugins/documents.test.ts`. It loads every `plugins/<id>/PLUGIN.md` and replays
+all of its recorded tests. Continuous integration (CI) runs `bun test` on every push to `main` and
+every pull request, so it fails as soon as a document or its recorded responses (fixtures) break.
+The test format is described in the [quickstart](/en/docs/build/quickstart#record-a-test). The rest
+of this page covers TypeScript plugins.
 
 ## Unit tests (bun test)
 
@@ -33,17 +43,20 @@ bun test plugins/focus        # one plugin
 bunx tsc --noEmit -p .        # typecheck SDK + plugins
 ```
 
-(`focus` is the example plugin from [Bundled plugin](/en/docs/build/bundled-plugin); use your own
-plugin's folder.)
+The commands run every test in the workspace, the tests of one plugin, and a type check of the SDK
+and all plugins. `focus` is the example plugin from [Bundled plugin](/en/docs/build/bundled-plugin);
+use your own plugin's folder instead.
+
+A few habits make these tests useful:
 
 - Put tests next to the code: `src/parse.test.ts` beside `src/parse.ts`.
-- **Parsers**: save real responses as fixtures (`src/fixtures/*.html|json`) with personal data
-  replaced, and assert on the parsed result. Campus pages change, and a fixture shows exactly what
-  broke.
-- **Time**: pass `now` in explicitly instead of reading `Date.now()` inside logic. The SDK's
-  recurrence, timetable and format helpers all take `now`.
-- **React Native**: modules that import `react-native` won't load under bun unless you mock it.
-  Keep logic in plain modules, or mock it the way `plugins/i18n.test.ts` does:
+- **Parsers.** Save real responses as fixtures (`src/fixtures/*.html|json`), replace any personal
+  data in them, and assert on the parsed result. Campus pages change from time to time, and when
+  they do, a fixture shows exactly what broke.
+- **Time.** Pass `now` in as an argument instead of reading `Date.now()` inside your logic. A test
+  can then fix the time. The SDK's recurrence, timetable and format helpers all take `now`.
+- **React Native.** Modules that import `react-native` won't load under bun unless you mock it.
+  Keep logic in plain modules, or mock `react-native` the way `plugins/i18n.test.ts` does:
 
 ```ts
 import { mock } from 'bun:test';
@@ -56,6 +69,10 @@ mock.module('react-native', () => ({
 ```
 
 ### Testing a tool with a fake context
+
+A tool's `execute` function takes its input and a context object, `ctx`. In a test you can build a
+small fake context yourself. Here the fake context has an in-memory KV store, so the test can start
+a session and then read it back:
 
 ```ts title="plugins/focus/src/index.test.ts"
 import { expect, mock, test } from 'bun:test';
@@ -82,21 +99,27 @@ test('start, then today shows the running session', async () => {
 });
 ```
 
-`execute` doesn't validate its input; the host does that. If validation matters, test it separately
-with `tool.input.safeParse(...)`.
+`index.ts` imports the widget, which imports `react-native`, so the test mocks it before loading
+the plugin.
+
+`execute` doesn't validate its input; the app does that before calling it. If validation matters,
+test it separately with `tool.input.safeParse(...)`.
 
 ## Mock model
 
-`examples/mock-llm` is a scripted OpenAI-compatible Chat Completions server. It lets you exercise
-the agent loop without an API key:
+The assistant works in a loop: it sends the conversation to a model, runs the tools the model asks
+for, and sends the results back. To test that loop without an API key or a real model, use
+`examples/mock-llm`. It is a small server with the same interface as OpenAI's Chat Completions API,
+and it answers from a fixed script:
 
 ```bash
 bun examples/mock-llm/server.ts     # http://localhost:8788/v1, model "mock-agent"
 ```
 
-In the app, go to Settings → AI service → OpenAI-compatible and set the base URL to
-`http://10.0.2.2:8788/v1` (from the emulator) and the model to `mock-agent`. It picks a tool based
-on keywords in your message, then summarises the tool result:
+In the app, go to Settings → AI service → OpenAI-compatible. Set the base URL to
+`http://10.0.2.2:8788/v1`, which is how the emulator reaches your computer, and set the model to
+`mock-agent`. The mock model picks a tool based on keywords in your message, then summarises the
+tool's result:
 
 | Message contains | It calls |
 | --- | --- |
@@ -108,7 +131,7 @@ on keywords in your message, then summarises the tool result:
 | `食堂` / `canteen` | `mcp-demo-canteen__reserveSeat` (needs the demo plugin installed) |
 | `who` | Echoes the injected `<context>` block |
 
-To call your own tools, extend its `plan()` function locally with their model names.
+To make it call your own tools, extend its `plan()` function locally with their model names.
 
 ## Demo remote plugin
 
@@ -116,15 +139,16 @@ To call your own tools, extend its `plan()` function locally with their model na
 bun examples/demo-canteen/server.ts   # :8787/mcp, bearer token demo-token
 ```
 
-In Settings → Plugins → Add remote plugin, add `http://10.0.2.2:8787/mcp` with token `demo-token`.
-It has one read tool (`menu`) and one write tool (`reserveSeat`), so you get to see the approval
-prompt for remote writes.
+`examples/demo-canteen` is a remote plugin with mock data. It listens on port 8787 at `/mcp` and
+expects the bearer token `demo-token`. In Settings → Plugins → Add remote plugin, add
+`http://10.0.2.2:8787/mcp` with the token `demo-token`. It has one read tool (`menu`) and one write
+tool (`reserveSeat`), so you can see the approval prompt that remote write tools show.
 
 ## On a device
 
-- Dev-only deep links run a tool or a chat turn:
+- Development builds accept special deep links that run a tool or a chat turn directly:
   `pkuharness://dev?tool=<plugin>.<tool>&input=<json>` and `pkuharness://dev?chat=<text>`.
-  Add `&actor=agent` to trigger the ask-first prompts.
-- Check screens and widgets in both themes (dark and light) and both languages.
-- Real campus data needs a real account. Test read tools on your own account before asking anyone
+  Add `&actor=agent` to run the tool as the assistant, which shows the ask-first prompts.
+- Check screens and widgets in the dark and the light theme, and in both languages.
+- Real campus data needs a real account. Test read tools on your own account before you ask anyone
   else to, and never commit responses that contain personal data.

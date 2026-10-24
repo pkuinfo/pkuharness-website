@@ -1,9 +1,15 @@
 ---
 title: timetable
-description: Course 与 Semester 类型，以及课表相关的纯函数：周次表达式、教学周、某天的课、上课状态和课前提醒触发器。
+description: 课表的数据类型 Course 和 Semester，以及处理课表的纯函数：解析周次、计算教学周、列出某天的课、判断上课状态和生成课前提醒的触发器。
 ---
 
-源码：`packages/sdk/src/timetable.ts`。数据通过 `services.timetable` 获取。星期沿用 JavaScript 的编号：**0 = 周日 … 6 = 周六**。
+这个模块描述课表数据，并提供一组处理课表的工具函数。如果你的插件要显示今天的课、判断现在是第几教学周，或者给某门课设置课前提醒，就会用到它。课表数据本身通过 `services.timetable` 获取。
+
+源码：`packages/sdk/src/timetable.ts`。
+
+星期沿用 JavaScript 的编号：**0 = 周日 … 6 = 周六**。
+
+## 类型 [#types]
 
 ```ts
 type Course = {
@@ -11,12 +17,12 @@ type Course = {
   name: string;
   location: string | null;
   teacher: string | null;
-  weekday: number;          // 0 = Sunday … 6 = Saturday
+  weekday: number;          // 0 = 周日 … 6 = 周六
   start: string;            // "HH:MM"
   end: string;              // "HH:MM"
-  /** Teaching weeks the course meets; null = every week. */
+  /** 这门课上课的教学周；null 表示每周都上。 */
   weeks: number[] | null;
-  /** Palette index for the colour chip (HostTheme.courseColor). */
+  /** 颜色标签在调色板中的序号（HostTheme.courseColor）。 */
   color: number;
   source: 'manual' | 'campus';
 };
@@ -30,37 +36,39 @@ type Semester = { name: string; start: string /* "YYYY-MM-DD" */; weeks: number 
 
 ```ts
 /**
- * Parse a weeks expression: "1-16", "1-16单", "2-16双", "1,3,5-8", "单周", "双周", "全部"; English
- * forms too ("1-15 odd", "2-16 even", "odd weeks", "every week"). null = every week. Throws on garbage.
+ * 解析周次表达式："1-16"、"1-16单"、"2-16双"、"1,3,5-8"、"单周"、"双周"、"全部"；也支持英文写法
+ * （"1-15 odd"、"2-16 even"、"odd weeks"、"every week"）。null 表示每周。无法解析时抛出异常。
  */
 function parseWeeks(expr: string, total?: number /* 20 */): number[] | null;
 
-/** "1-16周", "1-15单周", "2,5,9周" (en: "Weeks 1-16", "Weeks 1-15 odd"). */
+/** "1-16周"、"1-15单周"、"2,5,9周"（英文："Weeks 1-16"、"Weeks 1-15 odd"）。 */
 function formatWeeks(weeks: number[] | null, locale?: 'zh-Hans' | 'en'): string;
 
-/** Arithmetic pattern of a weeks list (contiguous = step 1, odd/even = step 2), else null. */
+/** 周次列表的等差规律（连续为步长 1，单双周为步长 2）；没有规律时返回 null。 */
 function weekPattern(weeks: number[]): { first: number; last: number; step: number } | null;
 
-/** Teaching week (1-based) of a date, or null without a semester. */
+/** 某个日期所在的教学周（从 1 开始）；没有学期信息时返回 null。 */
 function weekOf(sem: Semester | null, date: Date): number | null;
 
-/** Local date of a weekday in a given teaching week. */
+/** 某个教学周里某个星期几对应的本地日期。 */
 function dateOfWeek(sem: Semester, week: number, weekday: number): Date;
 
-/** Courses meeting on a date, sorted by start time. */
+/** 某天要上的课，按开始时间排序。 */
 function classesOn(courses: Course[], date: Date, sem: Semester | null): Course[];
 
-/** Status of a class at `now` on its day. */
+/** 在当天的 `now` 时刻，这节课处于什么状态。 */
 function classStatus(c: Course, now: Date): { state: 'before' | 'ongoing' | 'after'; progress: number; minutesToStart: number };
 
 /**
- * Weekly reminder trigger, `minutesBefore` the start. With a semester the series runs from the
- * first to the last teaching week (step 2 for odd/even weeks); otherwise weekly from now.
+ * 每周一次的提醒触发器，在上课前 `minutesBefore` 分钟触发。有学期信息时，序列从第一个教学周持续到
+ * 最后一个教学周（单双周的步长为 2）；没有学期信息时，从现在起每周触发。
  */
 function courseReminderTrigger(c: Course, minutesBefore: number, sem: Semester | null, now?: number): Trigger;
 ```
 
-周次不规则时，`courseReminderTrigger` 会覆盖从第一周到最后一周的整段范围。
+如果一门课的周次没有规律，`courseReminderTrigger` 会覆盖从第一周到最后一周的整段范围。
+
+## 示例 [#example]
 
 ```ts
 const { courses, semester } = ctx.services.timetable.get();

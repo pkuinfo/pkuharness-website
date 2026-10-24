@@ -1,47 +1,53 @@
 ---
 title: 从 pkucli 移植
-description: pkucli 是北大各项服务的协议参考。把它 Rust crate 里的接口、登录跳转和各种坑移植到插件里，登录交给框架，并注明出处文件。
+description: pkucli 是北大各项服务的协议参考。本页介绍怎样把它 Rust crate 里的接口、登录步骤和各种特殊情况移植到插件里，把登录交给 App，并注明出处文件。
 icon: Terminal
 ---
 
-[`pkuinfo/pkucli`](https://github.com/pkuinfo/pkucli) 是一组访问北大网络服务的命令行工具，用 Rust workspace 组织。最难的部分它已经摸清楚了：有哪些接口、每个服务要经过哪几次登录跳转、非带不可的请求头和参数、HTML 长什么样。直接移植它的做法，不用重新摸索，并在注释里注明出处文件。
+[`pkuinfo/pkucli`](https://github.com/pkuinfo/pkucli) 是一组访问北大网络服务的命令行工具，用 Rust 编写。每个服务最难弄清的部分，它的作者都已经摸索过了：有哪些接口，登录要经过哪几步，哪些请求头和参数必不可少，以及 HTML 的结构。
+
+如果你要写插件的服务 pkucli 已经支持，请直接移植 pkucli 的做法，不必重新摸索，并在注释里注明出处文件。本页介绍在 pkucli 里去哪里找代码，哪些部分放进插件、哪些留在 App 里，并给出一个示例。
+
+大多数服务都通过北大统一身份认证 IAAA（iaaa.pku.edu.cn）登录。通过 IAAA 之后，每个服务通常还要经过一次或几次自己的单点登录（SSO）跳转，我们把每一次这样的跳转称为「登录跳转」。
 
 ## 对应关系 [#where-things-are]
 
 | pkucli crate | 服务 | 在 PKU Harness 中 |
 | --- | --- | --- |
-| `common` | IAAA（统一身份认证）登录（密码、扫码）、TOTP、验证码、会话、凭据 | 框架本身（App 里的 `src/core/campus`）；**不**放在插件里 |
+| `common` | IAAA 登录（密码、扫码）、TOTP 验证码、图形验证码、会话、凭据 | App 本身（`src/core/campus`）；**不**放在插件里 |
 | `campuscard` | 校园卡（bdcard） | `wallet` 插件，`card` 校园服务 |
 | `treehole` | 树洞 | `treehole` 插件，`treehole` 服务 |
 | `course` | 教学网（Blackboard） | `courses` 插件，`blackboard` 服务 |
 | `elective` | 选课 | `elective` 插件，`elective` 服务 |
 | `cwfw`、`cwpay` | 财务、财务缴费 | `finance` 插件，`cwfw` / `cwpay` 服务 |
 | `bdkj` | 场地预约 | `room-booking` 插件，`bdkj` 服务 |
-| `portal` | 门户 | 框架内部的门户 SSO 跳转 |
+| `portal` | 门户 | App 内部的门户 SSO 跳转 |
 | `claspider` | 课程回放（智云课堂） | 计划中 |
 | `info-spider`、`info-auth` | 微信公众号文章 | `notices` 插件可读取单篇文章（正文清洗移植自 `info-spider`） |
 
-在一个 crate 里，`api.rs`（或 `client.rs`）放接口和响应类型，`login.rs` 放该服务特有的登录跳转，`commands.rs` 放面向用户的操作。
+TOTP（基于时间的一次性密码）就是身份验证器 App 上显示的六位数字。在一个 crate 里，`api.rs`（或 `client.rs`）存放接口和响应类型，`login.rs` 存放该服务自己的登录跳转，`commands.rs` 存放用户可以执行的操作。
 
 ## 代码搬到哪里 [#what-moves-where]
+
+pkucli crate 里的每个文件，在 PKU Harness 里都有对应的位置。登录部分搬进 App，其余部分搬进插件：
 
 ```
 pkucli crate                     PKU Harness
 ─────────────────────────────    ──────────────────────────────────────────────
-login.rs  (IAAA → service SSO)   app: a campus service adapter (harness-owned)
-client.rs (headers, base URL)    plugin: the `url`/`headers` of services.campus.request
-api.rs    (endpoints, types)     plugin: src/api.ts + zod/TS types
-commands.rs / display.rs         plugin: tools (data, not formatted text)
+login.rs（IAAA → 服务的 SSO）    App：一个校园服务适配器（由 App 维护）
+client.rs（请求头、基础 URL）    插件：services.campus.request 的 `url` / `headers`
+api.rs（接口、类型）             插件：src/api.ts 加 zod / TS 类型
+commands.rs / display.rs         插件：工具（返回数据，而不是排好版的文本）
 ```
 
-- **登录留在框架里。** 插件（plugin）永远不自己实现 IAAA 或某个服务的 SSO 跳转。框架目前能登录的服务有 `card`、`its`、`treehole`、`blackboard`、`bdkj`、`cwfw`、`cwpay`、`elective`、`library`、`library-space`。你要的服务不在其中，就去 `pku-harness` 开 issue：新服务需要在 `src/core/campus/adapters/` 里加一个适配器。
-- **请求走 `services.campus.request(service, req)`。** 路径写相对于服务主机的路径，Cookie 或 token 由框架加上。
-- **公开页面**（不用登录）可以直接用 `fetch`，并声明 `requires: ['network']`。把 pkucli 的请求头一起抄过来（桌面浏览器的 User-Agent、`accept-language: zh-CN`），有些校园服务器不认别的。
-- **解析成数据。** pkucli 的 `display.rs` 是为终端排版的，工具（tool）应该返回结构化的 JSON。
+- **登录留在 App 里。** 插件（plugin）从不自己实现 IAAA 或某个服务的 SSO 跳转，所以永远接触不到密码。App 目前能登录的服务有 `card`、`its`、`treehole`、`blackboard`、`bdkj`、`cwfw`、`cwpay`、`elective`、`library` 和 `library-space`。如果你需要的服务不在其中，请去 `pku-harness` 开 issue。新服务需要在 `src/core/campus/adapters/` 里新增一个适配器。
+- **请求通过 `services.campus.request(service, req)` 发出。** 路径写成相对于服务域名的路径，cookie 或 token 由 App 加上。
+- **公开页面**（不需要登录）可以直接用 `fetch`，并声明 `requires: ['network']`。请把 pkucli 的请求头一起照搬过来，比如桌面浏览器的 User-Agent 和 `accept-language: zh-CN`，因为有些校园服务器会拒绝不带这些请求头的请求。
+- **解析成数据。** pkucli 的 `display.rs` 是为终端排版输出的。工具（tool）则返回结构化的 JSON，因为读取它的是模型或页面。
 
 ## 示例 [#example]
 
-pkucli（Rust）：
+下面是 pkucli 里查询校园卡的代码，用 Rust 编写：
 
 ```rust title="crates/campuscard/src/api.rs"
 /// 查询校园卡信息
@@ -53,12 +59,12 @@ pub async fn query_card(&self) -> Result<CardQueryData> {
 }
 ```
 
-插件（TypeScript）：
+同一个请求在插件里的写法，用 TypeScript 编写：
 
 ```ts title="plugins/shared/campus-card.ts (abridged)"
 /**
- * Campus card (bdcard.pku.edu.cn) response handling, ported from pkucli
- * crates/campuscard/src/api.rs. Amounts are in fen; every call carries synAccessSource=h5.
+ * 校园卡（bdcard.pku.edu.cn）响应处理，移植自 pkucli
+ * crates/campuscard/src/api.rs。金额单位是分；每次请求都带 synAccessSource=h5。
  */
 import type { HostServices } from '@pku-harness/sdk';
 
@@ -73,15 +79,17 @@ export async function cardAccount(services: Services) {
 }
 ```
 
-注释里写明了出处（pkucli 的 `crates/campuscard/src/api.rs`）：金额单位是分，每次请求都带 `synAccessSource=h5`。
+顶部的注释写明了出处文件，还记下了两个特殊之处：金额单位是分（0.01 元），每次请求都要带上 `synAccessSource=h5`。
 
 ## 二次验证 [#second-factors]
 
-pkucli 可以在终端里提示输入，插件不行。服务层面的验证（树洞的短信验证 `40002`、课程 token `40077`）要变成一个工具结果，比如 `{ status: 'verification_required', methods: ['sms'], message }`，再配一个发送或提交验证码的工具。插件的页面可以调用 `services.sms.awaitCode()`。IAAA 层面的二次验证由框架处理。
+有些服务会要求额外验证，比如短信验证码。pkucli 在终端里请用户输入验证码，插件做不到这一点。在插件里，服务层面的验证要变成一个工具结果，例如 `{ status: 'verification_required', methods: ['sms'], message }`，再配一个发送或提交验证码的工具。树洞的短信验证（错误码 `40002`）和课程令牌（错误码 `40077`）都是这样处理的。插件的页面还可以调用 `services.sms.awaitCode()`，从短信里读取验证码。
+
+IAAA 层面的二次验证由 App 处理，不归插件管。
 
 ## 规则 [#rules]
 
 - **必须**在模块顶部的注释里写明移植自 pkucli 的哪个文件。
-- **必须**把登录留在框架里，插件只发请求。
-- **应当**把解析器连同一份真实响应（已脱敏）做成的 fixture 和测试一起移植。
-- **应当**两边一起修 bug：发现 pkucli 没处理的坑，也去 pkucli 开 issue 或提 PR。
+- **必须**把登录留在 App 里，插件只发请求。
+- **应当**在移植解析器时，一起移植测试，以及用真实响应（已脱敏）做成的 fixture。
+- **应当**两边一起修 bug。如果发现了 pkucli 没处理的特殊情况，也去 pkucli 开 issue 或提 pull request。

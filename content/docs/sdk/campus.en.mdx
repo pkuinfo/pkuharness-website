@@ -1,15 +1,27 @@
 ---
 title: campus
-description: Types for signed-in campus HTTP through the host (CampusService, CampusRequest, CampusResponse, multipart uploads, picked files), sign-in status and the 手机令牌 code.
+description: Types for signed-in campus requests through the host (CampusService, CampusRequest, CampusResponse, multipart uploads, picked files), the sign-in status and the 手机令牌 (IAAA authenticator) code.
 ---
 
-Source: `packages/sdk/src/campus.ts`. Concepts: [Campus sessions](/en/docs/concepts/campus-sessions).
-Requires the `campus-session` capability.
+When a plugin needs to use a campus website as the user, for example to check the campus card
+balance or post on the treehole, it asks the host to send the request with
+`services.campus.request`. This module defines the types for those requests, their responses and
+the related status. A plugin that uses these calls must declare the `campus-session` capability.
 
-The host keeps the campus credentials in the device keystore, signs in to each service itself
-(IAAA, portal SSO, ITS) and hands back responses. Your plugin never sees the password or the raw
-session tokens. For multipart uploads the host streams each file from its local URI, so the bytes
-don't pass through your plugin either.
+Source: `packages/sdk/src/campus.ts`. For the concepts, see
+[Campus sessions](/en/docs/concepts/campus-sessions).
+
+## What your plugin can see [#what-plugins-see]
+
+The host keeps the campus username and password in the device keystore. It signs in to each
+service itself, including IAAA (PKU's unified login service), the portal's single sign-on (SSO) and
+ITS (the campus network account system), and then hands the responses to your plugin. Your plugin
+never sees the password or the raw session tokens.
+
+For file uploads (multipart requests), the host reads each file from its local URI and sends it
+directly, so the file contents don't pass through your plugin either.
+
+## Types [#types]
 
 ```ts
 /**

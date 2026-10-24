@@ -1,23 +1,32 @@
 ---
 title: Campus account
-description: Sign in once with your PKU student ID and password (IAAA). The app handles second factors, per-service sessions and the campus network.
+description: Sign in once with your PKU student ID and password. The app handles second factors, per-service sessions and the campus network.
 icon: KeyRound
 ---
 
-PKU Harness signs in to campus services the way a browser does, except it runs on your phone and
-acts for you. It signs in once with IAAA (统一身份认证), then once per service: portal, campus card,
-Treehole, Blackboard and so on. You type your credentials once, in Settings → Campus account or
-during onboarding.
+PKU Harness signs in to campus services the same way a browser does. The difference is that it
+runs on your phone and goes through the steps for you.
+
+Signing in happens in two layers. The app first signs in to IAAA (统一身份认证), the university's
+central login system. It then signs in to each service separately, such as the portal, the
+campus card, Treehole and Blackboard. You enter your student ID and password only once, either
+during first-run setup or in Settings → Campus account.
 
 ## What happens when you sign in
 
-1. The app fetches IAAA's RSA public key, encrypts your password and posts the login. This is
-   ported from [`pkucli`](https://github.com/pkuinfo/pkucli) `crates/common`.
-2. If the credentials are wrong, you see IAAA's message and nothing is stored.
-3. If they're right, the student ID and password go into the **device keystore** (Expo
-   SecureStore). They are never sent to any server the project runs, and no plugin ever gets them.
-4. Each campus service is signed in **on demand**, the first time a plugin needs it. Its session
-   (cookies or a token) is cached on the device and refreshed when it expires.
+1. The app fetches IAAA's RSA public key, encrypts your password with it and sends the login
+   request. This logic is ported from `crates/common` in
+   [`pkucli`](https://github.com/pkuinfo/pkucli).
+2. If the student ID or password is wrong, you see IAAA's message and nothing is stored.
+3. If the sign-in succeeds, the student ID and password are saved in the phone's **keystore**
+   (Expo SecureStore). They are never sent to any server the project runs, and no plugin ever
+   receives them.
+4. Each campus service is signed in **on demand**. The app signs in to a service only when a
+   plugin first needs it. The service's session (cookies or a token) is cached on the phone and
+   refreshed when it expires.
+
+The diagram shows this process. IAAA issues a token, the app uses it for the service's single
+sign-on (SSO), and the resulting session is kept on the phone.
 
 ```
 IAAA (iaaa.pku.edu.cn) ──token──► service SSO callback ──► session cached on the device
@@ -26,40 +35,52 @@ IAAA (iaaa.pku.edu.cn) ──token──► service SSO callback ──► sessi
 
 ## Second factors
 
-IAAA usually wants nothing beyond the password, but it can ask for more at any sign-in, including
-a background session refresh. When that happens the app shows a prompt and the sign-in waits for
-you:
+IAAA usually needs only the password. However, any sign-in can ask for an extra check, including
+a session refresh that runs in the background. When this happens, the app shows a prompt and the
+sign-in waits until you complete the check.
 
-| Mode | What you do |
-| --- | --- |
-| SMS code | Enter the code sent to your phone. On Android the app can offer **one-tap takeover** (SMS User Consent): you allow it to read that one message and nothing else. |
-| Email code | Enter the code sent to your email. |
-| 手机令牌 (OTP) | Filled in automatically if you bound the app's authenticator (see below). Otherwise, copy it from your token app. |
+There are three kinds of check.
 
-Some services add their own checks on top of IAAA. Treehole asks for an SMS check now and then,
-plus a separate token for course data. The Treehole plugin shows these as a verification step in
-the chat or on its screen, and you complete it there, or the agent does once you give it the code.
+- **SMS code.** Enter the code sent to your phone. On Android the app can offer **one-tap
+  reading**, which uses the system's SMS User Consent feature. You allow the app to read that one
+  message and no other.
+- **Email code.** Enter the code sent to your email.
+- **Mobile token (手机令牌).** This is a one-time password (OTP). If you have bound the app's
+  authenticator (see the next section), the app fills it in for you. Otherwise, copy the code
+  from your token app.
+
+Some services add their own checks on top of IAAA. For example, Treehole asks for an SMS check
+from time to time, and reading course data needs a separate token. The Treehole plugin shows
+these as a verification step, either in the chat or on its own screen. You can complete the step
+there, or give the code to the agent and let it finish the step.
 
 ### Bind the authenticator (optional)
 
-The bundled **Authenticator** plugin can bind IAAA's 手机令牌 to the app. It verifies your stored
-credentials, IAAA sends a binding SMS, and you confirm the code. From then on the app fills OTP
-prompts itself (in finance sign-ins, for example), and a dashboard widget shows the current code.
-The secret stays in the keystore. Plugins can read the current code but never the secret.
+The app includes an **Authenticator** plugin that can bind IAAA's mobile token to the app. To
+bind it, the plugin first verifies your stored student ID and password. IAAA then sends a binding
+SMS, and you confirm the code in it.
+
+After binding, the app fills in one-time passwords itself, for example when you sign in to the
+finance system. A dashboard widget also shows the current code. The token's secret stays in the
+keystore. Plugins can read the current code, but never the secret itself.
 
 ## The campus network
 
-Some hosts only answer from inside the PKU network, such as the finance system (`cwfw`). Plugins
-that need them declare the `campus-network` [capability](/en/docs/concepts/capabilities). The
-app's campus HTTP client always connects **directly** and ignores system proxies and VPNs. Use
-campus Wi-Fi for those plugins, or a campus VPN that routes the whole device.
+Some services can only be reached from inside the PKU network, such as the finance system
+(`cwfw`). Plugins that need these services declare the `campus-network`
+[capability](/en/docs/concepts/capabilities).
+
+The app always sends campus requests **directly**, without going through system proxies or VPNs.
+To use these plugins, connect to campus Wi-Fi, or use a campus VPN that carries all of the phone's
+traffic.
 
 <Callout type="warn" title="Developers with a system proxy">
-  If your machine runs Clash or a similar proxy, start the Android emulator **without** inheriting
-  `HTTP_PROXY`/`HTTPS_PROXY`. Otherwise it can't reach campus services directly.
+  If your computer runs Clash or a similar proxy, start the Android emulator **without**
+  inheriting `HTTP_PROXY`/`HTTPS_PROXY`. Otherwise the emulator can't reach campus services
+  directly.
 </Callout>
 
 ## Signing out
 
-Settings → Campus account → sign out deletes the stored credentials and every cached service
-session from the device. Settings → Data → reset wipes everything the app has stored.
+Signing out in Settings → Campus account deletes the stored student ID, password and every cached
+service session from the phone. Settings → Data → reset wipes everything the app has stored.

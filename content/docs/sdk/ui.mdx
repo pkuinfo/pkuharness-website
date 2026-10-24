@@ -1,22 +1,26 @@
 ---
 title: ui
-description: 'HostUI（组件、主题、导航、触感反馈、实时数据 hook），页面和小组件收到的 props，以及全部扩展类型（页面、设置项、标签页、小组件、命令）。'
+description: '插件界面用到的类型：页面和小组件收到的 props，HostUI（组件、主题、导航、触感反馈、实时数据 hook），以及全部扩展类型（页面、设置项、标签页、小组件、命令）。'
 ---
+
+插件可以给 App 添加自己的界面，比如一个页面、一个设置项或一个看板小组件。这些界面用 React 编写，所需的组件、主题和数据 hook 都由宿主通过 `HostUI` 提供。这一页列出界面相关的全部类型。
 
 源码：`packages/sdk/src/ui.ts`。使用指南：[界面扩展](/docs/build/ui)。
 
 ## Props [#props]
 
+宿主渲染插件的页面时传入 `PluginScreenProps`，渲染插件的小组件时传入 `PluginWidgetProps`。
+
 ```ts
 interface PluginScreenProps {
   host: HostUI;
   services: HostServices;
-  /** This plugin's store. */
+  /** 本插件的存储。 */
   kv: KV;
-  /** Run one of the app's tools as the user (same validation and permissions as the agent). */
+  /** 以用户身份运行 App 中的某个工具（校验和权限与助手调用时相同）。 */
   invoke(toolId: string, input?: Record<string, unknown>): Promise<unknown>;
   params: Record<string, string | undefined>;
-  /** This plugin's cloud client (plugins that declare `PluginDef.cloud`). */
+  /** 本插件的云服务客户端（声明了 `PluginDef.cloud` 的插件才有）。 */
   cloud?: PluginCloud;
 }
 
@@ -26,7 +30,7 @@ interface PluginWidgetProps {
   kv: KV;
   invoke(toolId: string, input?: Record<string, unknown>): Promise<unknown>;
   size: WidgetSize;
-  /** Agent/user-chosen options, validated by `configSchema`. */
+  /** 助手或用户选定的配置，按 `configSchema` 校验。 */
   config: Record<string, unknown>;
   cloud?: PluginCloud;
 }
@@ -34,66 +38,74 @@ interface PluginWidgetProps {
 
 ## HostUI [#hostui]
 
+`HostUI` 是 props 中的 `host`。它提供宿主的组件、触感反馈、导航，以及读取主题、时间、语言和实时数据的 hook。
+
 ```ts
 type AppLocale = 'zh-Hans' | 'en';
 
 interface HostUI {
   components: HostComponents;
   haptics: { tap(): void; select(): void; success(): void; warning(): void };
-  /** Navigate to an app route or another plugin screen (`/p/<plugin>/<screen>`). */
+  /** 跳转到 App 的某个路由或其他插件页面（`/p/<plugin>/<screen>`）。 */
   navigate(href: string): void;
   back(): void;
-  /** Re-render when the host's data stores change (jobs, todos, widgets, timetable). */
+  /** 宿主的数据（任务、待办、小组件、课表）变化时重新渲染。 */
   useStoreVersion(): number;
   useTheme(): HostTheme;
-  /** Current time, refreshed every `intervalMs`. */
+  /** 当前时间，每隔 `intervalMs` 刷新一次。 */
   useNow(intervalMs?: number): Date;
-  /** Close a modal screen (falls back to the given route when opened from a deep link). */
+  /** 关闭模态页面（从深链接打开时，改为跳转到给定的路由）。 */
   dismiss(fallback?: string): void;
-  /** Switch to chat and send a message to the agent. */
+  /** 切换到对话页，并向助手发送一条消息。 */
   ask(text: string): void;
-  /** Live result of a read-only tool. `ttlMinutes` defaults to 5. */
+  /** 只读工具的实时结果。`ttlMinutes` 默认为 5。 */
   useToolData<T = unknown>(tool: string, args?: Record<string, unknown>, opts?: { ttlMinutes?: number; path?: string }): LiveData<T>;
-  /** An AI-built widget's spec state with every binding filled in. */
+  /** AI 生成的小组件的 spec 状态，所有绑定都已填好。 */
   useWidgetData(widget: Pick<Widget, 'spec' | 'bindings'>): LiveData<Record<string, unknown>>;
-  /** Live values for several bindings at once. */
+  /** 同时获取多个绑定的实时值。 */
   useBindings(bindings: Binding[]): LiveData<unknown[]>;
-  /** Force-refresh every live query on screen (pull-to-refresh); resolves when all settle. */
+  /** 强制刷新页面上所有实时查询（下拉刷新）；全部完成后 resolve。 */
   refreshAll(): Promise<void>;
-  /** "刚刚" / "3 分钟前" / "昨天 08:00" for a past timestamp. */
+  /** 把过去的时间戳格式化为「刚刚」「3 分钟前」「昨天 08:00」。 */
   formatAgo(ms: number, now?: number): string;
-  /** While mounted: block screenshots/recording; `brightness` raises it for scanners. */
+  /** 挂载期间禁止截屏和录屏；`brightness` 会调高屏幕亮度，方便扫码。 */
   useSecureDisplay(opts?: { brightness?: boolean }): void;
-  /** App language (re-renders on change). */
+  /** App 语言（变化时重新渲染）。 */
   useLocale(): AppLocale;
-  /** Undefined when this build has no clipboard module. */
+  /** 当前构建没有剪贴板模块时为 undefined。 */
   clipboard?: { setString(text: string): Promise<void> };
-  /** System share sheet with a share link; the plugin never sees the URL. Undefined until the host supports cloud channels. */
+  /** 用分享链接打开系统分享面板，插件看不到 URL。宿主支持云端频道之前为 undefined。 */
   shareLink?(link: SecretLink, opts?: { message?: string }): Promise<void>;
 }
 ```
 
 ## LiveData [#livedata]
 
+`useToolData`、`useWidgetData` 和 `useBindings` 返回 `LiveData`。它包含当前的值、加载状态和最近一次错误。
+
 ```ts
 interface LiveData<T = unknown> {
-  /** 'loading' only before the first value; afterwards errors keep the last value. */
+  /** 只有拿到第一个值之前才是 'loading'；之后出错时保留上一次的值。 */
   status: 'loading' | 'error' | 'ready';
   value?: T;
-  /** Last refresh error (also set while a stale value is shown). */
+  /** 最近一次刷新的错误（显示旧值时也会设置）。 */
   error?: string;
-  /** When the shown value was fetched (ms epoch). */
+  /** 当前显示的值是什么时候获取的（epoch 毫秒）。 */
   updatedAt?: number;
-  /** A request is in flight. */
+  /** 正在请求中。 */
   fetching: boolean;
-  /** Refetch now, ignoring the TTL. */
+  /** 忽略 TTL，立即重新获取。 */
   refresh(): Promise<void>;
 }
 ```
 
-实时数据采用 stale-while-revalidate 策略。上一次的值会跨启动保存，打开时立即显示。以下情况宿主会重新获取：值已超过 TTL、页面获得焦点、App 回到前台、页面可见期间每隔一个 TTL，以及你调用 `refresh()` 时。小组件、页面和定时检查只要请求的是同一个工具和同样的参数，就共用一次请求和一条缓存。
+实时数据采用 stale-while-revalidate 策略：先显示缓存里的旧值，同时在后台获取新值。上一次的值在 App 重启后依然保留，打开页面时立即显示。
+
+每个值都有一个缓存有效期（TTL，time to live）。宿主在以下情况重新获取：值已超过 TTL、页面获得焦点、App 回到前台、页面可见期间每隔一个 TTL，以及你调用 `refresh()` 时。小组件、页面和定时检查只要请求的是同一个工具和同样的参数，就共用一次请求和一条缓存。
 
 ## HostTheme [#hosttheme]
+
+`host.useTheme()` 返回当前主题。插件应当使用这里的颜色、间距、圆角和字体样式，不要自己写死数值，这样界面才会随浅色和深色主题一起变化。
 
 ```ts
 type TextVariant = 'display' | 'title' | 'headline' | 'body' | 'bodyStrong' | 'callout' | 'caption' | 'micro' | 'numberXL' | 'numberL' | 'numberM';
@@ -165,7 +177,7 @@ interface HostComponents {
 | `Screen` | 推入式页面的根组件：带标题、返回按钮和可选尾部元素的页头，支持下拉刷新。 |
 | `SheetScreen` | 模态页面的表单面板布局：标题和关闭按钮、可滚动的内容区、一个主操作，以及可选的次要 / 危险操作。 |
 | `Pressable` | 可点击的容器，带 App 统一的按压反馈。 |
-| `Hourglass` | 沙漏按 Unix 时间对齐，在 `period` 秒内漏完，到边界时翻转（比如一个 TOTP 周期）。 |
+| `Hourglass` | 沙漏按 Unix 时间对齐，在 `period` 秒内漏完，到边界时翻转，比如一个基于时间的一次性密码（TOTP）的刷新周期。 |
 | `GenUI` | 用宿主的组件目录渲染一份[生成式界面 spec](/docs/sdk/genui)。 |
 | `SortableList` | 纵向列表，用户拖动把手即可排序。每一行由插件自己渲染。 |
 | `PluginWidget` | 挂载某个插件提供的小组件。出错时不会影响外部；对应插件关闭时会显示提示。 |
@@ -174,29 +186,31 @@ interface HostComponents {
 
 ## Contributions [#contributions]
 
+插件在 `PluginDef.contributes` 中声明要添加到 App 里的界面，类型是 `Contributions`。
+
 ```ts
 interface Contributions {
-  /** Screens mounted at `/p/<plugin>/<screen>`. */
+  /** 挂载在 `/p/<plugin>/<screen>` 的页面。 */
   screens?: Record<string, ScreenContribution>;
-  /** Rows listed in Settings, opening one of the plugin's screens. */
+  /** 显示在设置里的条目，点击后打开插件的某个页面。 */
   settings?: SettingsContribution[];
-  /** Fill one of the harness's tab slots with a screen. */
+  /** 用一个页面填充 App 的某个标签页位置。 */
   tabs?: TabContribution[];
-  /** Native dashboard widgets, keyed by id. */
+  /** 原生看板小组件，以 id 为键。 */
   widgets?: Record<string, WidgetContribution>;
-  /** Slash commands, keyed by name (lowercase, /^[a-z][a-z0-9-]*$/). */
+  /** 斜杠命令，以名称为键（小写，/^[a-z][a-z0-9-]*$/）。 */
   commands?: Record<string, CommandContribution>;
 }
 
 interface ScreenContribution {
   title: string;
   component: ComponentType<PluginScreenProps>;
-  /** 'modal' screens open at `/m/<plugin>/<screen>` (forms); default 'push' at `/p/…`. */
+  /** 'modal' 页面在 `/m/<plugin>/<screen>` 打开（用于表单）；默认是 'push'，在 `/p/…` 打开。 */
   presentation?: 'push' | 'modal';
 }
 
 interface SettingsContribution {
-  /** Key of a screen in `contributes.screens`. */
+  /** `contributes.screens` 中某个页面的键。 */
   screen: string;
   title: string;
   subtitle?: string;
@@ -207,13 +221,13 @@ type TabSlot = 'dashboard' | 'schedule';
 
 interface TabContribution {
   slot: TabSlot;
-  /** Key of a screen in `contributes.screens`. */
+  /** `contributes.screens` 中某个页面的键。 */
   screen: string;
 }
 
 interface WidgetContribution {
   title: string;
-  /** What it shows; the agent reads this to pick widgets. */
+  /** 显示什么内容；助手根据它挑选小组件。 */
   description: string;
   sizes?: WidgetSize[];
   defaultSize?: WidgetSize;
@@ -222,20 +236,22 @@ interface WidgetContribution {
 }
 
 type CommandContribution = {
-  /** One line, shown in the / menu. */
+  /** 一行文字，显示在 / 菜单里。 */
   description: string;
-  /** Extra names matched by the menu, e.g. Chinese ('余额'). */
+  /** 菜单额外匹配的名称，比如中文（'余额'）。 */
   aliases?: string[];
-  /** Placeholder for the argument. Present = the command takes input. */
+  /** 参数的占位提示。写了这一项，表示命令接受输入。 */
   argHint?: string;
 } & (
-  | { /** Sent as the user message; `{{input}}` is replaced. */ prompt: string }
+  | { /** 作为用户消息发送；`{{input}}` 会被替换为输入。 */ prompt: string }
   | {
-      /** Runs locally; the returned text is shown as a notice (never sent to the model). */
+      /** 在本地运行；返回的文本作为提示显示（不会发给模型）。 */
       run: (input: string, ctx: { services: HostServices; navigate: (href: string) => void; locale: AppLocale }) => Promise<string | void> | string | void;
     }
 );
 ```
 
-插件小组件由助手（`dashboard.addPluginWidget`）或用户在看板的小组件库里放上去。数据请用
-`host.useToolData` 加载，这样刷新行为和其他小组件一致；卡片外框（标题、背景）由看板负责绘制。只有两个插件用了同一个命令名时，命令才会加上 `/plugin:name` 前缀。
+插件小组件可以由助手通过 `dashboard.addPluginWidget` 添加，也可以由用户从看板的小组件库里添加。小组件的数据请用
+`host.useToolData` 加载，这样它的刷新方式和其他小组件一致。卡片的外框（标题、背景）由看板绘制，小组件只需画出内容。
+
+命令名通常直接使用。只有两个插件用了同一个命令名时，命令才会加上 `/plugin:name` 前缀。

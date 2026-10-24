@@ -1,13 +1,18 @@
 ---
 title: Campus sessions and IAAA
-description: The harness holds campus credentials, signs in to each PKU service itself and hands plugins the responses through `services.campus.request`. Plugins never see passwords or session tokens.
+description: The harness keeps the campus credentials, signs in to each PKU service itself, and gives plugins the responses through `services.campus.request`. Plugins never see passwords or session tokens.
 icon: GraduationCap
 ---
 
-PKU services sit behind IAAA (统一身份认证), and each one keeps its session differently: cookies, a
-portal SSO hop, a JWT. The harness implements all of it once, in the app, following the protocol
-reference [`pkucli`](https://github.com/pkuinfo/pkucli). A bundled plugin asks for an authenticated
-request by **service name** and gets the response back.
+PKU services are all signed in through IAAA (统一身份认证), the university's central login system.
+After that, each service keeps its session in its own way. Some use cookies, some need a single
+sign-on (SSO) hop through the portal, and some use a JWT.
+
+The harness implements all of this sign-in logic once, inside the app, following the protocol
+reference [`pkucli`](https://github.com/pkuinfo/pkucli). A bundled plugin doesn't deal with
+sign-in at all. It sends a request by **service name**, the harness sends it with the signed-in
+session attached, and the plugin receives the response. For example, to look up the campus-card
+balance:
 
 ```ts
 const res = await ctx.services.campus.request('card', {
@@ -18,19 +23,29 @@ const res = await ctx.services.campus.request('card', {
 
 ## Services the harness signs in to
 
-| Service | Host | Session the harness adds |
+The table lists the four main services and how the harness builds a session for each.
+
+| Service | Host | Session the harness builds |
 | --- | --- | --- |
-| `card` | bdcard.pku.edu.cn | IAAA → portal ssoLogin → redirectToCard → synjones JWT (refreshed on 401) |
-| `its` | its.pku.edu.cn | ITS web login (网络账号) |
-| `treehole` | treehole.pku.edu.cn `/chapi/…` | IAAA "PKU Helper" → JWT + device uuid (re-login on 401) |
-| `blackboard` | course.pku.edu.cn (教学网) | IAAA → campusLogin cookie session; redirects followed |
-| `bdkj`, `cwfw`, `cwpay`, `elective`, `library`, `library-space` | room booking, finance, finance payments, course selection, library, library seats | Registered by adapters in the app (`src/core/campus/adapters/`) |
+| `card` | bdcard.pku.edu.cn | IAAA → portal ssoLogin → redirectToCard → synjones JWT |
+| `its` | its.pku.edu.cn | ITS web login (网络账号, the network account) |
+| `treehole` | treehole.pku.edu.cn `/chapi/…` | IAAA "PKU Helper" → JWT + device uuid |
+| `blackboard` | course.pku.edu.cn (教学网) | IAAA → campusLogin cookie session |
+
+The harness also handles expired sessions. For `card` it refreshes the JWT on a 401 response.
+For `treehole` it signs in again on a 401. For `blackboard` it follows redirects automatically.
+
+Adapters in the app (`src/core/campus/adapters/`) register more services: `bdkj` (room booking),
+`cwfw` (finance), `cwpay` (finance payments), `elective` (course selection), `library` (the
+library) and `library-space` (library space booking: discussion rooms and study seats).
 
 `CampusService` is typed as `'card' | 'its' | 'treehole' | 'blackboard' | (string & {})`. A request
-for a service that isn't registered rejects. Declare the services you use in the plugin's `scopes`
-so users can see them.
+for a service that isn't registered is rejected. Declare the services you use in the plugin's
+`scopes`, so that users can see them on the plugin's page.
 
-## Requests
+## The request format [#requests]
+
+The second argument of `request` is a `CampusRequest` object.
 
 ```ts
 type CampusRequest = {
@@ -49,41 +64,61 @@ type CampusRequest = {
 };
 ```
 
-Requests go through the app's native campus HTTP module. It keeps a cookie jar per session, lets
-you control redirects by hand, speaks HTTP/1.1, carries the extra trust anchors some campus hosts
-need, and uses **no proxy**: campus-only hosts are called directly. Every type is listed in
-[SDK → campus](/en/docs/sdk/campus).
+Requests are sent by the app's native campus HTTP module, which works as follows.
+
+- It keeps a separate cookie jar for each session.
+- It lets you control redirects by hand.
+- It uses HTTP/1.1.
+- It includes the extra root certificates that some campus sites need.
+- It uses **no proxy**, so sites that only work on campus are called directly.
+
+Every type is listed in [SDK → campus](/en/docs/sdk/campus).
 
 ## Second factors
 
-The harness handles **IAAA** second factors (SMS, email, 手机令牌). Any sign-in can show a
-prompt, background refreshes included, and the request waits for the user.
+There are two kinds of second factor. The harness handles one kind, and plugins handle the other.
 
-**Service-level** checks stay visible to the plugin, because only the plugin knows that API.
-Treehole returns code `40002` (SMS check: `/chapi/api/jwt_send_msg`, `/chapi/api/jwt_msg_verify`)
-and `40077` (course-data token). The plugin turns these into a result such as
-`{ status: 'verification_required', methods: ['sms'], message }`, and the user completes it, or
-the agent does with the code the user gives it. On Android, `services.sms.awaitCode()` offers
-one-tap code takeover.
+The harness handles **IAAA's second factors**: SMS, email and the mobile token (手机令牌). Any
+sign-in can show a prompt, including a session refresh in the background. The request then pauses
+until the user completes the check.
+
+**Checks added by a service itself** are left to the plugin, because only the plugin knows that
+service's API. Treehole, for example, returns two codes that need a check:
+
+- `40002` means an SMS check is needed, using `/chapi/api/jwt_send_msg` and
+  `/chapi/api/jwt_msg_verify`;
+- `40077` means a course-data token is needed.
+
+The plugin turns these codes into a result such as
+`{ status: 'verification_required', methods: ['sms'], message }`. The user then completes the
+check, or gives the code to the agent so that the agent can complete it. On Android,
+`services.sms.awaitCode()` offers one-tap reading of the SMS code.
 
 If the user has bound the app's authenticator, `services.campus.otp()` returns the current
-手机令牌 code (never the secret). Use it for second factors such as Treehole's course token.
+mobile-token code, but never the token's secret. Use it for checks such as Treehole's course
+token.
 
 ## Handing the user to a campus page
 
+Sometimes a plugin needs the user to finish something in a browser. The most common case is paying
+for an order that the plugin created.
+
 `services.campus.openSignedIn(service)` opens the service in the system browser, already signed
-in, through the service's own hand-off. A typical use is paying for an order the plugin created.
-The harness builds the URL, so the plugin never sees the token. `services.browser.open(url)` opens
-any URL, such as a payment cashier, where app links like `weixin://` and `alipays://` open those
-apps.
+in. It uses the service's own hand-off mechanism. The harness builds the URL, so the plugin never
+sees the token in it.
+
+`services.browser.open(url)` opens any URL, such as a payment cashier page. If the URL is an app
+link such as `weixin://` or `alipays://`, the system opens that app.
 
 ## Rules
 
-- **MUST** declare `requires: ['campus-session']`, plus `'campus-network'` for campus-only hosts.
-- **MUST NOT** ask the user for their campus password, whether in a screen, a tool input or a
-  remote plugin. Remote plugins have no campus session today; scoped session grants are on the
-  roadmap.
-- **MUST** port endpoints and quirks from `pkucli` where it implements them, and cite the source
-  file in a comment. See [Porting from pkucli](/en/docs/build/porting-from-pkucli).
-- **SHOULD** check `services.campus.status().signedIn` and return a clear message
-  ("请先在设置里登录校园账号") instead of a raw error.
+- You **must** declare `requires: ['campus-session']`. If you reach sites that only work on
+  campus, add `'campus-network'` as well.
+- You **must not** ask the user for their campus password, whether in a screen, a tool input or a
+  remote plugin. Remote plugins have no campus session today. Granting them limited sessions is on
+  the roadmap.
+- Where `pkucli` already implements an endpoint or a quirk, you **must** port it and cite the
+  source file in a comment. See [Porting from pkucli](/en/docs/build/porting-from-pkucli).
+- You **should** check `services.campus.status().signedIn` first. If the user is not signed in,
+  return a clear message such as "请先在设置里登录校园账号" (please sign in to your campus account in
+  Settings) instead of a raw error.

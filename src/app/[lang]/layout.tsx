@@ -5,28 +5,23 @@ import { Geist_Mono, Inter } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { htmlLang, i18n, isLang } from '@/lib/i18n';
 import { translations } from '@/lib/layout.shared';
+import { t } from '@/lib/messages';
 import { appName, siteUrl } from '@/lib/shared';
 import '../global.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const mono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' });
 
-const descriptions = {
-  zh: '北大校园生活的 AI 原生 App。登录一次，课表、校园卡、树洞、教学网……每项校园服务都是一个插件，由你手机上的助手代劳。',
-  en: 'An open-source, AI-native app for campus life at Peking University. Log in once; every campus service is a plugin your on-device agent can use.',
-};
-
 export async function generateMetadata({ params }: LayoutProps<'/[lang]'>): Promise<Metadata> {
   const { lang } = await params;
-  const l = isLang(lang) ? lang : 'zh';
+  const site = t(isLang(lang) ? lang : 'zh').site;
   return {
     metadataBase: new URL(siteUrl),
     title: {
-      default:
-        l === 'zh' ? `${appName}：北大校园生活的 AI 原生 App` : `${appName}: the AI-native app for campus life at PKU`,
+      default: site.title,
       template: `%s | ${appName}`,
     },
-    description: descriptions[l],
+    description: site.description,
     alternates: { languages: { 'zh-CN': '/', en: '/en' } },
   };
 }

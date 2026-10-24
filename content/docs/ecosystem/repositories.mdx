@@ -1,42 +1,58 @@
 ---
 title: 仓库
-description: pkuinfo 旗下的各个仓库（应用、插件/SDK/插件市场仓库、pkucli、pkubdcard 和本网站），以及它们之间的关系。
+description: pkuinfo 组织下的各个仓库（应用、插件仓库、pkucli、pkubdcard 和本网站），每个仓库包含什么，以及它们之间的依赖关系。
 icon: FolderGit2
 ---
 
-所有代码都在 GitHub 组织 [`pkuinfo`](https://github.com/pkuinfo) 下开源。
+项目的全部代码都开源在 GitHub 组织 [`pkuinfo`](https://github.com/pkuinfo) 下，分成五个仓库。
 
-| 仓库 | 技术栈 | 简介 |
-| --- | --- | --- |
-| [`pku-harness`](https://github.com/pkuinfo/pku-harness) | Expo SDK 58、React Native 0.88、TypeScript、bun | **应用本体**：Agent 循环、设计系统、宿主服务、校园会话、调度器。优先支持 Android。 |
-| [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) | TypeScript、zod、bun workspace | SDK（`@pku-harness/sdk`）、所有内置插件（`@pku-harness/plugins`）、插件市场清单（`@pku-harness/registry`）、云服务协议（`@pku-harness/cloud-protocol`）、远程插件模板和示例。**想写插件，从这里开始。** |
-| [`pkucli`](https://github.com/pkuinfo/pkucli) | Rust workspace（reqwest、tokio、clap） | 访问北大各类网站的命令行工具，也是应用对接的每个服务的**协议参考**。同时提供 Agent 技能（skills）。 |
-| [`pkubdcard`](https://github.com/pkuinfo/pkubdcard) | Go（Gin）+ Preact | 分享校园卡付款码的网页应用，是 pkucli 校园卡流程更早的一个移植版。云服务 `card-share` 的界面和限流设计都参考了它。 |
-| [`pkuharness-website`](https://github.com/pkuinfo/pkuharness-website) | Next.js 16 + Fumadocs 16、bun | 本网站：首页、下载、这份文档和插件市场。 |
+| 仓库 | 技术栈 |
+| --- | --- |
+| [`pku-harness`](https://github.com/pkuinfo/pku-harness) | Expo SDK 58、React Native 0.88、TypeScript、bun |
+| [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) | TypeScript、zod、bun workspace |
+| [`pkucli`](https://github.com/pkuinfo/pkucli) | Rust workspace（reqwest、tokio、clap） |
+| [`pkubdcard`](https://github.com/pkuinfo/pkubdcard) | Go（Gin）+ Preact |
+| [`pkuharness-website`](https://github.com/pkuinfo/pkuharness-website) | Next.js 16 + Fumadocs 16、bun |
+
+## 各仓库的用途 [#what-each-repository-is-for]
+
+**`pku-harness`** 是应用本身。它包含运行 AI 助手循环、承载各个插件的核心（我们称为 harness），以及设计系统、宿主服务、校园会话和调度器。应用优先支持 Android。
+
+**`pku-harness-plugins`** 包含编写插件所需的一切：SDK（`@pku-harness/sdk`）、所有内置插件（`@pku-harness/plugins`）、插件市场清单（`@pku-harness/registry`）、云服务协议（`@pku-harness/cloud-protocol`）、远程插件模板和一些示例。想写插件的话，从这个仓库开始。
+
+**`pkucli`** 是一组访问北大各类网站的命令行工具。应用对接的每个校园服务都以它为协议参考：应用需要某个登录流程或接口时，就从这里移植。这个仓库还提供了一些 Agent 技能（skills）。
+
+**`pkubdcard`** 是一个分享校园卡付款码的网页应用，也是 pkucli 校园卡流程更早的一个移植版本。云服务插件 `card-share` 的界面和限流设计都参考了它。
+
+**`pkuharness-website`** 就是本网站，提供首页、下载、这份文档和插件市场。
 
 ## 仓库之间的关系 [#how-they-fit-together]
 
-```
-                 PKU IAAA (iaaa.pku.edu.cn)
-                           │
-      pkucli (Rust) ───────┼──────── protocol reference ────────┐
-                           │                                     ▼
-                     pku-harness (app) ◄── git submodule ── pku-harness-plugins
-                     harness + host services               sdk · plugins · registry · cloud-protocol · cloud-server
-                           │                                     │
-                           ├── remote plugins (MCP, anyone) ◄────┤ templates/remote-plugin
-                           │                                     │
-                           └── PKU Harness Cloud provider ◄──────┘ cloud-protocol + cloud-server (reference)
+所有校园登录都要经过 IAAA（`iaaa.pku.edu.cn`），也就是北大的统一身份认证服务。pkucli 记录了各个校园服务的协议，应用按照这些协议实现。应用把 `pku-harness-plugins` 作为 git 子模块引入。远程插件通过 MCP（Model Context Protocol，模型上下文协议）连接到应用；PKU Harness Cloud（云服务）则基于插件仓库里的云服务协议和参考服务器实现。
 
-   pkuharness-website: docs · marketplace (registry.json + indexed repos) · downloads (GitHub releases)
 ```
+                  北大 IAAA (iaaa.pku.edu.cn)
+                           │
+      pkucli (Rust) ───────┼────────── 协议参考 ────────────────┐
+                           │                                     ▼
+                     pku-harness（应用）◄── git 子模块 ── pku-harness-plugins
+                     harness + 宿主服务                    sdk · plugins · registry · cloud-protocol · cloud-server
+                           │                                     │
+                           ├── 远程插件（MCP，任何人可写）◄──────┤ templates/remote-plugin
+                           │                                     │
+                           └── PKU Harness Cloud 服务 ◄──────────┘ cloud-protocol + cloud-server（参考实现）
+
+   pkuharness-website：文档 · 插件市场（registry.json + 已收录的仓库）· 下载（GitHub Releases）
+```
+
+网站独立于其他仓库。它的插件市场读取 `registry.json` 和已收录的插件仓库，下载页列出应用在 GitHub 上发布的版本。
 
 ## pku-harness-plugins 的目录结构 [#inside-pku-harness-plugins]
 
 | 目录 | 内容 |
 | --- | --- |
 | `packages/sdk` | `@pku-harness/sdk`：插件接口约定、纯函数工具和插件语言（`src/lang`：schema、解释器、宿主能力、加载器） |
-| `packages/cloud-protocol` | `@pku-harness/cloud-protocol`：云服务线上协议的 schema、信封加密、分享链接 |
+| `packages/cloud-protocol` | `@pku-harness/cloud-protocol`：云服务通信协议的 schema、信封加密、分享链接 |
 | `packages/cloud-server` | PKU Harness Cloud（云服务）的参考服务器实现（Bun + Hono + SQLite） |
 | `plugins/<id>/PLUGIN.md` | 官方插件文档。随应用一起打包（`bun run bundle`），之后从各自的链接更新 |
 | `plugins/<id>/src` | 用 TypeScript 写的内置插件（见 `plugins/index.ts` 里的 `builtinPlugins`） |
@@ -45,12 +61,14 @@ icon: FolderGit2
 | `registry` | 插件市场的 schema 和 `registry.json` |
 | `templates/remote-plugin`、`examples/*` | 远程插件模板，以及 `demo-canteen` 和 `mock-llm` 两个示例 |
 
-这些都是私有的 workspace 包，不会发布到 npm。应用把这个仓库作为 git 子模块 `plugins/` 引入。插件文档的分享方式和技能（skills）一样：一个文件夹或一个链接，由应用解释执行。详见[声明式插件](/docs/build/declarative-plugins)。
+这些包只在 workspace 内部使用，都不会发布到 npm。应用把整个仓库作为 git 子模块 `plugins/` 引入。
+
+插件文档的分享方式和 Agent 技能一样，是一个文件夹或一个链接，由应用读取并解释执行。详见[声明式插件](/docs/build/declarative-plugins)。
 
 ## 目前的内置插件 [#bundled-plugins-today]
 
-插件文档：`classrooms`、`campus-events`、`grades`、`canteen`、`shuttle`、`notices`。
+应用目前内置了以下插件文档：`classrooms`、`campus-events`、`grades`、`canteen`、`shuttle` 和 `notices`。
 
-TypeScript 插件：`ui`（生成式界面）、`dashboard`、`scheduler`、`todo`、`schedule`、`timetable`、`course-sync`、`authenticator`（手机令牌）、`calendar`（校历）、`wallet`（校园卡、网费、宿舍水电）、`card-share`（通过云服务分享付款码）、`courses`（教学网）、`course-catalog`、`treehole`、`elective`、`finance`、`library`、`room-booking`、`memory`、`plugins`（插件管理和 AI 编写插件）、`deepseek`、`openai-compatible`。
+另外还内置了这些 TypeScript 插件：`ui`（生成式界面）、`dashboard`、`scheduler`、`todo`、`schedule`、`timetable`、`course-sync`、`authenticator`（手机令牌）、`calendar`（校历）、`wallet`（校园卡、网费、宿舍水电）、`card-share`（通过云服务分享付款码）、`courses`（教学网）、`course-catalog`、`treehole`、`elective`、`finance`、`library`、`room-booking`、`memory`、`plugins`（插件管理和 AI 编写插件）、`deepseek` 和 `openai-compatible`。
 
 每个插件的介绍见[插件市场](/marketplace)。

@@ -1,84 +1,110 @@
 ---
 title: Write a plugin with the AI
-description: Ask the agent in the app to write a PLUGIN.md plugin with you. It reads the language reference, validates the draft, dry-runs read tools against the live service, and opens the usual review sheet so you decide whether to install.
+description: Ask the assistant in the app to write a PLUGIN.md plugin with you. It reads the language reference, validates the draft, tries read-only tools against the live service, and opens the usual review sheet, where you decide whether to install.
 icon: Sparkles
 ---
 
-A plugin is just text, so the agent in the app can write one with you. Ask for "a plugin for the
-gym booking site" and you end up with a `PLUGIN.md` folder to review and install. The agent works
-through the tools of the built-in **Plugins** plugin (`plugins`), and it can't install anything
-without you.
+A plugin document is plain text, so the AI assistant in the app can write one with you. For
+example, you can ask for "a plugin for the gym booking site". The result is a `PLUGIN.md` folder
+that you review and then install, or discard.
+
+You need only the app and a configured AI model. No computer is required, although you will want
+one later if you publish the plugin.
+
+The assistant does this work through the tools of a built-in plugin called **Plugins** (id
+`plugins`). None of these tools can install anything without your confirmation.
 
 ## The tools
 
-| Tool | Effect | Does |
-| --- | --- | --- |
-| `plugins.reference` | read | The plugin language on one page: manifest, steps, expressions, stdlib, abilities, limits and an example. The agent reads it on demand before writing or editing a plugin; it is not in every prompt. |
-| `plugins.validate` | read | Validates a draft folder (`{ files: { "PLUGIN.md": "…", "tools/x.yaml": "…" } }`) with the same loader as the app. Returns `{ ok: true, id, version, tools, widgets, campus, network, abilities }` or `{ ok: false, issues }` with the file and step of each problem. |
-| `plugins.tryTool` | read | Runs one **read** tool of a draft for real, without installing it: live requests, your campus sessions for the services the draft declares, a throwaway store. Write, money and public tools can't be tried. Results are untrusted data. |
-| `plugins.source` | read | The files of an installed plugin document, to explain, fix or fork it. Built-in TypeScript plugins have no document. |
-| `plugins.install` | write | Opens the app's review sheet for a link (GitHub folder or `PLUGIN.md` URL) or a draft (`{ files }`). It only opens the sheet: you decide there. |
+The assistant uses five tools. The first four only read, and the last one opens a sheet for you.
 
-By default the Plugins plugin asks before running `write` tools, so unless you changed that mode,
-the agent also checks with you before it opens the sheet.
+**`plugins.reference`** (read) returns the whole plugin language on one page: the manifest, steps,
+expressions, the standard library, host abilities, limits and an example. The assistant reads it
+when it is about to write or edit a plugin. It is not part of every prompt, so it takes up no space in
+other conversations.
 
-## The flow
+**`plugins.validate`** (read) checks a draft folder with the same loader the app uses. The draft is
+passed as `{ files: { "PLUGIN.md": "…", "tools/x.yaml": "…" } }`. The tool returns
+`{ ok: true, id, version, tools, widgets, campus, network, abilities }` when the draft is valid. Otherwise
+it returns `{ ok: false, issues }`, and each issue names the file and step where the problem is.
+
+**`plugins.tryTool`** (read) runs one **read** tool of a draft for real, without installing the
+draft. It sends live requests, uses your campus sessions for the services the draft declares, and
+gives the tool a throwaway store. Tools with the `write`, `money` or `public` effect can't be tried
+this way. The results are treated as untrusted data.
+
+**`plugins.source`** (read) returns the files of an installed plugin document, so the assistant can
+explain, fix or copy it. Built-in TypeScript plugins have no document, so this tool doesn't work for
+them.
+
+**`plugins.install`** (write) opens the app's review sheet for a link (a GitHub folder or a
+`PLUGIN.md` URL) or for a draft (`{ files }`). It only opens the sheet. You make the decision there.
+
+The Plugins plugin asks before it runs `write` tools by default. Unless you have changed that mode,
+the assistant therefore also checks with you before it opens the sheet.
+
+## How a plugin is written [#the-flow]
 
 <Steps>
 <Step>
 
 ### Describe what you want
 
-Say what the plugin should do and, if you know it, which page or API it should use. If it's a
-campus service, say so: the plugin will call it with your signed-in session and never sees your
-password.
+Say what the plugin should do. If you know which page or API it should use, say that too. If it is a
+campus service, mention it: the plugin will call the service with your signed-in session and will
+never see your password.
 
 </Step>
 <Step>
 
-### The agent drafts and validates
+### The assistant drafts and validates [#the-agent-drafts-and-validates]
 
-It reads `plugins.reference`, writes `PLUGIN.md` and the tool files, and keeps calling
-`plugins.validate` until no issues are left.
+The assistant reads `plugins.reference`, then writes `PLUGIN.md` and the tool files. It calls
+`plugins.validate` after each change and keeps fixing the draft until no issues are left.
 
 </Step>
 <Step>
 
 ### It tries the read tools
 
-`plugins.tryTool` runs a read tool against the real service, so you see actual results before
-anything is installed.
+`plugins.tryTool` runs a read tool against the real service. You see actual results before anything
+is installed, which tells you whether the plugin really works.
 
 </Step>
 <Step>
 
 ### You review and install
 
-`plugins.install` opens the same review sheet as an install link: Official or Community, the
-campus services, websites and app features the plugin can reach, and every tool with its effect.
-A draft written in chat counts as a community plugin. Nothing is installed until you tap
-*Install*.
+`plugins.install` opens the same review sheet you see for an install link. It shows whether the
+plugin is official or community; the campus services, websites and app features it can reach; and
+every tool with its effect. A draft written in chat counts as a community plugin. Nothing is
+installed until you tap *Install*.
 
 </Step>
 </Steps>
 
-To change an installed document, ask the agent to fix or extend it. It reads the files with
-`plugins.source`, edits them, validates, and opens the sheet again with the new version. If you
-paste a plugin link in chat, the agent opens the sheet with `plugins.install { link }`.
+## Changing an installed plugin
+
+To change an installed plugin document, ask the assistant to fix or extend it. It reads the files
+with `plugins.source`, edits them, validates the result, and opens the review sheet again with the
+new version.
+
+If you paste a plugin link in the chat, the assistant opens the review sheet for it with
+`plugins.install { link }`.
 
 ## Share what you made
 
-The agent's draft is an ordinary plugin folder. To share it, or to keep it updating from a link,
-put the folder in a public GitHub repo; the folder URL becomes its install link (see
+The assistant's draft is an ordinary plugin folder. To share it, or to let it update from a link,
+put the folder in a public GitHub repository. The folder's URL becomes its install link (see
 [Your first plugin](/en/docs/build/quickstart#share-it)). Before you publish, run the
 [author CLI](/en/docs/build/declarative-plugins#test) on a computer and add recorded tests.
 
 ## Safety
 
-- The agent never installs on its own. `plugins.install` only opens the review sheet.
-- `tryTool` runs only read tools, reaches only what the draft declares, and stores nothing.
-- An installed draft follows the same rules as any community plugin: `write`, `money` and
-  `public` tools ask first, and results reach the AI as data, never as instructions.
+- The assistant never installs anything by itself. `plugins.install` only opens the review sheet.
+- `plugins.tryTool` runs only read tools, reaches only what the draft declares, and keeps nothing.
+- An installed draft follows the same rules as any community plugin. Its `write`, `money` and
+  `public` tools ask first, and its results reach the AI as data, never as instructions.
 
-The language itself is covered in [Declarative plugins](/en/docs/build/declarative-plugins), and
-[Permissions](/en/docs/concepts/permissions) explains how the modes work.
+The language itself is covered in [Declarative plugins](/en/docs/build/declarative-plugins).
+[Permissions](/en/docs/concepts/permissions) explains how the permission modes work.

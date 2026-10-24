@@ -1,96 +1,123 @@
 ---
 title: 安全
-description: PKU Harness Cloud 如何让服务器「看不见」数据：设备密钥对、工作量证明注册、短时效的签名插件 token、XChaCha20-Poly1305 信封、放在 URL 片段里的分享链接密钥、只能认领一次的通道，以及链接脱敏。
+description: PKU Harness Cloud 怎样让服务器读不到用户数据：设备密钥对、带工作量证明的注册、短时效的签名插件 token、XChaCha20-Poly1305 信封、放在 URL 片段里的分享链接密钥、只能认领一次的通道，以及分享链接脱敏。
 icon: Lock
 ---
 
+云服务的目标是让服务器只能转发和保存它读不懂的密文，并且不知道用户是谁。本页依次说明实现这一目标的各个机制：设备怎样获得身份，怎样换取 token，数据怎样加密，分享链接怎样保护密钥，以及还存在哪些无法完全消除的风险。
+
 ## 设备身份 [#device-identity]
 
-每台设备在第一次使用时生成两对密钥，私钥保存在系统密钥库里（首次解锁后可用，仅限本机）：
+每台设备在第一次使用云服务时生成两对密钥。私钥保存在系统密钥库里，只能在本机使用，并且要在设备首次解锁后才能读取。
 
 | 密钥 | 算法 | 用途 |
 | --- | --- | --- |
 | 签名密钥 | Ed25519 | 签名 token 挑战 |
 | 加密密钥 | X25519 | 密钥协商 |
 
-这就是全部身份信息：没有学号，没有姓名，没有手机号。「设置 → 云服务」会显示签名密钥的指纹，并提供**重置身份**和**删除云端数据**（`DELETE /v1/devices/me`，App 完全重置前也会调用）。
+服务器只通过这两把公钥认识设备，不知道学号、姓名或手机号。「设置 → 云服务」会显示签名密钥的指纹，并提供**重置身份**和**删除云端数据**两个操作。删除云端数据会调用 `DELETE /v1/devices/me`，App 在完全重置之前也会调用这个接口。
 
-## 注册：工作量证明 [#registration-proof-of-work]
+## 注册时的工作量证明 [#registration-proof-of-work]
 
-`POST /v1/devices` 不需要账号，而是要求先完成一次工作量证明。这样不用 App 认证（那会让自己编译的 APK 用不了）也能让批量刷身份变得昂贵：
+注册设备（`POST /v1/devices`）不需要账号，但设备要先完成一次工作量证明（proof of work）。工作量证明是一道需要一定计算量才能解出的题，验证答案却很快。这样，一次注册的代价很小，批量伪造大量身份的代价就很高。
+
+另一种做法是让服务器验证请求确实来自官方 App，但这会让自己编译的 APK 无法使用，所以我们没有采用。
+
+题目的定义如下：
 
 ```
 prefix = UTF-8("pku-harness-cloud/v1/pow\n" + salt + "\n" + signPub + "\n" + boxPub + "\n")
-hash   = SHA-256(prefix ‖ UTF-8(nonce))         # nonce: decimal, no leading zeros, ≤ 15 digits
-valid  = hash has ≥ difficulty leading zero bits
+hash   = SHA-256(prefix ‖ UTF-8(nonce))         # nonce：十进制，无前导零，最多 15 位
+valid  = hash has ≥ difficulty leading zero bits  # 哈希值的前导零位数不少于 difficulty
 ```
 
-`salt` 和 `difficulty` 来自 `GET /v1/meta`，服务器同时接受当前和上一个 salt。默认难度 16 在手机上大约要算一秒。客户端拒绝高于 28 的难度，恶意服务商没法让手机无休止地算下去。两把公钥都写进了前缀，所以一个解只能注册一个身份。
+`salt` 和 `difficulty` 来自 `GET /v1/meta`，服务器同时接受当前和上一个 salt。默认难度为 16，在手机上大约要算一秒。客户端会拒绝高于 28 的难度，因此恶意服务商无法让手机无休止地计算。两把公钥都写进了前缀，所以一个解只能注册一个身份。
 
 ## 插件 token [#plugin-tokens]
 
-每个请求都带一个 bearer token，它绑定**一台设备、一个插件和一组服务**，有效期 10 分钟。设备用 Ed25519 密钥签名下面这段挑战来换取 token：
+插件发出的每个请求都带一个 bearer token。一个 token 只对应一台设备、一个插件和一组服务，有效期为 10 分钟。设备用 Ed25519 签名密钥签名下面这段挑战，以此换取 token：
 
 ```
 pku-harness-cloud/v1/auth
-<aud>        provider origin, lowercase scheme://host[:port]
+<aud>        服务商的源，小写的 scheme://host[:port]
 <deviceId>
 <plugin>
-<services>   deduplicated, sorted, joined by ","
-<ts>         Unix ms
-<nonce>      16 random bytes, base64url
+<services>   去重、排序后用 "," 连接
+<ts>         Unix 毫秒
+<nonce>      16 个随机字节，base64url 编码
 ```
 
-调用服务端函数的 token 还会多一行 `doc <hash> <link>`，即用户同意过的插件文档版本。
+调用服务端函数用的 token 还会多一行 `doc <hash> <link>`，记录用户同意过的插件文档版本。
 
-- `aud` 防止某个服务商把签名拿到另一家去重放。
-- 服务器只接受 `|now − ts| ≤ 5 min` 的请求，并拒绝这个时间窗口内重复出现的 nonce。
-- 存储的命名空间和通道归属都取自 token（`sub`、`plg`），从不取自路径，所以一个插件碰不到另一个插件的数据。
-- 插件永远看不到 token，由宿主负责签发并附加到请求上。
+这段挑战的各部分分别防范不同的攻击：
+
+- `aud` 防止某个服务商把签名拿到另一家服务商那里重放。
+- 服务器只接受满足 `|now − ts| ≤ 5 min` 的请求，并拒绝在这个时间窗口内重复出现的 nonce。
+- 存储的命名空间和通道的归属都取自 token 里的 `sub` 和 `plg`，从不取自请求路径，因此一个插件碰不到另一个插件的数据。
+- 插件永远看不到 token。token 由宿主签发，并由宿主附加到请求上。
 
 ## 信封 [#envelopes]
 
-所有加密数据，无论是传输中还是落盘后，都是一个信封：
+所有加密数据，无论是在传输中还是保存在服务器上，都使用同一种格式，我们称之为「信封」：
 
 ```json
 { "v": 1, "n": "<24-byte nonce, base64url>", "c": "<ciphertext ‖ 16-byte tag, base64url>" }
 ```
 
-算法是 XChaCha20-Poly1305，使用随机 24 字节 nonce，可以附带关联数据（如通道 id、帧类型），解密方必须提供相同的关联数据。这套实现只写了一份，在 `@pku-harness/cloud-protocol` 里，基于经过审计的 [noble](https://paulmillr.com/noble/) 库（纯 JavaScript）。App（Hermes）、参考服务器（Bun）和查看页（微信内置浏览器，没有 WebCrypto）用的都是这一份。
+信封使用 XChaCha20-Poly1305 算法和随机生成的 24 字节 nonce。加密时可以附带关联数据，例如通道 id 或帧类型，解密方必须提供相同的关联数据才能解开。
+
+这套加密只实现了一份，位于 `@pku-harness/cloud-protocol`，基于经过审计的 [noble](https://paulmillr.com/noble/) 库（纯 JavaScript）。App（运行在 Hermes 上）、参考服务器（运行在 Bun 上）和查看页（运行在没有 WebCrypto 的微信内置浏览器里）用的都是这一份实现。
 
 ## 分享链接与通道 [#share-links-and-channels]
+
+分享链接的格式如下：
 
 ```
 https://<provider>/s/<channelId>#k=<base64url 32 bytes>
 ```
 
-- 密钥 `k` 放在 **URL 片段**里，浏览器从不把片段发给服务器。
-- `authKey = HKDF-SHA256(k, "pku-harness-cloud/v1/join")`。服务器只保存 `joinHash = base64url(sha256(authKey))`，因此它能校验加入请求，自己却加入不了。
-- `encKey = HKDF-SHA256(k, "pku-harness-cloud/v1/enc")` 永远不离开设备，用来加密通道的 `meta`，并参与派生每个对端的密钥。
-- 加入时，查看者发送 `authKey` 和一把临时的 X25519 公钥。机主和对端之间的帧使用 `HKDF-SHA256(ikm = X25519(own, other) ‖ encKey, salt = chanPub ‖ peerPub, info = "pku-harness-cloud/v1/peer")` 派生的密钥。
-- **认领**：`maxPeers` 默认为 1。第一个加入的人认领通道，之后再来的人会收到 `409 conflict`，所以转发出去的链接没有用。机主可以踢掉对端来释放名额。
-- 服务器无法验证的关卡（打码姓名提示、口令）在机主设备上检查。服务器只做加入限流（每个 IP 每分钟 20 次），并在 `authKey` 错误 5 次后锁定通道。
+链接里的密钥 `k` 放在 URL 片段（`#` 之后的部分）里。浏览器从不把片段发给服务器，所以服务器拿不到 `k`。设备和查看者从 `k` 派生出两把密钥：
 
-### 不让模型接触链接 [#keeping-links-away-from-the-model]
+- `authKey = HKDF-SHA256(k, "pku-harness-cloud/v1/join")`，用来加入通道。服务器只保存 `joinHash = base64url(sha256(authKey))`，因此它能校验加入请求，自己却无法加入。
+- `encKey = HKDF-SHA256(k, "pku-harness-cloud/v1/enc")`，永远不离开设备。它用来加密通道的 `meta`，并参与派生每个对端的密钥。
 
-- SDK 的 `SecretLink` 是不透明的：`JSON.stringify(link)` 得到 `"[secret link]"`。
-- 宿主会从工具输出和日志里抹掉分享链接格式的字符串（`/s/<id>#k=…`、`pkuharness://share/<id>#k=…`），见 `scrubShareLinks`。
-- 工具从不返回链接。页面用 `host.shareLink` 或 `<QRCode link>` 展示它们。
+查看者加入时，发送 `authKey` 和一把临时生成的 X25519 公钥。此后，机主和这个对端之间的数据帧使用下面的密钥加密：
+
+```
+HKDF-SHA256(ikm = X25519(own, other) ‖ encKey, salt = chanPub ‖ peerPub, info = "pku-harness-cloud/v1/peer")
+```
+
+通道还有以下保护：
+
+- 认领：`maxPeers` 默认为 1。第一个加入的人认领通道，之后再来的人会收到 `409 conflict`，所以转发出去的链接没有用。机主可以踢掉对端来释放名额。
+- 服务器无法验证的检查，例如打码的姓名提示和口令，都在机主的设备上完成。服务器只限制加入频率（每个 IP 每分钟 20 次），并在 `authKey` 错误 5 次后锁定通道。
+
+### 不让 AI 模型接触分享链接 [#keeping-links-away-from-the-model]
+
+分享链接里含有解密密钥，所以 App 不让它进入 AI 模型的上下文：
+
+- SDK 中的 `SecretLink` 是不透明对象，`JSON.stringify(link)` 只会得到 `"[secret link]"`。
+- 宿主会从工具输出和日志里抹掉符合分享链接格式的字符串（`/s/<id>#k=…`、`pkuharness://share/<id>#k=…`），具体实现见 `scrubShareLinks`。
+- 工具从不返回链接。页面通过 `host.shareLink` 或 `<QRCode link>` 把链接展示给用户。
 
 ## 限额 [#limits]
 
-限流按 `(deviceId, plugin, service)` 和 IP 分别做令牌桶，结果写在 `RateLimit-*` 响应头里。429 会变成 `CloudError('rate_limited', retryAfterS)`。默认值：
+限流按 `(deviceId, plugin, service)` 和按 IP 分别使用令牌桶算法，当前状态写在 `RateLimit-*` 响应头里。服务器返回 429 时，宿主会抛出 `CloudError('rate_limited', retryAfterS)`。默认值如下：
 
 | 资源 | 默认值 |
 | --- | --- |
 | 存储 | 每台设备每个插件 1 MB、1,000 个键，单个值 64 KB |
-| 通道 | 每台设备同时开 5 个，有效期 60 秒 – 24 小时（默认 15 分钟），最多 5 个对端，每帧 4 KB，每分钟 60 帧，64 个信箱槽位 |
-| 加入 | 每个 IP 每分钟 20 次 |
+| 通道 | 每台设备同时开 5 个，有效期 60 秒到 24 小时（默认 15 分钟），最多 5 个对端，每帧 4 KB，每分钟 60 帧，64 个信箱槽位 |
+| 加入通道 | 每个 IP 每分钟 20 次 |
 | 推送（计划中） | 100 个待发的定时推送 |
 | 服务端函数（官方服务器不开启） | 每分钟 60 次调用 |
 
 ## 剩余风险 [#residual-risks]
 
-- **元数据。** 服务商能看到时间、数据大小和 IP 地址，数据说明里必须写明这一点。
-- **查看页运行的是服务商的 JavaScript。** 恶意运营者可以提供一个泄露 `k` 的页面，从而看到那一次分享期间通道里传的内容（但拿不到凭据）。缓解措施：页面是静态的，由插件仓库可复现地构建，并带严格的 CSP（`connect-src 'self'`）；装了 App 的查看者通过深链接在本地解密，完全不运行服务商的 JavaScript。
-- **服务端函数**按设计会处理明文。它们必须在 `PLUGIN.md` 里声明、写明数据说明并经用户同意，服务器只运行用户同意过的那个文档版本。目前官方服务器不开启这项功能。
+上面的机制不能消除所有风险。下面三类风险仍然存在。
+
+元数据。服务商能看到请求时间、数据大小和 IP 地址。插件的数据说明里必须写明这一点。
+
+查看页运行的是服务商提供的 JavaScript。恶意运营者可以提供一个泄露 `k` 的页面，从而看到那一次分享期间通道里传输的内容，但拿不到校园凭据。我们用三种方式降低这一风险：查看页是静态页面，由插件仓库可复现地构建；页面带有严格的内容安全策略（Content Security Policy，CSP），即 `connect-src 'self'`；装了 App 的查看者通过深链接在 App 内解密，完全不运行服务商的 JavaScript。
+
+服务端函数按设计会处理明文。它们必须在 `PLUGIN.md` 里声明并写明数据说明，经用户同意后才能使用，服务器也只运行用户同意过的那个文档版本。官方服务器不开启这项功能。

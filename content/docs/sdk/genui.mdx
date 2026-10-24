@@ -1,14 +1,16 @@
 ---
 title: genui
-description: 生成式界面 spec 的 specSchema 和 UISpec 类型，以及 services.genui.checkSpec 返回的 SpecCheck 结果。
+description: 描述生成式界面 spec 的 specSchema 和 UISpec 类型，以及 services.genui.checkSpec 返回的 SpecCheck 结果。
 ---
+
+助手可以在对话里临时生成一块界面，比如一张表单或一个选择列表。它用一份 JSON 描述这块界面，我们称之为「spec」。这个模块定义了 spec 的结构；如果你的工具要接收助手写的 spec，或者你要在页面里显示一份 spec，就会用到它。
 
 源码：`packages/sdk/src/genui.ts`。概念介绍：[生成式界面](/docs/concepts/generative-ui)。
 
 ```ts
 import { z } from 'zod';
 
-/** A json-render spec as the agent writes it (components come from the host's catalog). */
+/** 助手写出的 json-render spec（组件来自宿主的组件目录）。 */
 export const specSchema = z.object({
   root: z.string().describe('id of the root element'),
   elements: z.record(
@@ -29,6 +31,8 @@ export type UISpec = z.infer<typeof specSchema>;
 export type SpecCheck = { ok: true; spec: UISpec } | { ok: false; issues: string[] };
 ```
 
+一份 spec 由若干元素组成，`elements` 以 id 为键，`root` 指明根元素的 id。每个元素用 `type` 指定组件，用 `children` 列出子元素的 id。`state` 是界面的初始状态。
+
 `specSchema` 只检查结构。每个 `type` 是否在组件目录里、props 是否合法，由宿主通过 `services.genui.checkSpec(spec)` 检查：
 
 ```ts
@@ -36,4 +40,4 @@ const r = ctx.services.genui.checkSpec(spec);
 if (!r.ok) return { shown: false, issues: r.issues }; // 让模型自己修正 spec
 ```
 
-接收 spec 的工具直接把 `specSchema` 当作输入 schema（`ui.render` 和 `dashboard.upsertWidget` 都是这样做的）。要在页面里渲染 spec，用 `host.components.GenUI`。
+接收 spec 的工具可以直接把 `specSchema` 用作输入 schema，`ui.render` 和 `dashboard.upsertWidget` 都是这样做的。要在页面里渲染 spec，请使用 `host.components.GenUI`。

@@ -1,7 +1,11 @@
 ---
 title: todo
-description: The Todo and TodoInput types behind services.todos.
+description: The Todo and TodoInput types for to-do items, used by services.todos.
 ---
+
+This module defines the data types for to-do items. A plugin uses them when it reads, adds or
+changes the user's to-dos through `services.todos`. Each to-do can carry a reminder, which a job in
+the scheduler sends.
 
 Source: `packages/sdk/src/todo.ts`.
 
@@ -26,6 +30,8 @@ type TodoInput = {
 };
 ```
 
+The example below adds a to-do due Friday at 23:59, with a reminder at 8 pm the evening before:
+
 ```ts
 // a to-do due Friday 23:59 with a reminder the evening before
 const due = new Date(2026, 9, 30, 23, 59).getTime();
@@ -35,5 +41,8 @@ await ctx.services.todos.add(
 );
 ```
 
-`setDone(id, true)` pauses the to-do's reminder job; `setDone(id, false)` turns it back on.
-Removing the to-do deletes the job too.
+## Completing and removing to-dos [#done-and-remove]
+
+When you mark a to-do as done with `setDone(id, true)`, its reminder job is paused. Calling
+`setDone(id, false)` marks it as not done and turns the reminder job back on. Removing the to-do
+deletes its reminder job as well.

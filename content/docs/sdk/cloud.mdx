@@ -1,18 +1,28 @@
 ---
 title: cloud
-description: PKU Harness Cloud 的插件侧接口：CloudManifest、PluginCloud（store、channels、push、functions）、Channel 及其事件、SecretLink、CloudStatus、CloudError 和 defineCloudFunction。
+description: 插件使用 PKU Harness Cloud 时的接口：CloudManifest、PluginCloud（store、channels、push、functions）、Channel 及其事件、SecretLink、CloudStatus、CloudError 和 defineCloudFunction。
 ---
 
-源码：`packages/sdk/src/cloud.ts`。指南：[云服务 → 插件指南](/docs/cloud/plugin-guide)。线上协议：
+PKU Harness Cloud 是一组可选的云服务，插件可以用它在服务器上保存少量数据，或者通过中继与打开分享链接的人实时共享内容。这个模块定义了插件这一侧的接口。插件先在清单里声明要用哪些服务，再通过宿主提供的客户端调用它们。
+
+源码：`packages/sdk/src/cloud.ts`。使用指南见[云服务 → 插件指南](/docs/cloud/plugin-guide)。线上协议见
 [`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package) 和 [API 参考](/docs/cloud/api/meta)。
 
-插件在 `PluginDef.cloud` 里声明要用的服务，拿到一个绑定到自身的客户端（`ctx.cloud`、`props.cloud`）。设备身份、token 和密钥都由宿主保管；宿主负责执行用户的授权和插件清单，并和用户选定的服务商通信（官方、自建服务器或任意 URL）。插件看不到 token、密钥和服务商凭据，助手也看不到分享链接。
+## 宿主替插件保管什么 [#what-the-host-keeps]
+
+插件在 `PluginDef.cloud` 里声明要用的服务，然后拿到一个只属于自己的客户端（`ctx.cloud`、`props.cloud`）。设备身份、token 和密钥都由宿主保管。宿主负责检查用户是否已经授权、调用是否符合插件清单，并和用户选定的服务商通信。服务商可以是官方服务器、自建服务器或任意 URL。
+
+插件看不到 token、密钥和服务商凭据，助手也看不到分享链接。
 
 <Callout title="宿主支持情况">
-  应用已经实现了这个客户端。为了兼容不支持云服务的宿主，`ctx.cloud` 的类型仍是可选的（`PluginCloud | undefined`），使用前先检查 `ctx.cloud?.available`。`push` 暂未提供，调用会以 `not_configured` 失败。官方服务器关闭了服务端函数，只运行中继和一个小型加密存储；而且服务端函数要以明文读取输入，所以 `e2e` 插件调用 `functions.invoke` 会被宿主拒绝。能在手机上做的事就放在手机上，确实需要服务器的话请用你自己的后端。
+  应用已经实现了这个客户端。为了兼容不支持云服务的宿主，`ctx.cloud` 的类型仍是可选的（`PluginCloud | undefined`），使用前先检查 `ctx.cloud?.available`。
+
+  `push` 暂未提供，调用会以 `not_configured` 失败。官方云服务实例目前还没有部署。它上线后只运行中继和一个小型加密存储，不开启服务端函数。另外，服务端函数要以明文读取输入，所以声明了端到端加密（`e2e`）的插件调用 `functions.invoke` 时，宿主会拒绝。能在手机上完成的工作就放在手机上；确实需要服务器时，请使用你自己的后端。
 </Callout>
 
 ## CloudManifest [#cloudmanifest]
+
+`CloudManifest` 是插件在 `PluginDef.cloud` 中声明的清单，写明插件要用哪些服务、哪些数据会离开设备，以及数据是否端到端加密。
 
 ```ts
 type CloudService = 'store' | 'channels' | 'push' | 'files' | 'functions';
@@ -20,16 +30,16 @@ type CloudService = 'store' | 'channels' | 'push' | 'files' | 'functions';
 interface CloudManifest {
   protocol: 1;
   uses: CloudService[];
-  /** Plain-language lines shown in the consent sheet: exactly what leaves the device. */
+  /** 授权弹窗中显示的说明，用平实的语言逐条写明哪些数据会离开设备。 */
   disclosure: { zh: string[]; en?: string[] };
-  /** All store/channel payloads are client-encrypted; the host refuses plaintext writes when true. */
+  /** 所有 store 和 channel 数据都在客户端加密；为 true 时，宿主拒绝明文写入。 */
   e2e: boolean;
-  /** Plugin still works without cloud; features check ctx.cloud.available. Else requires 'cloud'. */
+  /** 没有云服务时插件仍可使用，相关功能先检查 ctx.cloud.available。否则插件依赖 'cloud'。 */
   optional?: boolean;
-  /** Server functions: run on the user's provider (code in plugins/<id>/server) or an external URL. */
+  /** 服务端函数：运行在用户的服务商上（代码位于 plugins/<id>/server），或运行在外部 URL。 */
   functions?: Record<string, CloudFunctionDecl>;
   backend?: { kind: 'provider' } | { kind: 'external'; url: string };
-  /** Static pages from plugins/<id>/web served at /w/<plugin>/<page> (viewers without the app). */
+  /** plugins/<id>/web 中的静态页面，发布在 /w/<plugin>/<page>（供没有安装应用的人查看）。 */
   pages?: string[];
 }
 
@@ -46,38 +56,39 @@ function defineCloudFunction<I extends z.ZodType, O extends z.ZodType>(d: CloudF
 
 ## PluginCloud [#plugincloud]
 
+`PluginCloud` 是插件拿到的客户端，`CloudStatus` 描述它当前的状态。
+
 ```ts
 interface PluginCloud {
-  /** Provider configured, consent given and reachable (offline-tolerant reads aside). */
+  /** 已配置服务商、用户已授权，并且服务商可以连通（允许离线的读取除外）。 */
   readonly available: boolean;
   status(): CloudStatus;
   /**
-   * Ask the user to allow this plugin to use the cloud (the host's consent sheet; resolves at once
-   * when already allowed). False when they decline. Screens call it before opening a channel;
-   * agent tool calls never prompt and get `CloudError('consent_required')` instead.
+   * 请用户允许这个插件使用云服务（弹出宿主的授权弹窗；已经允许时立即返回）。用户拒绝时返回 false。
+   * 界面在打开通道前调用它；助手调用工具时从不弹窗，直接得到 `CloudError('consent_required')`。
    */
   requestConsent(): Promise<boolean>;
-  /** Key-value store namespaced to (device, plugin) by the provider. Values are sealed when `e2e`. */
+  /** 键值存储，服务商按（设备，插件）划分命名空间。启用 `e2e` 时值会加密。 */
   store: {
     get<T>(key: string): Promise<{ value: T; version: number } | undefined>;
     put<T>(key: string, value: T, opts?: { ifVersion?: number; ttlS?: number }): Promise<{ version: number }>;
     delete(key: string): Promise<void>;
     list(prefix?: string): Promise<{ key: string; version: number; updatedAt: number }[]>;
   };
-  /** End-to-end encrypted relay channels (live sharing with people who open a link). */
+  /** 端到端加密的中继通道（与打开链接的人实时共享）。 */
   channels: {
-    /** `meta` is sealed with the link key; viewers read it before joining. */
+    /** `meta` 用链接密钥加密；查看者在加入前读取它。 */
     open(opts: { ttlS: number; maxPeers?: number; page?: string; meta?: unknown }): Promise<Channel>;
-    /** Survives app restarts (keys are kept in secure storage). */
+    /** 应用重启后仍然可用（密钥保存在安全存储中）。 */
     get(id: string): Channel | undefined;
     list(): Channel[];
   };
-  /** Stage 6. */
+  /** 第 6 阶段。 */
   push: {
     schedule(at: number, payload: unknown): Promise<string>;
     cancel(id: string): Promise<void>;
   };
-  /** Server functions declared in `CloudManifest.functions` (stage 6). */
+  /** `CloudManifest.functions` 中声明的服务端函数（第 6 阶段）。 */
   functions: {
     invoke<N extends string>(name: N, input: unknown, opts?: { signal?: AbortSignal }): Promise<unknown>;
   };
@@ -86,7 +97,7 @@ interface PluginCloud {
 interface CloudStatus {
   provider: 'official' | 'custom' | 'off';
   baseURL?: string;
-  /** The user allowed this plugin to use the cloud. */
+  /** 用户已允许这个插件使用云服务。 */
   consented: boolean;
   online: boolean;
 }
@@ -94,22 +105,24 @@ interface CloudStatus {
 
 ## Channel [#channel]
 
+通道（channel）用于实时共享：插件打开一个通道，把分享链接交给别人，打开链接的人就成为通道的对端（peer）。
+
 ```ts
 interface Channel {
   id: string;
   expiresAt: number;
   link: SecretLink;
   peers(): { id: string; joinedAt: number }[];
-  /** Subscribe; returns an unsubscribe function. */
+  /** 订阅事件；返回取消订阅的函数。 */
   on(ev: ChannelEventType, fn: (e: ChannelEvent) => void): () => void;
-  /** Sealed per peer; '*' = every connected peer. */
+  /** 按每个对端分别加密；'*' 表示所有已连接的对端。 */
   send(peerId: string | '*', msg: unknown): Promise<void>;
-  /** Sealed blobs readable by peers while the owner is offline (batch mode). */
+  /** 加密的数据块，所有者离线时对端也能读取（批量模式）。 */
   mailbox: {
     put(slot: string, msg: unknown, ttlS: number): Promise<void>;
     clear(): Promise<void>;
   };
-  /** Drop a peer and free its seat (a new viewer can join with the same link). */
+  /** 移除一个对端并空出它的位置（新的查看者可以用同一个链接加入）。 */
   kick(peerId: string): Promise<void>;
   extend(ttlS: number): Promise<void>;
   close(): Promise<void>;
@@ -121,7 +134,7 @@ type ChannelCloseReason = 'owner' | 'expired' | 'revoked' | 'locked' | 'server';
 type ChannelEvent =
   | { type: 'join'; peerId: string; at: number }
   | { type: 'leave'; peerId: string; at: number }
-  /** A peer's frame, already decrypted (validate it with zod before use). */
+  /** 对端发来的消息，已经解密（使用前请用 zod 校验）。 */
   | { type: 'message'; peerId: string; msg: unknown }
   | { type: 'closed'; reason: ChannelCloseReason };
 ```
@@ -130,8 +143,8 @@ type ChannelEvent =
 
 ```ts
 /**
- * An opaque share link (`https://<provider>/s/<id>#k=…`). Plugins can't read the URL: show it with
- * `host.shareLink(link)` or `<QRCode link={link} />`. `JSON.stringify(link)` gives "[secret link]".
+ * 不透明的分享链接（`https://<provider>/s/<id>#k=…`）。插件读不到其中的 URL，只能用
+ * `host.shareLink(link)` 或 `<QRCode link={link} />` 显示它。`JSON.stringify(link)` 得到 "[secret link]"。
  */
 interface SecretLink {
   readonly kind: 'secret-link';
@@ -140,7 +153,7 @@ interface SecretLink {
 }
 ```
 
-宿主的 `toString` 同样输出 `"[secret link]"`，所以链接不会混进工具结果或日志。
+宿主实现的 `toString` 同样输出 `"[secret link]"`，所以链接不会混进工具结果或日志。
 
 ## 错误 [#errors]
 
@@ -150,13 +163,15 @@ const CLOUD_ERROR_CODES: readonly CloudErrorCode[];
 
 class CloudError extends Error {
   readonly code: CloudErrorCode;
-  /** Set for 'rate_limited' (from Retry-After). */
+  /** 错误码为 'rate_limited' 时才有（取自 Retry-After）。 */
   readonly retryAfterS?: number;
   constructor(code: CloudErrorCode, message: string, retryAfterS?: number);
 }
 
 function isCloudError(e: unknown, code?: CloudErrorCode): e is CloudError;
 ```
+
+各错误码的含义如下：
 
 | 错误码 | 含义 |
 | --- | --- |

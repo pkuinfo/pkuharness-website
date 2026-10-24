@@ -1,32 +1,51 @@
 ---
 title: Permissions and consent
-description: For each plugin and each effect, the user decides whether the agent may act directly, must ask first, or may not act. Scheduled runs only read.
+description: For each effect of each plugin, you decide whether the agent may act directly, must ask first, or may not act at all. Scheduled runs only read.
 icon: ShieldCheck
 ---
 
-Once a user accepts the terms during onboarding, the agent may operate enabled plugins on their
-behalf. Each plugin then has one **mode per effect**. The user can change it in
-Settings → Plugins → *plugin* → AI permissions.
+Once you accept the terms during first-run setup, the agent may use your enabled plugins on your
+behalf.
 
-## Modes
+You can still control in detail what the agent may do. Each plugin has a separate setting, called
+a _mode_, for each [effect](/en/docs/concepts/tools-and-effects#effects). For example, you can
+let the agent check your campus-card balance directly but ask you before it recharges the card.
+You change modes in Settings → Plugins → *plugin* → AI permissions.
 
-| Mode | Agent calls with this effect |
+## The three modes [#modes]
+
+The mode decides what happens when the agent calls a tool with that effect.
+
+| Mode | Result |
 | --- | --- |
-| `auto` | Run directly |
-| `ask` | Show an approval prompt (plugin, tool, effect, inputs) with **Allow**, **Deny** and **Always allow** |
-| `off` | Refused; the agent is told the tool is blocked |
+| `auto` | The tool runs directly |
+| `ask` | An approval prompt appears first |
+| `off` | The call is refused |
 
-## Defaults
+The approval prompt shows the plugin, the tool, the effect and the inputs. It offers three
+choices: **Allow**, **Deny** and **Always allow**.
 
-| Plugin kind | read | write | money | public |
+When the mode is `off`, the call is refused and the agent is told that the tool is blocked.
+
+## Default modes [#defaults]
+
+Each kind of plugin has its own defaults.
+
+| Plugin kind | `read` | `write` | `money` | `public` |
 | --- | --- | --- | --- | --- |
-| Bundled, no `defaultModes` | auto | auto | auto | auto |
-| Bundled with `defaultModes` | as declared, e.g. `{ money: 'ask' }` | | | |
-| Document (`PLUGIN.md`), official | as in its `defaultModes`, else auto | | | |
-| Document, community | auto | ask | ask | ask (stricter `defaultModes` win) |
-| Remote (MCP) | auto | ask | ask | ask |
+| Bundled plugin | auto | auto | auto | auto |
+| Official plugin document | auto | auto | auto | auto |
+| Community plugin document | auto | ask | ask | ask |
+| Remote plugin | auto | ask | ask | ask |
 
-If a user would want to confirm something, declare a stricter default for it:
+A plugin can change its own defaults with `defaultModes`.
+
+- For bundled plugins and official plugin documents, `defaultModes` applies as declared, for
+  example `{ money: 'ask' }`. Effects that it doesn't mention stay `auto`.
+- Community plugin documents can also set `defaultModes`, but only settings stricter than the
+  table above take effect.
+
+If users would want to confirm an action first, declare a stricter default for it:
 
 ```ts
 definePlugin({
@@ -37,33 +56,52 @@ definePlugin({
 
 ## Who is asked, and when
 
-The host decides in one place, its invoke path, in this order:
+Whether a call runs is decided in one place only, the host's invoke path. The host checks in this
+order.
 
-1. The tool exists and its plugin is **available** (capabilities met) and **enabled**.
-2. `userOnly` tools are refused unless `actor === 'user'`.
+1. The tool must exist, and its plugin must be **available** (its capabilities are met) and
+   **enabled**.
+2. A `userOnly` tool is refused unless `actor === 'user'`.
 3. The input is validated against the tool's zod schema.
-4. Mode `off` → refused.
-5. `actor === 'scheduler'` and the effect isn't `read` → refused (unattended runs only read).
-6. Mode `ask` and `actor === 'scheduler'` → declined (there is nobody to ask).
-7. Mode `ask` and `actor === 'agent'` → approval prompt; deny → the agent gets a "declined" error.
-8. `actor === 'user'` never prompts: tapping a button is the user's intent.
+4. If the mode is `off`, the call is refused.
+5. If `actor === 'scheduler'` and the effect is not `read`, the call is refused. Unattended runs
+   can only read.
+6. If the mode is `ask` and `actor === 'scheduler'`, the call is declined, because there is
+   nobody to ask.
+7. If the mode is `ask` and `actor === 'agent'`, an approval prompt appears. If you deny it, the
+   agent receives a "declined" error.
+8. If `actor === 'user'`, there is never a prompt, because tapping a button already shows what you
+   want.
 
 ## Consent beyond tools
 
-| What | Where consent is given |
-| --- | --- |
-| Campus services | Signing in to the campus account; plugins declare `scopes` (hosts/services) and `requires: ['campus-session']`, shown on the plugin page |
-| PKU Harness Cloud | A per-plugin **Allow cloud** switch with the plugin's plain-language `disclosure` lines; unconsented calls throw `CloudError('consent_required')` ([Cloud](/en/docs/cloud/plugin-guide#2-consent)) |
-| Files | Only the user can pick files (`services.files.pick` from a screen, never from an agent tool) |
-| Notifications, exact alarms | System prompts, through `services.notify.fix(kind)` from a tap |
-| Memory written after untrusted content | Saved as *pending*; the user approves it on the memory screen |
+Besides tool calls, a few other things need your consent separately.
+
+**Campus services.** When you sign in to your campus account, you allow the app to reach campus
+services. A plugin declares the sites and services it uses (`scopes`) and
+`requires: ['campus-session']`. These are shown on the plugin's page.
+
+**PKU Harness Cloud.** Each plugin has its own **Allow cloud** switch. Next to the switch, the app
+lists the plugin's `disclosure` lines, which say in plain words what the plugin stores online. A
+cloud call made without consent throws `CloudError('consent_required')`. See
+[Cloud](/en/docs/cloud/plugin-guide#2-consent).
+
+**Files.** Only you can choose files. A plugin may call `services.files.pick` from a screen, and
+never from a tool that the agent calls.
+
+**Notifications and exact alarms.** These are granted through the system's permission prompts.
+A plugin shows the prompt by calling `services.notify.fix(kind)` when you tap.
+
+**Memory.** If the agent writes a memory after it has read untrusted content, the memory is saved
+as _pending_. It takes effect only after you approve it on the memory screen.
 
 ## Rules for plugin authors
 
-- **MUST** declare each tool's effect honestly. `money` and `public` exist so users can keep
-  those actions behind a confirmation.
-- **MUST NOT** hide a write inside a `read` tool (no "read and mark as seen").
-- **SHOULD** set `defaultModes` to `ask` for `money` and `public` unless the action is trivially
-  reversible.
-- **SHOULD** split a tool that both reads and writes into two tools.
-- **MUST** use `userOnly` for gates the agent must not open itself (e.g. approving its own memory).
+- You **must** declare each tool's effect honestly. The `money` and `public` effects exist so that
+  users can keep those actions behind a confirmation.
+- You **must not** hide a write inside a `read` tool, for example "read and mark as seen".
+- You **should** set `defaultModes` to `ask` for `money` and `public`, unless the action is easy to
+  undo.
+- You **should** split a tool that both reads and writes into two tools.
+- You **must** use `userOnly` for actions that the agent must not start itself, for example
+  approving a memory the agent wrote.

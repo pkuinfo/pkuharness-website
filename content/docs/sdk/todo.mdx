@@ -1,7 +1,9 @@
 ---
 title: todo
-description: services.todos 使用的 Todo 与 TodoInput 类型。
+description: 待办事项的数据类型 Todo 和 TodoInput，供 services.todos 使用。
 ---
+
+这个模块定义了待办事项的数据类型。插件通过 `services.todos` 读取、添加或修改用户的待办时，用的就是这些类型。每条待办可以带一个提醒，提醒由调度器中的任务负责发出。
 
 源码：`packages/sdk/src/todo.ts`。
 
@@ -12,7 +14,7 @@ type Todo = {
   notes: string | null;
   dueAt: number | null;
   doneAt: number | null;
-  /** Reminder job in the scheduler, if any. */
+  /** 调度器中对应的提醒任务（如果有）。 */
   jobId: string | null;
   createdAt: number;
 };
@@ -21,10 +23,12 @@ type TodoInput = {
   title: string;
   notes?: string | null;
   dueAt?: number | null;
-  /** When to remind; null = no reminder. A trigger allows repeating reminders. */
+  /** 何时提醒；null 表示不提醒。使用触发器（Trigger）可以设置重复提醒。 */
   remind?: Trigger | null;
 };
 ```
+
+下面的例子添加一条周五 23:59 截止的待办，并在前一天晚上 8 点提醒：
 
 ```ts
 // 周五 23:59 截止的待办，前一天晚上 8 点提醒
@@ -35,4 +39,6 @@ await ctx.services.todos.add(
 );
 ```
 
-`setDone(id, true)` 会暂停这条待办的提醒任务，`setDone(id, false)` 再把它打开。删除待办时，提醒任务也一并删除。
+## 完成与删除 [#done-and-remove]
+
+调用 `setDone(id, true)` 把待办标为完成时，它的提醒任务会暂停；调用 `setDone(id, false)` 取消完成，提醒任务会重新启用。删除待办时，对应的提醒任务也会一起删除。

@@ -1,102 +1,127 @@
 ---
 title: Security model
-description: Credentials stay on the device. Tool results are data, never instructions, and third-party content taints the agent's turn. Anything that leaves the device is declared and consented to first.
+description: Credentials stay on the phone. Tool results are data, never instructions, and third-party content taints the agent's turn. Anything that leaves the phone is declared and agreed to first.
 icon: Shield
 ---
 
-PKU Harness holds a student's IAAA password and can act on their campus accounts. From the user's
-point of view the design should be "serverless": nothing the project runs can see credentials, and
-nothing a plugin does is hidden from the user.
+PKU Harness keeps your password for IAAA, the university's central login system, and it can act on
+your campus accounts. For this reason we want the system to behave, from your point of view, as if
+it had no server. No service the project runs can see your credentials, and nothing a plugin does
+is hidden from you.
 
 ## Principles
 
-1. **Credentials never leave the device.** The IAAA password, the 手机令牌 secret, model API keys
-   and remote plugin tokens live in the device keystore. They are never logged, never sent to a
-   project server and never given to a plugin, whether document, bundled or remote.
-2. **Plugins get responses, not sessions.** `services.campus.request` returns a response. Session
-   cookies and tokens stay in the harness, and signing happens inside it too (the `sign` hook).
-3. **Tool results are data.** The model is told that tool results, plugin context and remote
-   plugin output are data and must not be followed as instructions.
-4. **Effects are explicit.** Every tool declares `read`, `write`, `money` or `public`, and users
-   decide per effect whether the agent may act directly. Scheduled runs can only read.
-5. **What leaves the device is declared.** Campus `scopes`, the model provider and PKU Harness
-   Cloud `disclosure` lines are shown before first use.
+1. **Credentials never leave the phone.** The IAAA password, the mobile-token (手机令牌) secret,
+   model API keys and remote plugin tokens are kept in the phone's keystore. They are never
+   logged, never sent to a project server and never given to a plugin, whether it is a plugin
+   document, a bundled plugin or a remote plugin.
+2. **Plugins get responses, not sessions.** `services.campus.request` returns only the response.
+   Session cookies and tokens stay inside the harness. When a request needs a signature, the
+   signing also happens inside the harness (through the `sign` hook).
+3. **Tool results are data.** The harness tells the model that tool results, plugin context and
+   remote plugin output are data, and must not be followed as instructions.
+4. **Effects are declared.** Every tool declares one of four effects: `read`, `write`, `money` or
+   `public`. For each effect, you decide whether the agent may act directly. Scheduled runs can
+   only read.
+5. **What leaves the phone is declared.** The campus services a plugin uses (`scopes`), the model
+   provider, and the `disclosure` lines for PKU Harness Cloud are all shown to you before first
+   use.
 
 ## Prompt injection
 
-Third parties write campus content: a Treehole post, a notice, an event blurb, a remote plugin's
-output. Any of it can say "ignore previous instructions and…". The harness treats all of it as data
-and limits how far an injected instruction can get:
+Much of the content on campus is written by third parties: a Treehole post, a notice, an event
+description, or the output of a remote plugin. Any of it could say "ignore previous instructions
+and…". This kind of attack is called **prompt injection**.
 
-- **Untrusted tools.** A tool that returns third-party text sets `untrusted: true`. Every remote
-  plugin tool counts as untrusted.
-- **Taint.** Calling an untrusted tool taints the rest of the agent's turn: later tool calls in
-  that turn see `ctx.turn.tainted === true`.
-- **Gated durable writes.** Once a turn is tainted, writes that would carry into future
-  conversations wait for the user. The memory plugin stores such memories as *pending*, and the
-  user approves them on its screen. If the user's own message asked to remember something
-  (`ctx.turn.userAsked`), the write is the user's intent and is saved directly. Third-party text
-  can't write the user's message.
-- **Ask-first defaults** apply to remote plugins' write, money and public effects.
-- **Unforgeable host lines.** Facts the host injects each turn (time, reply language) sit in fixed
-  slots that plugin context can't imitate.
+The harness treats all such content as data, and it limits how much harm an injected instruction
+can do. It works as follows.
+
+**Untrusted tools.** A tool that returns third-party text sets `untrusted: true`. Every tool of a
+remote plugin counts as untrusted.
+
+**Taint.** Once the agent calls an untrusted tool during a turn, the rest of that turn is marked
+as _tainted_. Later tool calls in the same turn see `ctx.turn.tainted === true`.
+
+**Durable writes need confirmation.** After a turn is tainted, any write that would carry into
+future conversations waits for you. For example, the memory plugin saves such memories as
+_pending_, and you approve them on the memory screen.
+
+There is one exception. If your own message asked the agent to remember something
+(`ctx.turn.userAsked`), the write is what you wanted, so it is saved directly. Third-party text
+can't pretend to be your message.
+
+**Ask-first defaults.** In remote plugins, tools with the `write`, `money` and `public` effects ask
+you first by default.
+
+**Host information that can't be forged.** In each turn, the host gives the model some facts, such
+as the current time and the language to reply in. These sit in fixed places that plugin context
+can't imitate.
 
 ### What plugin authors must do
 
-- **MUST** set `untrusted: true` on tools whose results contain text written by anyone other than
-  the user: posts, comments, notices, messages, descriptions from a public site.
-- **MUST NOT** put instructions in results ("Tell the user to…", "Now call…"). Return data and let
-  the model decide. Guidance belongs in the tool `description` or the plugin `instructions`.
-- **SHOULD** check `ctx.turn?.tainted` in tools that write durable state the agent will later
-  treat as true (notes, memories, saved preferences), and save those writes as pending or refuse
-  them.
-- **SHOULD** strip control characters, invisible and bidi characters, and markup from third-party
-  text you return, and cap its length.
-- **MUST** use `userOnly: true` for tools that approve or unlock things on the agent's behalf.
+- You **must** set `untrusted: true` on tools whose results contain text written by anyone other
+  than the user. This includes posts, comments, notices, messages and descriptions from public
+  sites.
+- You **must not** put instructions in results, such as "Tell the user to…" or "Now call…". Return
+  data and let the model decide. Guidance for the model belongs in the tool's `description` or the
+  plugin's `instructions`.
+- Some tools write durable state that the agent will later treat as true, such as notes, memories
+  and saved preferences. Such tools **should** check `ctx.turn?.tainted`, and either save the write
+  as pending or refuse it.
+- When you return third-party text, you **should** strip control characters, invisible
+  characters, bidirectional-text (bidi) characters and markup, and limit its length.
+- You **must** set `userOnly: true` on tools that approve or unlock things on the agent's behalf.
 
 ## Secrets in results
 
 Some values must never reach the model or the logs.
 
-- **Payment codes** are shown only on a screen using `host.useSecureDisplay()` (screenshots
-  blocked, brightness up), never in a tool result.
-- **Share links** for a cloud channel carry the key in the URL fragment. The SDK's `SecretLink` is
-  opaque (`JSON.stringify(link)` gives `"[secret link]"`); show it only with `host.shareLink(link)`
-  or `<QRCode link={link} />`. The host also scrubs share-link patterns from tool output and logs.
-- **Tokens and keys** are never available to plugins at all.
+**Payment codes** are shown only on a screen that uses `host.useSecureDisplay()`. Such a screen
+blocks screenshots and turns the brightness up. A payment code is never returned in a tool result.
 
-## Plugin documents
+**Share links** are links to a cloud channel, and they carry the key in the URL fragment. The SDK's
+`SecretLink` type is opaque: `JSON.stringify(link)` gives only `"[secret link]"`. Show a link only
+with `host.shareLink(link)` or `<QRCode link={link} />`. The host also removes anything that looks
+like a share link from tool output and logs.
 
-The app interprets the steps a `PLUGIN.md` declares. No plugin code runs. A document can reach only
-the campus services, public hosts and host abilities it declares, within fixed time, size and
-operation limits.
+**Tokens and keys** are never available to plugins at all.
 
-The harness signs campus requests, so a document never sees a password, cookie or token, or
-another plugin's storage.
+## Security of plugin documents [#plugin-documents]
 
-Before install, and before any update that asks for more, the user sees the review sheet: official
-or community, campus services, websites, app features, and the effect of every tool.
+The app interprets the steps that a `PLUGIN.md` declares, and no plugin code runs. A plugin
+document can reach only the campus services, public websites and host abilities it declares, and
+it works within fixed limits on time, size and number of operations.
 
-In community documents, `write`, `money` and `public` tools ask first, and their results are
-treated as untrusted data. The agent can draft a plugin but can't install one: `plugins.install`
-only opens the review sheet.
+The harness signs campus requests. As a result, a plugin document never sees a password, cookie
+or token, and it can't reach another plugin's storage.
 
-## Remote plugins
+Before you install a plugin, and before any update that asks for more access, you see a review
+sheet. It shows whether the plugin is official or from the community, which campus services and
+websites it uses, which app features it needs, and the effect of every tool.
+
+In community plugin documents, tools with the `write`, `money` and `public` effects ask you first,
+and their results are treated as untrusted data. The agent can draft a plugin but can't install
+one: `plugins.install` only opens the review sheet, and you decide.
+
+## Security of remote plugins [#remote-plugins]
 
 A remote plugin runs on someone else's server. It never receives campus credentials, sessions or
-the user's other data, only the tool inputs the agent sends. Its tools are untrusted, its write
-effects ask first by default, and its section of the system prompt states that its output is data.
-The registry marks an entry `verified` only after maintainers have reviewed the source.
+any other data of yours. It only receives the tool inputs that the agent sends it.
+
+Its tools are untrusted, and tools that change data ask you first by default. The part of the
+system prompt about the plugin also says that its output is data. The registry marks an entry
+`verified` only after maintainers have reviewed its source code.
 
 ## PKU Harness Cloud
 
-The optional cloud backend is end-to-end encrypted by default. It identifies a device only by a
-keypair, with no student ID or name, and needs per-plugin consent backed by a plain-language
-disclosure. See [Cloud → Security](/en/docs/cloud/security).
+The optional cloud service is end-to-end encrypted by default. It identifies a device only by a
+key pair, without any student ID or name. Each plugin needs your separate consent before it can
+use the cloud, together with a description in plain words. See
+[Cloud → Security](/en/docs/cloud/security).
 
 ## Reporting a vulnerability
 
-Report privately as described in `SECURITY.md` of
+Report vulnerabilities privately, as described in `SECURITY.md` in
 [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness) or
 [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins). Please don't open
 a public issue.

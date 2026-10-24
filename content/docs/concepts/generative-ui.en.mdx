@@ -1,15 +1,20 @@
 ---
 title: Generative UI
-description: The agent describes UI as a JSON spec and the app renders it with native components, in chat (`ui.render`) and on the dashboard. Form submissions come back as the user's next message.
+description: The agent describes a piece of UI in JSON, and the app shows it with native components, either in the chat (`ui.render`) or on the dashboard. A submitted form comes back to the agent as your next message.
 icon: Wand
 ---
 
-Sometimes text is the wrong answer. When the agent needs an amount from you, wants you to pick
-from a list, or has data that reads better as a card, it replies with UI. It writes a JSON
-**spec**, and the app draws it with native components from a fixed **catalog** (built on
-[json-render](https://github.com/vercel-labs/json-render)). Props are semantic, like tone and size,
-and never raw colours, so anything the agent builds still looks like the rest of the app. Dashboard
-widgets the agent builds use the same catalog, so it only has to learn one UI language.
+Some answers are awkward to give in text. For example, the agent may need you to enter an
+amount or choose an item from a list, or it may have data that is easier to read as a card. In
+these cases the agent can reply with a piece of UI.
+
+It works like this. The agent writes a description of the UI in JSON, which we call a **spec**.
+The app takes the matching native components from a fixed **catalog** and shows the UI. This
+system is built on [json-render](https://github.com/vercel-labs/json-render).
+
+Component props are semantic, such as tone and size, and never raw colour values. As a result,
+anything the agent builds looks like the rest of the app. The agent also uses this catalog when
+it builds dashboard widgets, so it only has to learn one way of describing UI.
 
 ## The spec
 
@@ -28,7 +33,7 @@ type UISpec = {
 };
 ```
 
-Props can bind to state:
+A spec can hold some state (`state`). Component props can be bound to that state in three ways.
 
 | Binding | Meaning |
 | --- | --- |
@@ -37,6 +42,9 @@ Props can bind to state:
 | `{ "$template": "今天共 ${/today/count} 节课" }` | String with state values interpolated |
 
 ## Catalog
+
+The catalog has 17 components. Components that "have children" contain other components through
+`children`. "Bind `value`" means the input's value should be bound to state with `$bindState`.
 
 | Component | Props | Notes |
 | --- | --- | --- |
@@ -58,17 +66,23 @@ Props can bind to state:
 | `DateTime` | `label`, `value`, `mode` | Native picker; value is local `"YYYY-MM-DD HH:mm"` |
 | `Button` | `label`, `variant` | Event `press` |
 
-Two actions are available for `on.press`:
+When a component is tapped, it runs the action defined in `on.press`. There are two actions.
 
 | Action | Params | Effect |
 | --- | --- | --- |
 | `submit` | `{ label }` | Sends everything under `/form` back to the agent as the user's next message |
-| `callTool` | `{ tool, input }` | Runs a plugin tool directly (same permission check as the agent) |
+| `callTool` | `{ tool, input }` | Runs a plugin tool directly |
 
-This page can drift; the live catalog can't. The `ui.render` tool description embeds
-`services.genui.describeCatalog()`, and `services.genui.checkSpec(spec)` validates a spec.
+A tool run by `callTool` goes through the same permission check as a call from the agent.
+
+This page may fall behind the code, but the catalog at runtime is always current. The description
+of the `ui.render` tool includes the output of `services.genui.describeCatalog()`, so the agent
+always sees the current catalog. You can validate a spec with `services.genui.checkSpec(spec)`.
 
 ## Example: a top-up form
+
+This spec shows a "充值校园卡" (top up campus card) card with an amount choice and a confirm
+button. When you tap the button, the chosen amount goes back to the agent as your next message.
 
 ```json
 {
@@ -91,9 +105,10 @@ This page can drift; the live catalog can't. The `ui.render` tool description em
 
 ## For plugin authors
 
-Remote plugins can't render UI themselves. They return data and the agent renders it. Bundled
-plugin screens can render a spec with `host.components.GenUI`:
+Remote plugins can't show UI themselves. They return data, and the agent builds the UI.
+
+Screens in bundled plugins can show a spec with `host.components.GenUI`:
 `<GenUI spec={spec} onSubmit={(form, label) => …} />`.
 
-Generative UI is meant for one-off, conversational moments. If users will open something often,
-build a native screen or widget instead (`contributes.screens` / `widgets`).
+Generative UI suits one-off moments in a conversation. If users will open something often, build
+a native screen or widget for it instead (`contributes.screens` / `widgets`).

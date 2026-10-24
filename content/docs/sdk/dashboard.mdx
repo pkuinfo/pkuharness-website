@@ -1,9 +1,13 @@
 ---
 title: dashboard
-description: 看板小组件和 services.widgets 用到的 Widget 类型、Binding 与 WidgetSource 的 schema，以及 WidgetSize。
+description: 看板小组件的数据类型：Widget 类型，Binding 和 WidgetSource 的 schema，以及 WidgetSize。services.widgets 也使用这些类型。
 ---
 
-源码：`packages/sdk/src/dashboard.ts`。概念介绍：[看板](/docs/concepts/dashboard)。
+这个模块定义看板上小组件的数据结构。看板上的小组件有两种：一种由助手生成，用一份界面描述（spec）加上数据绑定（bindings）来显示；另一种由插件提供，插件自己用原生组件绘制。插件通过 `services.widgets` 读写小组件时，用的就是这里的类型。
+
+源码：`packages/sdk/src/dashboard.ts`。概念介绍见[看板](/docs/concepts/dashboard)。
+
+## 类型与 schema [#types-and-schemas]
 
 ```ts
 import { z } from 'zod';
@@ -11,9 +15,9 @@ import { z } from 'zod';
 export const bindingSchema = z.object({
   tool: z.string().describe('read-only tool id, e.g. "calendar.today"'),
   args: z.record(z.string(), z.unknown()).optional(),
-  /** Dot path into the tool result; empty = the whole result. */
+  /** 工具结果中的点分路径；为空表示整个结果。 */
   path: z.string().optional(),
-  /** Cache lifetime in minutes (default 5). */
+  /** 缓存有效期，单位为分钟（默认 5）。 */
   ttlMinutes: z.number().min(0).max(24 * 60).optional(),
 });
 export type Binding = z.infer<typeof bindingSchema>;
@@ -23,7 +27,7 @@ export const widgetSizeSchema = z
   .describe('sm = half width tile, md = full width, lg = full width hero');
 export type WidgetSize = z.infer<typeof widgetSizeSchema>;
 
-/** A widget a plugin ships (`contributes.widgets`), placed on the dashboard by key. */
+/** 插件提供的小组件（`contributes.widgets`），按键名放到看板上。 */
 export const widgetSourceSchema = z.object({
   plugin: z.string(),
   widget: z.string().describe("key in the plugin's contributes.widgets"),
@@ -32,16 +36,16 @@ export const widgetSourceSchema = z.object({
 export type WidgetSource = z.infer<typeof widgetSourceSchema>;
 
 /**
- * Two kinds, rendered side by side: AI-built (`spec` + `bindings`) or plugin-provided
- * (`source`, the plugin draws it natively; `spec`/`bindings` stay empty).
+ * 两种小组件并排显示：助手生成的（`spec` + `bindings`），以及插件提供的
+ * （`source`，由插件原生绘制；`spec`/`bindings` 留空）。
  */
 export type Widget = {
   id: string;
   title: string;
   size: WidgetSize;
-  /** json-render spec ({ root, elements, state? }). */
+  /** json-render 界面描述（{ root, elements, state? }）。 */
   spec: Record<string, unknown>;
-  /** State path (JSON pointer, e.g. "/card") → data source. */
+  /** state 路径（JSON pointer，例如 "/card"）→ 数据来源。 */
   bindings: Record<string, Binding>;
   source?: WidgetSource;
   position: number;
@@ -50,10 +54,15 @@ export type Widget = {
 };
 ```
 
-每个绑定都通过 [`setPointer`](/docs/sdk/pointer) 把结果写进 spec 的 state。所以挂在 `/card`、
-`path: "balance"` 的绑定会让 `{ "$state": "/card" }` 取到余额。
+`sm` 是半宽的小方块，`md` 占满整行，`lg` 是占满整行的大尺寸卡片。
 
-要在工具里放置插件小组件，构造一个带 `source` 的 `Widget`，再调用 `put`：
+## 绑定如何填充数据 [#how-bindings-work]
+
+每个绑定会调用一个只读工具，再用 [`setPointer`](/docs/sdk/pointer) 把结果写进 spec 的 state。例如，一个挂在 `/card`、`path` 为 `"balance"` 的绑定，会让 spec 里的 `{ "$state": "/card" }` 取到余额。
+
+## 在工具里放置插件小组件 [#placing-a-plugin-widget]
+
+要在工具里放置插件提供的小组件，先构造一个带 `source` 的 `Widget`，再调用 `put`：
 
 ```ts
 const w: Widget = {
@@ -70,4 +79,4 @@ const w: Widget = {
 await ctx.services.widgets.put(w);
 ```
 
-大多数插件用不着这样做，助手自己会用 `dashboard.addPluginWidget` 放置小组件。
+大多数插件不需要这样做，因为助手会自己调用 `dashboard.addPluginWidget` 放置小组件。

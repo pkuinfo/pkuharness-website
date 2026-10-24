@@ -1,83 +1,97 @@
 ---
 title: 工具与效果
-description: 工具是插件唯一的 API。每个工具有 id、标题、写给模型的说明、zod 输入 schema，以及唯一一个效果（read、write、money、public）。
+description: 工具是插件对外提供功能的唯一方式。每个工具有 id、标题、写给模型的说明、zod 输入 schema，以及唯一一个效果（read、write、money 或 public）。
 icon: Wrench
 ---
 
-一个**工具**（tool）就是一个有类型的操作。助手在对话中调用它，页面在用户点击时调用它（`invoke`），小组件读取它（`host.useToolData`），定时检查也运行它。除此之外没有别的途径能用到插件的能力，所以工具的定义就是插件的 API。
+**工具**（tool）是插件提供的一个有类型的操作，例如「查询校园卡余额」或「创建一条提醒」。
 
-## 结构 [#anatomy]
+同一个工具可以被四种方式调用：助手在对话中调用它；页面在用户点击时通过 `invoke` 调用它；小组件通过 `host.useToolData` 读取它；定时检查也会运行它。除了工具，没有其他途径能用到插件的功能。所以，插件定义了哪些工具，就决定了它对外提供哪些功能。
+
+## 工具的结构 [#anatomy]
+
+下面是校园卡余额工具的定义。
 
 ```ts
 import { defineTool } from '@pku-harness/sdk';
 import { z } from 'zod';
 
 const cardBalance = defineTool({
-  title: '校园卡余额',                       // 展示给用户（聊天中的标签、审批弹窗、设置页）
+  title: '校园卡余额',                       // 展示给用户（对话中的标签、审批弹窗、设置页）
   description: 'Campus card balance in CNY, today\'s spending and the daily limit. Use when the user asks how much money is left on the card.',
   input: z.object({}),                      // 在 execute 运行前校验
   effect: 'read',                           // 它会改变什么：read | write | money | public
   execute: async (_input, ctx) => {
     const res = await ctx.services.campus.request('card', { url: '/berserker-app/ykt/tsm/queryCard?synAccessSource=h5' });
-    return parseBalance(res.body);          // 纯 JSON 数据，绝不包含指令
+    return parseBalance(res.body);          // 只返回 JSON 数据，绝不包含指令
   },
 });
 ```
 
-| 字段 | 规则 |
-| --- | --- |
-| `title` | 中文、简短，展示给用户。英文标题写在 `i18n.en.tools.<name>.title`。 |
-| `description` | 写给模型看：**什么时候**用、**怎么**用这个工具，以及单位、格式和限制。中英文均可，不做翻译。可以是基于宿主服务的函数（`Dynamic<string>`）。 |
-| `input` | 一个 zod schema。给字段加上 `.describe()`，模型看到的是 JSON Schema。 |
-| `effect` | 下面四种效果之一，只能选一个。如实填写。 |
-| `untrusted` | 结果里含有第三方写的文字（论坛帖子、通知、活动简介）时设为 `true`。 |
-| `userOnly` | 设为 `true` 表示这是助手不能自己打开的“闸门”：工具对模型隐藏，来自助手和定时任务的调用都会被拒绝。 |
-| `execute` | `(input, ctx) => Promise<output>`。失败时抛出 `Error`，消息要清楚，让用户能看懂。 |
+每个字段的规则如下。
 
-## id 与名称 [#ids-and-names]
+- **`title`**：简短的中文标题，展示给用户看。英文标题写在 `i18n.en.tools.<name>.title`。
+- **`description`**：写给模型看的说明。它要告诉模型**什么时候**用这个工具、**怎么**用，以及单位、格式和限制。可以用中文或英文写，不需要翻译。它也可以是一个依赖宿主服务的函数（`Dynamic<string>`）。
+- **`input`**：一个 zod schema。请给每个字段加上 `.describe()`，因为模型看到的是由它生成的 JSON Schema。
+- **`effect`**：工具的效果，从下一节的四种效果中选一个，并且要如实填写。
+- **`untrusted`**：如果结果里有第三方写的文字，例如论坛帖子、通知或活动简介，设为 `true`。
+- **`userOnly`**：有些操作只能由用户亲自触发，助手不能自己打开。这时设为 `true`。工具会对模型隐藏，来自助手和定时任务的调用都会被拒绝。
+- **`execute`**：形式为 `(input, ctx) => Promise<output>`。失败时抛出一个 `Error`，错误信息要清楚，让用户能看懂。
 
-- 工具 id：`<plugin id>.<tool name>`，例如 `wallet.cardBalance`、`scheduler.create`。代码里都用 id：`invoke('memory.list')`、`host.useToolData('wallet.cardBalance')`、检查任务、小组件绑定。
-- 模型看到的名称：把 id 中第一个 `.` 换成 `__`，例如 `wallet__cardBalance`，因为模型 API 不允许工具名里有点号。在 `instructions` 或说明里提到某个工具时，用这种写法（`"use canteen__openNow for …"`）。
-- 远程插件：`mcp-<server>.<tool>` / `mcp-<server>__<tool>`。
+## 工具的 id 与名称 [#ids-and-names]
 
-## 效果 [#effects]
+工具有两种写法，分别给代码和模型使用。
+
+**工具 id** 的形式是 `<plugin id>.<tool name>`，例如 `wallet.cardBalance` 和 `scheduler.create`。代码里都使用 id，例如 `invoke('memory.list')`、`host.useToolData('wallet.cardBalance')`，以及检查任务和小组件绑定。
+
+**模型看到的名称**是把 id 中第一个 `.` 换成 `__`，例如 `wallet__cardBalance`。这是因为模型 API 不允许工具名里出现点号。在 `instructions` 或说明里提到某个工具时，请使用这种写法，例如 `"use canteen__openNow for …"`。
+
+**远程插件**的工具 id 是 `mcp-<server>.<tool>`，模型看到的名称是 `mcp-<server>__<tool>`。
+
+## 四种效果 [#effects]
+
+效果（effect）描述一个工具会改变什么。每个工具只能有一种效果。
 
 | 效果 | 含义 | 例子 |
 | --- | --- | --- |
-| `read`（读取） | 只读数据，什么都不改 | 余额、课表、搜索、列表 |
-| `write`（修改） | 改变状态（设备上或服务端） | 添加待办、创建提醒、关注帖子、预约房间 |
-| `money`（花钱） | 花钱或转钱，或者让付款成为可能 | 校园卡充值、创建支付订单、切换到电子校园卡付款 |
+| `read`（读取） | 只读取数据，不改变任何东西 | 查余额、查课表、搜索、列出 |
+| `write`（修改） | 改变手机上或服务端的状态 | 添加待办、创建提醒、关注帖子、预约房间 |
+| `money`（花钱） | 花钱、转钱，或者让付款成为可能 | 校园卡充值、创建支付订单、切换到电子校园卡付款 |
 | `public`（公开） | 发布别人能看到的内容 | 在树洞发帖或回复 |
 
-选**最强**的那个效果。一个工具既公开发帖又改本地状态，就是 `public`。效果（effect）决定了[权限](/docs/concepts/permissions)：用户按插件、按效果选择助手可以直接执行、需要先询问，还是完全不能执行。
+如果一个工具同时符合几种效果，请选**最强**的那个。例如，一个工具既公开发帖，又修改本地状态，它的效果就是 `public`。
+
+效果决定了[权限](/docs/concepts/permissions)。你可以针对每个插件的每种效果，选择助手可以直接执行、需要先询问，还是完全不能执行。
 
 <Callout title="定时任务只能读取">
-  定时任务运行时没人看着，所以无论用户怎么设置授权方式，定时任务都会拒绝所有非 `read` 的工具。只有真的什么都不改，才能把工具标成 `read`，否则基于它的检查会误导用户。
+  定时任务运行时没有人在旁边看着。所以无论你怎么设置授权方式，定时任务都会拒绝所有效果不是 `read` 的工具。只有确实不改变任何东西的工具，才能标成 `read`。否则，基于它的定时检查会误导用户。
 </Callout>
 
-## 调用者 [#actors]
+## 谁在调用工具 [#actors]
 
-`ctx.actor` 告诉你是谁发起的调用：
+`ctx.actor` 告诉工具是谁发起了这次调用。调用者有三种。
 
-| 调用者 | 何时 | 是否需要批准 |
+| 调用者 | 何时出现 | 是否需要批准 |
 | --- | --- | --- |
-| `user` | 页面或小组件响应点击，调用了 `invoke(...)` | 从不询问：点击本身就是用户的意图 |
-| `agent` | 模型在聊天轮次中调用了工具 | 该效果的授权方式为 `ask` 时询问 |
-| `scheduler` | 定时检查或定时 Agent 任务 | 只能用 `read` 工具；授权方式为 `ask` 时视为拒绝 |
+| `user` | 页面或小组件响应用户点击，调用了 `invoke(...)` | 从不询问 |
+| `agent` | 模型在对话中调用了工具 | 该效果的授权方式为 `ask` 时询问 |
+| `scheduler` | 定时检查或定时 Agent 任务 | 只能使用 `read` 工具 |
 
-助手在聊天轮次里调用时，会设置 `ctx.turn`：`{ sessionId, tainted, userAsked }`。见[安全模型](/docs/concepts/security#prompt-injection)。
+用户的调用从不询问，因为点击本身就表达了用户的意图。定时任务遇到授权方式为 `ask` 的工具时，会把它当作被拒绝。
 
-## 返回结果 [#results]
+助手在对话中调用工具时，`ctx.turn` 会被设置为 `{ sessionId, tainted, userAsked }`。其中 `tainted` 的含义见[安全模型](/docs/concepts/security#prompt-injection)。
 
-- 返回能直接回答问题的纯 JSON。字段名带上单位（`balanceYuan`、`minutesUntil`），时间用 ISO 或 `"YYYY-MM-DD HH:mm"` 本地时间，并带上模型可以传给下一个工具的 id。
-- 不要返回指令（“现在告诉用户……”）。模型会把结果当作数据。
-- 结果要小。框架在模型历史里把单个结果截断到 12,000 个字符（界面上保留完整输出），所以请分页或过滤，别一股脑全倒出来。
-- 对于预期内、可恢复的状态，返回状态对象而不是抛异常，例如 `{ status: 'verification_required', methods: ['sms'], message: '…' }`（树洞的短信验证）。
-- 绝不返回机密：付款码、token、分享链接。校园卡付款码只会显示在页面上，不会出现在工具结果里。
+## 如何返回结果 [#results]
+
+- **返回能直接回答问题的 JSON。** 字段名里带上单位，例如 `balanceYuan` 和 `minutesUntil`。时间用 ISO 格式或本地时间 `"YYYY-MM-DD HH:mm"`。如果模型可能要把某个 id 传给下一个工具，就把它也放进结果。
+- **不要返回指令**，例如「现在告诉用户……」。模型会把结果当作数据。
+- **结果要小。** 在模型的历史记录里，框架会把单个结果截断到 12,000 个字符，界面上仍然保留完整输出。所以请分页或过滤，不要把所有数据一次返回。
+- **预期内的、可以恢复的状态，返回状态对象，不要抛出异常。** 例如树洞需要短信验证时，返回 `{ status: 'verification_required', methods: ['sms'], message: '…' }`。
+- **绝不返回机密信息**，例如付款码、令牌和分享链接。校园卡付款码只会显示在页面上，不会出现在工具结果里。
 
 ## 数据源 [#data-sources]
 
-`PluginDef.dataSources` 列出适合给小组件和定时检查用的读取工具，并为每个指定缓存时长。助手通过 `dashboard.sources` 找到它们。
+有些读取工具很适合给小组件和定时检查使用。插件可以在 `PluginDef.dataSources` 里列出这些工具，并为每个工具指定缓存时长。助手通过 `dashboard.sources` 找到它们。
 
 ```ts
 dataSources: {
@@ -85,4 +99,4 @@ dataSources: {
 },
 ```
 
-`tool` 是本插件内部的工具名；`args` 是固定参数。
+`tool` 是本插件内部的工具名。如果需要固定的参数，写在 `args` 里。

@@ -39,7 +39,7 @@ export function RepoPage({
     'inline-flex h-9 items-center gap-1.5 rounded-lg border border-fd-border px-3 text-sm transition-colors hover:bg-fd-accent focus-visible:outline-2 focus-visible:outline-fd-ring';
   return (
     <div className="mx-auto w-full max-w-[1200px] flex-1 px-4 pt-10 pb-24 md:px-8">
-      <nav aria-label="Breadcrumb">
+      <nav aria-label={m.breadcrumb}>
         <ol className="flex flex-wrap items-center gap-1.5 text-sm text-fd-muted-foreground">
           {crumbs.map(([label, href], i) => (
             <li key={label + String(i)} className="inline-flex items-center gap-1.5">

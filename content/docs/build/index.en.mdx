@@ -1,51 +1,82 @@
 ---
 title: Build a plugin
-description: Pick between a PLUGIN.md document, a remote (MCP) plugin and a bundled (SDK) plugin, set up the repositories, and get from your first tool to a marketplace listing.
+description: How to choose between a PLUGIN.md document, a remote plugin and a bundled TypeScript plugin, which repositories to clone, and the order of work from your first tool to a marketplace listing.
 icon: Hammer
 ---
 
-A plugin connects PKU Harness to a campus service or adds a capability. The agent and the user
-both go through the same typed tools, so most of the work is finding the service's API, wrapping
-it in good tools, and adding a widget or screen where one helps.
+A plugin connects PKU Harness to one campus service, or adds one feature to the app. Each plugin
+offers a set of _tools_: small, typed operations such as "list free classrooms" or "show my card
+balance". The AI assistant and the user's own taps both call the same tools.
+
+Writing a plugin therefore comes down to three jobs. You find out how the service answers
+requests, you wrap those requests in tools, and, where it helps, you add a widget or a screen.
+
+This section assumes you can read YAML or TypeScript and use a terminal. You don't need to know
+the app's internals.
 
 ## Choose the kind
 
-| | Plugin document (`PLUGIN.md`) | Remote plugin | Bundled TypeScript plugin |
+There are three kinds of plugin. Most people should write the first one.
+
+A **plugin document** is a folder with a `PLUGIN.md` file. Its tools are written as YAML steps
+with small, safe expressions, and the app interprets them on the phone. You publish it with
+`git push`, and students install and update it from a link. Use it for most campus
+integrations: requests to campus or public websites, extraction of the data you need, and the
+user's campus session when a service requires sign-in. Start with the
+[quickstart](/en/docs/build/quickstart), then read [Declarative plugins](/en/docs/build/declarative-plugins).
+You can also [write it with the AI](/en/docs/build/ai-authoring) inside the app.
+
+A **remote plugin** is a server you run yourself. It speaks the Model Context Protocol (MCP), a
+standard way for AI apps to call tools over HTTP, using the Streamable HTTP transport. You can
+write it in any language. Updates go out when you deploy the server; no app release is involved.
+Use it for your own service, for heavy work, or for anything that needs general-purpose code.
+Start from [`templates/remote-plugin`](/en/docs/build/remote-plugin).
+
+A **bundled plugin** is a TypeScript module, written with zod and React Native, that ships inside
+the app. It reaches users only with app releases, so open an issue before you start. Use it for
+the app's own features (dashboard, schedule, scheduler, memory, model providers and so on) and for
+integrations the plugin language can't express yet. Start with
+[`definePlugin`](/en/docs/build/bundled-plugin).
+
+| | Plugin document | Remote plugin | Bundled plugin |
 | --- | --- | --- | --- |
-| Use for | Most campus integrations: campus or public requests plus extraction, with the user's campus session where needed | Your own service, anything heavy or needing general code | The harness's own features (dashboard, schedule, scheduler, memory, model providers…) and integrations the language can't express yet |
-| Language | YAML steps + safe expressions, interpreted by the app | Any (MCP over Streamable HTTP) | TypeScript + zod + React Native |
-| Release | `git push`; installed and updated by link | Deploy your server; no app release | Ships with app releases (open an issue first) |
-| Start from | [Quickstart](/en/docs/build/quickstart), [Declarative plugins](/en/docs/build/declarative-plugins), or [write it with the AI](/en/docs/build/ai-authoring) | [`templates/remote-plugin`](/en/docs/build/remote-plugin) | [`definePlugin`](/en/docs/build/bundled-plugin) |
+| Written in | YAML steps and expressions | Any language (MCP) | TypeScript |
+| Runs on | The phone, interpreted by the app | Your server | The phone, inside the app |
+| How updates reach users | `git push` | Deploy your server | App release |
 
 The official campus integrations classrooms, campus-events, grades, canteen, shuttle and notices
-are plugin documents. The other integrations are still TypeScript and are being ported one by one.
+are already plugin documents. The other official integrations are still TypeScript, and we are
+porting them one at a time.
 
-## The path
+## The order of work [#the-path]
 
 <Steps>
 <Step>
 
 ### Read the concepts
 
-[Plugins](/en/docs/concepts/plugins), [Tools and effects](/en/docs/concepts/tools-and-effects),
-[Permissions](/en/docs/concepts/permissions) and [Security](/en/docs/concepts/security) set the
-rules every plugin follows.
+Four pages set the rules every plugin follows: [Plugins](/en/docs/concepts/plugins),
+[Tools and effects](/en/docs/concepts/tools-and-effects), [Permissions](/en/docs/concepts/permissions)
+and [Security](/en/docs/concepts/security). Read them first, because the review checks your plugin
+against them.
 
 </Step>
 <Step>
 
 ### Find the protocol
 
-If [`pkucli`](https://github.com/pkuinfo/pkucli) already talks to the service, port it from there
-and credit the file. See [Porting from pkucli](/en/docs/build/porting-from-pkucli).
+You need to know which addresses the service uses and what it sends back. If
+[`pkucli`](https://github.com/pkuinfo/pkucli) already talks to the service, port its code and
+credit the file you used. [Porting from pkucli](/en/docs/build/porting-from-pkucli) explains how.
 
 </Step>
 <Step>
 
 ### Write the tools
 
-One tool per operation, honest effects, bounded inputs, and descriptions written for the model.
-For a document, see [Declarative plugins](/en/docs/build/declarative-plugins); for code, see
+Write one tool per operation. Declare its effect honestly, put limits on every input, and write the
+description for the model. For a plugin document, see
+[Declarative plugins](/en/docs/build/declarative-plugins). For code, see
 [Tools and schemas](/en/docs/build/tools).
 
 </Step>
@@ -53,38 +84,45 @@ For a document, see [Declarative plugins](/en/docs/build/declarative-plugins); f
 
 ### Add UI
 
-Documents can add generative-UI widgets and screens, Settings rows and slash commands. Bundled
-plugins can also add native screens. See [UI contributions](/en/docs/build/ui) and
-[Languages](/en/docs/build/i18n).
+A plugin document can add generative-UI widgets and screens (described as JSON and drawn by the
+app), Settings rows and slash commands. A bundled plugin can also add native screens. See
+[UI contributions](/en/docs/build/ui) and [Languages](/en/docs/build/i18n).
 
 </Step>
 <Step>
 
 ### Test
 
-Documents use `bun run plugin validate|test` with recorded responses. TypeScript logic uses
-`bun test`, the agent loop uses the mock model, and MCP uses the demo remote plugin. See
-[Testing](/en/docs/build/testing).
+Each kind has its own tools. For plugin documents, `bun run plugin validate|test` checks the files
+and replays recorded responses. For TypeScript logic, use `bun test`. To exercise the assistant's
+loop without an API key, use the mock model. To try a remote plugin, use the demo remote plugin.
+[Testing](/en/docs/build/testing) covers all four.
 
 </Step>
 <Step>
 
 ### Publish
 
-Share the install link and register in the marketplace. See [Publishing](/en/docs/build/publishing),
-plus the marketplace's [manifest reference](/en/docs/marketplace/manifest) and
-[submit flow](/en/docs/marketplace/publishing).
+Share the install link, then list the plugin in the marketplace. See
+[Publishing](/en/docs/build/publishing), and in the marketplace section the
+[manifest reference](/en/docs/marketplace/manifest) and the [submit flow](/en/docs/marketplace/publishing).
 
 </Step>
 </Steps>
 
 ## Repositories you need
 
-| Repository | You need it for |
-| --- | --- |
-| [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) | The SDK and plugin language, the author CLI (`bun run plugin`), the official documents and bundled plugins, the registry, the remote template and examples. Start here. |
-| [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness) | The app, to run your bundled plugin on a device or emulator. Documents don't need it until you try campus requests live. |
-| [`pkuinfo/pkucli`](https://github.com/pkuinfo/pkucli) | Reference implementations of PKU service protocols (Rust). |
+Start with [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins). It
+holds the SDK and the plugin language, the author command-line tool (`bun run plugin`), the
+official plugin documents and bundled plugins, the marketplace registry, and the remote-plugin
+template and examples.
+
+You need [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness), the app itself, only to
+run a bundled plugin on a phone or emulator. A plugin document doesn't need it until you want to
+try campus requests for real.
+
+[`pkuinfo/pkucli`](https://github.com/pkuinfo/pkucli) is a set of Rust command-line tools for PKU
+services. Use it as a reference for how each service's protocol works.
 
 ```bash
 mkdir pku-info && cd pku-info
@@ -94,25 +132,27 @@ cd pku-harness-plugins && bun install && bun test
 ```
 
 <Callout title="No npm packages">
-  You use the SDK and plugins straight from the GitHub repository. Work inside a checkout of
-  `pku-harness-plugins`: its bun workspace and `tsconfig.json` resolve `@pku-harness/sdk` to
-  `packages/sdk/src`. The app pulls the same repository in as the git submodule `plugins/`.
-  Remote plugins don't need the SDK at all.
+  The SDK and the plugins are not published to npm. You use them straight from the GitHub
+  repository: work inside a checkout of `pku-harness-plugins`, whose bun workspace and
+  `tsconfig.json` resolve `@pku-harness/sdk` to `packages/sdk/src`. The app pulls in the same
+  repository as the git submodule `plugins/`. Remote plugins don't need the SDK at all.
 </Callout>
 
 ## Ground rules (from CONTRIBUTING.md)
 
-1. **Tools are the API.** Give each one a clear Chinese `title` (users see it) and a `description`
-   written for the model that says when and how to use it. Validate input (`input` fields for
-   documents, zod for bundled, JSON Schema for MCP).
-2. **Declare effects honestly.** Read-only tools set `effect: read` (documents and bundled) or
-   `readOnlyHint: true` (MCP). Anything that changes state, spends money or posts publicly must
-   say so.
+1. **Tools are the API.** Give each tool a clear Chinese `title`, which users see, and a
+   `description` written for the model that says when and how to use it. Validate every input:
+   with `input` fields in a plugin document, with zod in a bundled plugin, and with JSON Schema in
+   a remote plugin.
+2. **Declare effects honestly.** A read-only tool sets `effect: read` (plugin documents and bundled
+   plugins) or `readOnlyHint: true` (MCP). A tool that changes state, spends money or posts publicly
+   must say so.
 3. **Never ask for campus passwords.** Credentials stay on the user's phone.
-4. **Return data, not instructions.** The model sees tool results as data.
-5. **Declare what you reach.** In a document that's `campus`, `network` and `abilities`
-   (`requires` is derived); in code it's `requires`. Don't depend on a shell or filesystem on the
-   phone.
-6. **Port campus protocols from pkucli** where it already implements them, and credit the source.
-7. **Be bilingual.** A document has `i18n.en`. A bundled plugin needs an English overlay for every
-   user-facing manifest string and a `src/strings.ts` table for screen and widget text.
+4. **Return data, not instructions.** The model treats tool results as data.
+5. **Declare what you reach.** In a plugin document, list `campus`, `network` and `abilities`;
+   `requires` is derived from them. In code, list `requires`. Don't depend on a shell or a file
+   system on the phone.
+6. **Port campus protocols from pkucli** when it already implements them, and credit the source.
+7. **Write both languages.** A plugin document has an `i18n.en` section. A bundled plugin needs an
+   English overlay for every user-facing manifest string, and a `src/strings.ts` table for the text
+   in its screens and widgets.

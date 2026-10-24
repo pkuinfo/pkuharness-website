@@ -1,7 +1,9 @@
 ---
 title: HostServices
-description: 内置插件通过 ctx.services 或 props.services 拿到的每一项宿主服务的准确签名，以及任务、小组件目录和常驻通知相关的类型。
+description: 内置插件通过 ctx.services 或 props.services 拿到的全部宿主服务的签名和行为，以及任务、小组件目录和常驻通知相关的类型。
 ---
+
+插件不能直接调用 App 的内部代码。需要打开浏览器、选择文件、发校园网请求、创建提醒时，插件调用宿主提供的服务。工具在 `ctx.services` 中拿到这些服务，页面和小组件在 `props.services` 中拿到。这一页列出每项服务的签名和行为。
 
 源码：`packages/sdk/src/plugin.ts`。概念介绍：[宿主服务](/docs/concepts/host-services)。
 
@@ -93,29 +95,31 @@ interface HostServices {
 
 ## 行为说明 [#behaviour-notes]
 
-| 成员 | 说明 |
-| --- | --- |
-| `browser.open` | 在系统浏览器标签页（Custom Tabs / SFSafariViewController）里打开页面。页面上的 App 链接（`weixin://`、`alipays://`）会唤起对应的 App，所以收银台可以一路走到微信支付或支付宝。页面一打开就 resolve，无法得知支付是否成功：等用户回来后再读一次结果（比如余额）。 |
-| `files.pick` | 只有用户能选文件。从页面里响应点击时调用，不要在 Agent 工具里调用。`types` 是 MIME 类型，支持通配符（`['application/pdf', 'image/*']`）。用户取消时 resolve 为 `[]`。文件会复制到 App 缓存，你拿到的是引用（在本次 App 会话内有效的 URI），不是文件内容。 |
-| `crypto.sha256` | 对 UTF-8 文本计算 SHA-256，返回小写十六进制。插件自己没有加密库，这个用来做请求签名。 |
-| `registry` | 只读地查看已安装的插件和工具。`tool(id)` 也能解析旧 id。 |
-| `docs` | 文档（`PLUGIN.md`）插件，供 `plugins` 插件使用。`review` 为一个链接或一组文件打开 App 的授权面板，面板弹出后即 resolve，由用户在面板里决定。`source(id)` 返回已安装文档插件的文件（用来阅读或 fork），其他插件返回 `null`。这一项是可选的，用之前先判断。 |
-| `remote` | 安装和移除远程 MCP 插件，供 `plugins` 插件使用。 |
-| `genui` | `describeCatalog()` 以文本形式返回组件目录，可以直接放进工具描述；`checkSpec(spec)` 按目录校验一份 spec。 |
-| `notify.readiness` / `fix` | 告诉你提醒能否准点触发（通知权限、精确闹钟、电池优化）。`fix` 只能在用户点击时调用。系统设置页可能在用户还没改动时就返回，所以 App 回到前台时要再读一次 readiness。 |
-| `sms.awaitCode` | 用户允许读取下一条短信后，resolve 为短信里的验证码（Android SMS User Consent）。不可用、被拒绝、识别不出或超过 5 分钟时返回 `null`。请求服务发送短信之后立刻调用。 |
-| `scheduler` | `Trigger`、`Action`、`Job` 见 [scheduler](/docs/sdk/scheduler)。`runCheck` 立即执行一次检查任务。 |
-| `widgets.preview` / `resolve` | 填充小组件的绑定，返回它的 spec 将看到的 state。`preview` 总是重新获取；`resolve` 走 TTL 缓存，传 `force` 时强制刷新。 |
-| `widgets.catalog` | 已启用插件提供的原生小组件。 |
-| `todos` | `source` 记录是谁做的修改。 |
-| `campus.request` | 需要 `campus-session` 能力。见 [campus](/docs/sdk/campus)。 |
-| `campus.otp` | 用户绑定了 App 内置的令牌时，返回当前的手机令牌验证码，否则为 `null`。你永远拿不到密钥本身。 |
-| `campus.otpStatus`、`otpBindStart`、`otpBindFinish`、`otpUnbindLocal` | 令牌管理，只应由内置令牌插件的页面调用。 |
-| `campus.openSignedIn` | 借助服务自己的登录跳转，在系统浏览器里以已登录状态打开该服务。URL 由宿主生成，插件看不到会话 token。服务不支持跳转时会 reject。 |
-| `ongoing` | 只有具备 `ongoing` 能力（Android）时才存在。从用户操作里启动，用完就停掉。 |
-| `timetable.reloadSemester` | 日历插件保存学期信息后，调用它重新读取。 |
+下面按成员说明调用时需要注意的行为。
+
+- **`browser.open`**：在系统浏览器标签页（Android 上是 Custom Tabs，iOS 上是 SFSafariViewController）里打开页面。页面上的 App 链接（`weixin://`、`alipays://`）会唤起对应的 App，所以收银台页面可以一路跳转到微信支付或支付宝。这个方法在页面打开后就 resolve，无法得知支付是否成功。等用户回到 App 后，请重新读取一次结果，比如余额。
+- **`files.pick`**：只有用户能选择文件。请在页面里响应用户点击时调用它，不要在 Agent 工具里调用。`types` 是 MIME 类型，支持通配符，例如 `['application/pdf', 'image/*']`。用户取消时 resolve 为 `[]`。选中的文件会复制到 App 缓存，你拿到的是文件引用（在本次 App 会话内有效的 URI），拿不到文件内容。
+- **`crypto.sha256`**：对 UTF-8 文本计算 SHA-256，返回小写十六进制字符串。插件自己没有加密库，这个方法用来给请求签名。
+- **`registry`**：只读地查看已安装的插件和工具。`tool(id)` 也能解析旧 id。
+- **`docs`**：管理文档插件（`PLUGIN.md`），供 `plugins` 插件使用。`review` 为一个链接或一组文件打开 App 的授权面板，面板弹出后即 resolve，之后由用户在面板里决定。`source(id)` 返回已安装文档插件的文件，用来阅读或 fork；对其他插件返回 `null`。这一项是可选的，使用前请先判断它是否存在。
+- **`remote`**：安装和移除远程插件，即通过 Model Context Protocol（MCP）连接的插件。供 `plugins` 插件使用。
+- **`genui`**：`describeCatalog()` 以文本形式返回组件目录，可以直接放进工具描述。`checkSpec(spec)` 按组件目录校验一份 spec。
+- **`notify.readiness` / `fix`**：`readiness` 告诉你提醒能否准时触发，涉及通知权限、精确闹钟和电池优化三项设置。`fix` 只能在用户点击时调用。系统设置页可能在用户还没改动时就返回，所以 App 回到前台时要再读一次 readiness。
+- **`sms.awaitCode`**：用户允许读取下一条短信后，resolve 为短信里的验证码（基于 Android 的 SMS User Consent）。功能不可用、用户拒绝、识别不出验证码或等待超过 5 分钟时，返回 `null`。请在让服务发送短信之后立刻调用。
+- **`scheduler`**：`Trigger`、`Action`、`Job` 的定义见 [scheduler](/docs/sdk/scheduler)。`runCheck` 立即执行一次检查任务。
+- **`widgets.preview` / `resolve`**：填充小组件的绑定，返回它的 spec 将会看到的 state。`preview` 每次都重新获取数据；`resolve` 使用按缓存有效期（TTL，time to live）保存的缓存，传入 `force` 时强制刷新。
+- **`widgets.catalog`**：列出已启用插件提供的原生小组件。
+- **`todos`**：`source` 参数记录这次修改是谁做的。
+- **`campus.request`**：需要 `campus-session` 能力，详见 [campus](/docs/sdk/campus)。
+- **`campus.otp`**：如果用户绑定了 App 内置的令牌，返回当前的手机令牌验证码，否则返回 `null`。插件永远拿不到令牌的密钥本身。
+- **`campus.otpStatus`、`otpBindStart`、`otpBindFinish`、`otpUnbindLocal`**：用于管理令牌，只应由内置令牌插件的页面调用。
+- **`campus.openSignedIn`**：借助服务自己的登录跳转，在系统浏览器里以已登录状态打开该服务。URL 由宿主生成，插件看不到会话 token。服务不支持这种跳转时会 reject。
+- **`ongoing`**：只有设备具备 `ongoing` 能力（Android）时才存在。请在用户操作时启动，用完后停掉。
+- **`timetable.reloadSemester`**：日历插件保存学期信息后，调用它让宿主重新读取。
 
 ## 上文用到的类型 [#types-used-above]
+
+下面是上文签名中出现、但在其他页面没有定义的类型。
 
 ```ts
 type JobInput = { title: string; trigger: Trigger; action: Action; source: JobSource; enabled?: boolean; meta?: Record<string, unknown> };
@@ -141,18 +145,18 @@ interface WidgetCatalogEntry {
   description: string;
   sizes: WidgetSize[];
   defaultSize: WidgetSize;
-  /** JSON Schema of the widget's config, if it takes any. */
+  /** 小组件配置的 JSON Schema（如果它接受配置）。 */
   config?: Record<string, unknown>;
 }
 
 interface OngoingOptions {
   title: string;
   body?: string;
-  /** When the activity ends (ms epoch): shown as a countdown; the host stops it then. */
+  /** 活动结束的时间（epoch 毫秒）：显示为倒计时，到点后宿主自动停止。 */
   until?: number;
-  /** Label of the notification's stop action (default 停止). */
+  /** 通知上停止按钮的文字（默认为「停止」）。 */
   stopLabel?: string;
-  /** Called when the user taps stop (or the system ends the service). */
+  /** 用户点击停止（或系统结束服务）时调用。 */
   onStop?: () => void;
 }
 
@@ -182,5 +186,5 @@ export async function pickAndSubmit(services: HostServices, hiddenFields: [strin
 }
 ```
 
-这段代码是 `courses` 插件的简化版。实际流程（`plugins/courses/src/api.ts` 里的 `submitAssignment`，移植自
-pkucli 的 `crates/course`）会先读取提交表单，拿到隐藏字段和新的 nonce，再发起提交，最后重新读取作业页面确认提交记录。文件内容从不经过插件：宿主直接从选中文件的 URI 流式上传。
+这段代码是 `courses` 插件中提交作业流程的简化版。实际的流程是 `plugins/courses/src/api.ts` 里的 `submitAssignment`，移植自
+pkucli 的 `crates/course`。它会先读取提交表单，拿到隐藏字段和新的 nonce，然后提交，最后重新读取作业页面，确认出现了这次提交记录。文件内容从不经过插件，宿主直接从选中文件的 URI 流式上传。

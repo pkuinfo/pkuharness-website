@@ -1,10 +1,14 @@
 ---
 title: 能力需求
-description: 插件在 `requires` 里声明它需要设备提供什么。设备满足不了时，框架会隐藏这个插件，并告诉用户原因。
+description: 插件在 `requires` 里声明它需要手机提供哪些能力。手机满足不了时，框架会隐藏这个插件，并告诉用户原因。
 icon: Smartphone
 ---
 
-手机不是工作站。插件没有 shell，也没有用户可见的文件系统，后台运行时间有限，有些校园站点只在校园网内才能访问。插件（plugin）在 `PluginDef.requires`（以及注册表条目的 `requires`）里列出它需要的能力，框架把它和设备实际提供的能力做比较。只要有一项不满足，插件就会对助手隐藏，它的工具调用会被拒绝，设置里会显示原因。
+手机和电脑不同。插件在手机上没有 shell，也没有用户可见的文件系统，后台运行的时间也有限。另外，有些校园网站只能在校园网内访问。
+
+所以，每个插件都要说明自己需要手机提供哪些能力。插件在 `PluginDef.requires` 里列出这些能力，注册表条目里的 `requires` 也一样。框架会把这份列表和手机实际提供的能力做比较。只要有一项不满足，插件就会对助手隐藏，它的工具调用会被拒绝，设置页会显示原因。
+
+例如，财务插件需要已登录的校园会话，还需要校园网：
 
 ```ts
 definePlugin({
@@ -18,20 +22,30 @@ definePlugin({
 
 | 能力 | 含义 | 目前是否提供 |
 | --- | --- | --- |
-| `network` | 普通的互联网访问（直接 `fetch`） | 是 |
-| `campus-network` | 只能在北大校园网内访问的站点 | 声明为可用；不在校园网时请求会失败 |
-| `campus-session` | 通过宿主发起的、已登录的校园 HTTP 请求（`services.campus`）；账号密码不会暴露给插件 | Android（依赖原生 campus-http 模块；iOS 要等它的 Swift 移植完成） |
+| `network` | 普通的互联网访问 | 是 |
+| `campus-network` | 只能在北大校园网内访问的网站 | 是（见下文） |
+| `campus-session` | 通过宿主发出的、已登录的校园请求 | 仅 Android |
 | `notifications` | 本地通知 | 是 |
-| `background` | 周期性后台运行 | 是 |
-| `cloud` | 已配置 [PKU Harness Cloud](/docs/cloud) 服务商 | 用户配置了服务商期间提供（随配置实时变化） |
-| `ongoing` | 常驻通知 / 前台服务（`services.ongoing`） | Android |
-| `shell` | shell | 手机上**永远没有**。需要它的插件只能做成远程插件。 |
-| `filesystem` | 文件系统 | 不向插件开放。需要用户选择的文件请用 `services.files.pick`。 |
+| `background` | 定期在后台运行 | 是 |
+| `cloud` | 已配置 [PKU Harness Cloud](/docs/cloud) 服务 | 配置了服务时提供 |
+| `ongoing` | 常驻通知或前台服务 | 仅 Android |
+| `shell` | 命令行 shell | 手机上永远没有 |
+| `filesystem` | 文件系统 | 不向插件开放 |
+
+下面是几项需要补充说明的能力。
+
+- **`network`** 指直接用 `fetch` 访问互联网。
+- **`campus-network`** 在 App 里始终声明为可用。但如果手机不在校园网内，请求会失败。
+- **`campus-session`** 指通过宿主的 `services.campus` 发出已登录的校园请求，账号密码不会暴露给插件。它依赖原生的 campus-http 模块，所以目前只在 Android 上提供。iOS 要等这个模块移植到 Swift 之后才能提供。
+- **`cloud`** 会随你的配置实时变化。你配置了 Cloud 服务，它就可用；你移除配置，它就不可用。
+- **`ongoing`** 对应 `services.ongoing`，用来显示常驻通知或运行前台服务。
+- **`shell`** 在手机上永远不会提供。需要 shell 的插件只能做成远程插件。
+- **`filesystem`** 不向插件开放。如果需要用户选择的文件，请使用 `services.files.pick`。
 
 ## 规则 [#rules]
 
-- **必须**列出插件的工具依赖的每一项能力。调用 `services.campus.request` 的插件需要 `campus-session`；如果还访问只在校园网内可用的站点，还需要 `campus-network`。
-- 内置插件**不得**要求 `shell` 或 `filesystem`。繁重的工作（抓取大量页面、OCR、长时间任务）应该放到远程插件里。
-- 远程插件运行在服务器上，所以 `shell` 对它们来说不是设备需求。注册表校验器会拒绝远程条目里的 `requires: ['shell']`。
-- **应当**在使用可选服务前先检查：没有 `ongoing` 能力时 `services.ongoing` 为 `undefined`；宿主不支持云服务时 `ctx.cloud` 为 `undefined`。
-- 不依赖云也能工作的插件，应声明 `cloud.optional: true`，而不是要求 `cloud`，并检查 `ctx.cloud?.available`。
+- **必须**列出插件的工具依赖的每一项能力。调用 `services.campus.request` 的插件需要 `campus-session`。如果它还访问只在校园网内可用的网站，还需要 `campus-network`。
+- 内置插件**不得**要求 `shell` 或 `filesystem`。繁重的工作，例如抓取大量页面、文字识别（OCR）或长时间运行的任务，应该放到远程插件里。
+- 远程插件运行在服务器上，所以 `shell` 对它们来说不是手机需要提供的能力。注册表的校验工具会拒绝远程插件条目里的 `requires: ['shell']`。
+- **应当**在使用可选服务之前先检查它是否存在。没有 `ongoing` 能力时，`services.ongoing` 为 `undefined`。宿主不支持云服务时，`ctx.cloud` 为 `undefined`。
+- 如果插件不依赖云服务也能工作，应当声明 `cloud.optional: true`，而不是要求 `cloud`。使用前请检查 `ctx.cloud?.available`。

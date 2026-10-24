@@ -1,38 +1,62 @@
 ---
 title: Tools and schemas
-description: Design tools the model uses well, with zod (bundled) or JSON Schema (MCP) inputs, honest effects, data-only results and recoverable states.
+description: How to design tools the model uses well. Covers naming, descriptions, inputs in zod (bundled plugins) or JSON Schema (MCP), honest effects, results that are data, and states the user can recover from.
 icon: Wrench
 ---
 
-Tools are a plugin's API, both for the model and for your own screens. A good tool is small, does
-one thing, says exactly when to use it, and returns data the model can act on. The concepts live in
-[Tools and effects](/en/docs/concepts/tools-and-effects); this page covers the practice.
+Tools are a plugin's API. The model calls them, and so do your own screens. A good tool is small and
+does one thing. Its description says exactly when to use it, and it returns data the model can act
+on.
+
+This page shows how to write tools in code, for bundled plugins (zod) and remote plugins (JSON
+Schema). For tools in a plugin document, see [Declarative plugins](/en/docs/build/declarative-plugins#tools);
+the advice on descriptions, effects and results applies there too. The ideas behind tools are
+explained in [Tools and effects](/en/docs/concepts/tools-and-effects).
 
 ## Naming
 
-| Thing | Rule | Example |
+A tool has several names, each for a different reader:
+
+| Name | Rule | Example |
 | --- | --- | --- |
 | Tool name | ASCII camelCase verb or noun, unique in the plugin | `cardBalance`, `search`, `reserveSeat` |
-| Tool id | `<plugin>.<name>` (automatic) | `wallet.cardBalance` |
-| Model name | `<plugin>__<name>` (automatic) | `wallet__cardBalance` |
+| Tool id | `<plugin>.<name>` (set automatically) | `wallet.cardBalance` |
+| Model name | `<plugin>__<name>` (set automatically) | `wallet__cardBalance` |
 | `title` | Short Chinese label for users | `校园卡余额` |
 
-Every enabled tool is sent with every request, so fold related reads into one tool with a filter
-argument instead of writing ten near-identical ones.
+The app sends every enabled tool to the model with every request. Many similar tools therefore cost
+tokens on every request. Fold related reads into one tool with a filter argument
+instead of writing ten nearly identical ones.
+
+## Text for people
+
+Users see a tool's `title` in chat, in approval prompts and in Settings. Write it in Chinese and put
+the English version in `i18n.en.tools.<name>.title`.
+
+Plugin documents can also give a tool a `summary`: one line of at most 80 characters that says what
+the tool does in plain words. The install review sheet and the marketplace's plugin page show it
+under the title. The English version goes in `i18n.en.tools.<name>.summary`. If the English version
+is missing, the app shows English users no summary line. Bundled plugins have no `summary` field.
+
+The `description`, covered next, is never shown to users.
 
 ## Descriptions
 
-`description` is for the model. Write it in English or Chinese, and cover:
+`description` is written for the model. You can write it in English or Chinese. It should cover
+three things:
 
-- **When** to use it, in the words a student would use ("Use when the user asks which canteen is
-  least crowded").
-- **What** comes back: fields, units (yuan, minutes, Beijing time), how fresh the data is.
-- **Limits** and **follow-ups**: page sizes, required order ("call `treehole__sendCode` first"),
-  what to do on `verification_required`.
+- **When** to use the tool, in the words a student would use. For example: "Use when the user asks
+  which canteen is least crowded".
+- **What** comes back: the fields, their units (yuan, minutes, Beijing time), and how fresh the
+  data is.
+- **Limits** and **follow-ups**: page sizes, a required order ("call `treehole__sendCode` first"),
+  and what to do on `verification_required`.
 
-Don't repeat the input schema there. Describe the fields with `.describe()` instead.
+Don't repeat the input schema in the description. Describe each field with `.describe()` instead,
+because the model sees those descriptions next to the fields.
 
-When the text depends on the device, `description` can be a function of host services:
+When the text depends on the device, `description` can be a function that receives the host
+services:
 
 ```ts
 description: (services) => `Show a native UI in the chat… Components:\n${services.genui.describeCatalog()}`,
@@ -40,8 +64,9 @@ description: (services) => `Show a native UI in the chat… Components:\n${servi
 
 ## Inputs
 
-Bundled plugins use zod 4. The model sees the JSON Schema generated from it, and the host validates
-every call (from the agent, a screen or the scheduler) before `execute` runs.
+Bundled plugins use zod 4. The model sees the JSON Schema generated from the zod schema. Every call,
+whether from the assistant, a screen or the scheduler, is validated by the app before `execute`
+runs, so `execute` can trust its input.
 
 ```ts
 input: z.object({
@@ -51,16 +76,17 @@ input: z.object({
 }),
 ```
 
-- Bound every number and string (`.min`, `.max`), and state defaults in the description.
-- Use enums for closed sets (`z.enum(['weekday', 'holiday'])`).
-- For times the model writes, use local `"YYYY-MM-DD HH:mm"` strings. The SDK's
-  `scheduleInputSchema` and `parseLocal` already do this for schedules.
-- Remote plugins: the device converts the MCP `inputSchema` (JSON Schema) to zod with
-  `z.fromJSONSchema`, so stick to plain JSON Schema features.
+- Put limits on every number and string (`.min`, `.max`), and state defaults in the description.
+- Use an enum for a closed set of values, for example `z.enum(['weekday', 'holiday'])`.
+- When the model has to write a time, ask for a local time string, `"YYYY-MM-DD HH:mm"`. The SDK's
+  `scheduleInputSchema` and `parseLocal` already use this format for schedules.
+- Remote plugins: the device converts the MCP `inputSchema`, which is JSON Schema, to zod with
+  `z.fromJSONSchema`. Use only plain JSON Schema features so the conversion works.
 
 ## Effects
 
-Each tool has exactly one effect: `read`, `write`, `money` or `public` (see
+Each tool has exactly one effect. The effect tells the app what kind of thing the tool does, and
+users decide for each effect whether the assistant may act without asking (see
 [Permissions](/en/docs/concepts/permissions)).
 
 ```ts
@@ -70,8 +96,12 @@ effect: 'money',     // create a payment order, top up, switch the card to digit
 effect: 'public',    // post or reply on Treehole
 ```
 
-Set `untrusted: true` on tools that return third-party text, and `userOnly: true` on gates the
-agent must not open itself.
+Two more flags apply to some tools. Set `untrusted: true` on a tool that returns third-party text,
+such as posts or notices. Calling it marks the rest of the assistant's turn as _tainted_, and
+lasting writes in a tainted turn wait for the user (see [Security](/en/docs/concepts/security)).
+Set `userOnly: true` on an action that only the user may start, such as approving or unlocking
+something. The tool is then hidden from the model, and calls from the assistant or the scheduler are
+refused.
 
 ## Results
 
@@ -82,13 +112,18 @@ execute: async ({ name, sort = 'least' }, ctx) => {
 },
 ```
 
+The result goes back to the model, so shape it for the model to read:
+
 - Return JSON objects whose field names and units explain themselves.
 - When it matters, say where the data came from and how fresh it is (`source`, `time`).
-- Return ids the model can pass to the next tool.
-- Pass `ctx.signal` (abort) to network calls.
-- On failure, throw an `Error` with a short Chinese message the user can read
-  (`throw new Error('校园卡登录已失效')`). The agent relays it.
-- When the user has to step in for an expected reason, return a status instead of throwing:
+- Return ids that the model can pass to the next tool.
+- Pass `ctx.signal`, the abort signal, to network calls, so a cancelled call stops quickly.
+- On failure, throw an `Error` with a short Chinese message the user can read, for example
+  `throw new Error('校园卡登录已失效')`. The assistant passes it on to the user.
+
+Some situations are expected and need the user to step in, such as an SMS check. For these, return
+a status object instead of throwing. The assistant can then ask the user for what is needed and call
+the tool again:
 
 ```ts
 export type VerificationRequired = { status: 'verification_required'; kind: 'login'; methods: ['sms']; message: string };
@@ -106,15 +141,23 @@ if (needsSms) {
 
 ## Context and instructions
 
-| Field | Sent | Use for |
-| --- | --- | --- |
-| `instructions` | In the system prompt, every request | Short rules: which tool for which question, caveats ("以预约系统为准") |
-| `context({ query, kv, services })` | Before each turn, marked as data (800 ms budget) | Facts relevant to this message, e.g. the memory snapshot. Return `undefined` when nothing applies. |
+A plugin can give the model two kinds of extra text.
 
-Both cost tokens on every request, and both change the prompt prefix, which hurts the model's
-cache. Keep them short and stable. Leave out the time and date: the harness adds them to every turn.
+`instructions` is added to the system prompt and sent with every request. Use it for short rules:
+which tool answers which question, and caveats such as "以预约系统为准".
+
+`context({ query, kv, services })` runs before each turn and returns facts relevant to the current
+message, such as a snapshot of the user's memory. The result is marked as data, and the function
+has 800 ms to answer. Return `undefined` when nothing applies.
+
+Both cost tokens on every request. Both also change the start of the prompt, which reduces how often
+the model provider can reuse its cache. Keep them short and stable. Leave out the date and time:
+the app adds them to every turn.
 
 ## Calling your tools from UI
+
+Screens and widgets call tools too. `invoke` runs a tool as the user, and `host.useToolData` reads a
+tool's result through the app's shared cache:
 
 ```ts
 // in a screen or widget (actor: 'user', no approval prompt)
@@ -126,9 +169,10 @@ const data = host.useToolData<{ minutes: number }>('focus.today', {}, { ttlMinut
 
 ## Checklist
 
-- [ ] One responsibility per tool; reads and writes split.
-- [ ] Chinese `title`, English title in `i18n.en.tools`, model-facing `description`.
-- [ ] Every input field bounded and described.
-- [ ] Honest `effect`; `untrusted` / `userOnly` where they apply.
-- [ ] Results are data, small, with units; no secrets, no instructions.
-- [ ] Errors are short user-readable messages; recoverable states are status objects.
+- [ ] Each tool has one responsibility, and reads and writes are separate tools.
+- [ ] Each tool has a Chinese `title`, an English title in `i18n.en.tools`, and a `description`
+      for the model.
+- [ ] Every input field has limits and a description.
+- [ ] The `effect` is honest, and `untrusted` or `userOnly` is set where it applies.
+- [ ] Results are data: small, with units, and with no secrets or instructions.
+- [ ] Errors are short messages the user can read, and recoverable states are status objects.

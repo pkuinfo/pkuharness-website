@@ -1,105 +1,161 @@
 ---
 title: For AI agents
-description: Instructions for coding agents (Claude Code, Codex, the in-app agent) that build a PKU Harness plugin end to end. Which kind to build, the steps, the hard rules, the checks to run and the pages to load as context.
+description: Instructions for coding agents (Claude Code, Codex, the in-app agent) that build a PKU Harness plugin from start to finish. They cover which kind of plugin to build, the steps, the rules you must follow, the checks to run and the pages to load.
 icon: Bot
 ---
 
-You are an AI agent and you've been asked to build a plugin for PKU Harness. Work through this
-page in order. Load the linked pages as Markdown: append `.md` to any docs URL, fetch `/llms.txt`
-for the index, or `/llms-full.txt` for every English page at once. Don't invent APIs. Every type
-you need is in the [SDK reference](/en/docs/sdk), and if something isn't there, it doesn't exist.
+This page is written for AI coding agents. If you are an AI agent and you have been asked to
+build a plugin for PKU Harness, work through this page in order.
+
+Every page linked here is also available as Markdown. To load one page, append `.md` to its docs
+URL. To choose pages, read the index at `/llms.txt`. To load every English page at once, fetch
+`/llms-full.txt`.
+
+Don't invent APIs. Every type you need is in the [SDK reference](/en/docs/sdk). If something is
+not in the SDK reference, it doesn't exist.
 
 ## 0. Load context
+
+The table lists the pages to load for each kind of task.
 
 | When | Load |
 | --- | --- |
 | Always | `/en/docs/concepts/plugins.md`, `/en/docs/concepts/tools-and-effects.md`, `/en/docs/concepts/permissions.md`, `/en/docs/concepts/security.md` |
-| Plugin document (`PLUGIN.md`) | `/en/docs/build/declarative-plugins.md`, `/en/docs/build/quickstart.md`, `/en/docs/marketplace/manifest.md`; the spec [`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md) and the SDK's `packages/sdk/src/lang/schema.ts` and `abilities.ts` |
+| Plugin document (`PLUGIN.md`) | `/en/docs/build/declarative-plugins.md`, `/en/docs/build/quickstart.md`, `/en/docs/marketplace/manifest.md`, and the spec files listed below |
 | Remote plugin | `/en/docs/build/remote-plugin.md`, `/en/docs/marketplace/manifest.md` |
 | Bundled plugin | `/en/docs/build/tools.md`, `/en/docs/build/bundled-plugin.md`, `/en/docs/sdk/plugin.md`, `/en/docs/sdk/host-services.md`, `/en/docs/build/ui.md`, `/en/docs/build/i18n.md`, `/en/docs/build/testing.md` |
 | Campus service | `/en/docs/concepts/campus-sessions.md`, `/en/docs/build/porting-from-pkucli.md`, `/en/docs/sdk/campus.md` |
 | Uses the cloud | `/en/docs/cloud/plugin-guide.md`, `/en/docs/sdk/cloud.md` |
 
-Before you edit anything, read the repository's own rules: `AGENTS.md` / `CLAUDE.md` and
-`CONTRIBUTING.md` in `pku-harness-plugins`, and in `pku-harness` too if you touch the app.
+For a plugin document, also read the plugin language spec,
+[`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md),
+and the SDK files `packages/sdk/src/lang/schema.ts` and `abilities.ts`.
 
-## 1. Decide the kind
+Before you edit anything, read the repository's own rules. In `pku-harness-plugins` they are in
+`AGENTS.md` / `CLAUDE.md` and `CONTRIBUTING.md`. If you change the app itself, read the files
+with the same names in `pku-harness` too.
+
+## 1. Choose the kind of plugin [#1-decide-the-kind]
+
+There are three kinds of plugin: plugin documents, remote plugins and bundled plugins. Decide in
+this order.
 
 ```
-Campus or public requests plus extraction (with the user's campus session if needed)?
+Does the plugin only send requests to campus or public websites and extract data from the
+responses? (It may use the user's campus session if needed.)
 ├─ yes → PLUGIN DOCUMENT: a folder with PLUGIN.md + tools/*.yaml, interpreted by the app.
 │        Shared and installed by link; no app release. This is the default for campus
-│        integrations (classrooms, campus-events, grades, canteen, shuttle and notices are
+│        services (classrooms, campus-events, grades, canteen, shuttle and notices are
 │        documents).
-└─ no  → Needs general code or your own server?
+└─ no  → Does it need general code or your own server?
          ├─ yes → REMOTE plugin: an MCP server over Streamable HTTP (templates/remote-plugin).
-         └─ no, needs the device or native UI the language lacks
-              → BUNDLED TypeScript plugin in pku-harness-plugins (tell the user an issue should
-                be opened first; bundled plugins ship with the app and its signed OTA updates),
+         └─ no, it needs a device feature or native UI the language lacks
+              → BUNDLED TypeScript plugin in pku-harness-plugins (tell the user to open an issue
+                first; bundled plugins ship with the app and its signed OTA updates),
                 or propose a host ability so documents can do it.
 ```
 
-Inside the app, the agent writes documents with the `plugins` tools instead
-(`plugins.reference`, `validate`, `tryTool`, `source`, `install`). See
+Each kind is described below.
+
+A **plugin document** suits most campus services. It does two things: it sends requests to campus
+or public websites, and it extracts data from the responses. For sites that need a login, it can
+use the user's campus session. A plugin document is a folder with `PLUGIN.md` and
+`tools/*.yaml`, and the app interprets it. You share and install it by link, so no app release
+is needed.
+
+A **remote plugin** suits cases that need general code or your own server. It is a Model Context
+Protocol (MCP) server that talks to the app over Streamable HTTP. The template is in
+`templates/remote-plugin`.
+
+A **bundled plugin** is only for cases that need a device feature, or native UI that the plugin
+language can't express. It is a TypeScript module in `pku-harness-plugins` that ships with the
+app, and its fixes reach users through the app's signed over-the-air (OTA) updates. For this
+reason, tell the user to open an issue before you start one. The alternative is to propose a new
+host ability, so that plugin documents can do the job.
+
+Inside the app, the agent writes plugin documents with the tools of the `plugins` plugin:
+`plugins.reference`, `validate`, `tryTool`, `source` and `install`. See
 [Write a plugin with the AI](/en/docs/build/ai-authoring).
 
 ## 2. Plugin document checklist
 
-1. Work in a checkout of `pku-harness-plugins` (for the CLI) or in any repo. The folder is
-   self-contained. Start from `plugins/classrooms` or the [quickstart](/en/docs/build/quickstart).
-2. Write `PLUGIN.md`: `spec: 1`, `id` (`^[a-z0-9][a-z0-9-]{1,40}$`), Chinese `name`,
-   `description` (4–200), semver `version`, `author`, and exactly the `campus`, `network` and
-   `abilities` the steps use. Every file the app loads is named in the frontmatter.
-3. One tool per operation in `tools/<name>.yaml`: Chinese `title`, model-facing `description`,
-   honest `effect` (at least the effect of every ability it calls), bounded `input` fields,
-   `untrusted: true` for third-party text, steps and a `return` that is data.
-4. Only the steps, stdlib functions and abilities in the spec exist. Quote expressions that
-   contain `: ` or start with `{ [ ' "`; write regexes in single-quoted YAML or `|` blocks.
-   Don't use `server:`, `{ fn }` bindings or the `cloud` ability. Server functions are off on the
-   official server for now, so keep the plugin on the phone or use your own backend.
-5. Record responses in `tests/<name>.yaml` (personal data removed) for every tool, including
-   failures (`expectError`).
-6. Run these and make them pass:
+1. Choose where to work. A plugin folder is self-contained and can live in any repository. If you
+   want the plugin command-line tool, work in a checkout of `pku-harness-plugins`. Start from
+   `plugins/classrooms` or the [quickstart](/en/docs/build/quickstart).
+2. Write `PLUGIN.md` with these fields:
+   - `spec: 1`;
+   - `id`, matching `^[a-z0-9][a-z0-9-]{1,40}$`;
+   - a Chinese `name`;
+   - `description`, 4–200 characters;
+   - a semver `version`;
+   - `author`;
+   - `campus`, `network` and `abilities`, listing exactly what the steps use.
+
+   Every file the app loads must be named in the frontmatter.
+3. Write one tool per operation in `tools/<name>.yaml`. Each tool needs:
+   - a Chinese `title`;
+   - a `description` written for the model;
+   - an honest `effect`, at least as strong as the effect of every ability it calls;
+   - `input` fields with bounds;
+   - `untrusted: true` on text that comes from third parties;
+   - its steps, and a `return` that is data.
+4. Use only the steps, standard-library functions and abilities that the spec lists. Nothing else
+   exists. Two YAML details are easy to get wrong. Quote an expression that contains `: ` or
+   starts with `{ [ ' "`. Write regular expressions in single-quoted strings or `|` blocks.
+5. Don't use `server:`, `{ fn }` bindings or the `cloud` ability. Server functions are turned off
+   on the official server for now, so keep the plugin entirely on the phone or use your own
+   backend.
+6. For every tool, record responses in `tests/<name>.yaml` with personal data removed. Record
+   failures too, using `expectError`.
+7. Run these commands and make them pass.
 
 ```bash
 bun run plugin validate path/to/plugin
 bun run plugin test path/to/plugin
 ```
 
-7. Campus requests can't run outside the app, so say which tools you only tested against recorded
-   responses. Share the GitHub folder URL as the install link. The user reviews it in the app.
+8. Campus requests can't run outside the app, so say which tools you tested only against recorded
+   responses. Share the GitHub folder URL as the install link. The user reviews the plugin in the
+   app before installing it.
 
 ## 3. Remote plugin checklist
 
-1. Copy `templates/remote-plugin` from `pku-harness-plugins`; `bun install`.
-2. Set `new McpServer({ name: '<registry id>', version, title: '<Chinese name>' }, { instructions })`.
-   The id matches `^[a-z0-9][a-z0-9-]{1,40}$`.
-3. One `registerTool` per operation: short ASCII camelCase name, Chinese `title`, model-facing
-   `description`, every `inputSchema` field described and bounded.
-4. `annotations: { readOnlyHint: true }` on tools that change nothing, and only on those.
-5. Return `structuredContent` (data). On failure return `isError: true` with a short message.
-6. Run `bun server.ts` and check it with the app (`http://10.0.2.2:8787/mcp` in the emulator) or
-   an MCP client.
-7. Deploy over HTTPS. Then add a manifest and submit it, or add a `registry.json` entry
-   ([Publishing](/en/docs/build/publishing)).
+1. Copy `templates/remote-plugin` from `pku-harness-plugins`, then run `bun install`.
+2. Create the server with
+   `new McpServer({ name: '<registry id>', version, title: '<Chinese name>' }, { instructions })`.
+   The `name` is the registry id and must match `^[a-z0-9][a-z0-9-]{1,40}$`. The `title` is the
+   plugin's Chinese name.
+3. Call `registerTool` once per operation. Give each tool a short ASCII camelCase name, a Chinese
+   `title` and a `description` written for the model. Describe and bound every field in
+   `inputSchema`.
+4. Add `annotations: { readOnlyHint: true }` to tools that change nothing, and only to those.
+5. On success, return the data in `structuredContent`. On failure, return `isError: true` with a
+   short message.
+6. Run `bun server.ts` and check it with the app or with any MCP client. In the Android emulator
+   the address is `http://10.0.2.2:8787/mcp`.
+7. Deploy it over HTTPS. Then add a manifest and submit it, or add an entry to `registry.json`.
+   See [Publishing](/en/docs/build/publishing).
 
 ## 4. Bundled plugin checklist
 
-1. Work in a checkout of `pku-harness-plugins` (the app has it as the submodule `plugins/`). There
-   is no npm package: `@pku-harness/sdk` resolves to `packages/sdk/src` in the workspace.
-2. Create `plugins/<id>/package.json` (private, `"main": "src/index.ts"`, peer deps `@pku-harness/sdk`,
-   `zod`, `react`, `react-native`) and `plugins/<id>/src/index.ts` exporting
-   `<camelId>Plugin = definePlugin({...})`.
-3. Fill `id`, Chinese `name`/`description`, `version`, `icon` (from the host icon set, unused by
-   other registry entries), `requires`, `scopes`, `tools` (with `defineTool`), optional
-   `dataSources`, `instructions`, `contributes`, `defaultModes`.
-4. Add `i18n.en` for every user-facing manifest string; put screen/widget text in
-   `src/strings.ts` with `defineStrings`.
-5. Keep pure logic in plain modules with colocated `*.test.ts`; mock `react-native` when a test
-   imports UI code.
-6. Register in `plugins/index.ts` (`builtinPlugins`) and add a `"kind": "builtin"` entry to
-   `registry/registry.json`.
-7. Run all of these and make them pass:
+1. Work in a checkout of `pku-harness-plugins`. The app repository includes it as the submodule
+   `plugins/`. The SDK has no npm package: `@pku-harness/sdk` resolves to `packages/sdk/src` in
+   the workspace.
+2. Create two files:
+   - `plugins/<id>/package.json`: private, with `"main": "src/index.ts"` and the peer
+     dependencies `@pku-harness/sdk`, `zod`, `react` and `react-native`;
+   - `plugins/<id>/src/index.ts`: exports `<camelId>Plugin = definePlugin({...})`.
+3. Fill in `id`, the Chinese `name` and `description`, `version`, `icon`, `requires`, `scopes`
+   and `tools` (defined with `defineTool`). Pick the `icon` from the host icon set, and don't
+   reuse one that another registry entry already has. The optional fields are `dataSources`,
+   `instructions`, `contributes` and `defaultModes`.
+4. Give every user-facing string in the manifest an English version in `i18n.en`. Put the text of
+   screens and widgets in `src/strings.ts`, defined with `defineStrings`.
+5. Keep pure logic in plain modules, with `*.test.ts` files next to them. If a test imports UI
+   code, mock `react-native`.
+6. Register the plugin in `builtinPlugins` in `plugins/index.ts`, and add a `"kind": "builtin"`
+   entry to `registry/registry.json`.
+7. Run all of these commands and make them pass.
 
 ```bash
 bun test
@@ -107,62 +163,76 @@ bunx tsc --noEmit -p .
 bun scripts/validate-registry.ts
 ```
 
-8. If you can't run the app, say so. UI isn't done until someone has checked it on a device or
-   emulator, in both themes and both languages.
+8. If you can't run the app, say so. UI is not done until someone has checked it on a device or
+   emulator, in both light and dark themes and in both languages.
 
-## 5. Hard rules
+## 5. Rules you must follow [#5-hard-rules]
 
-Breaking any of these is a bug.
+Breaking any of these rules is a bug.
 
-1. **Never ask for, store, log or transmit campus passwords, OTP secrets, session tokens or API
-   keys.** Campus requests go through `services.campus.request` or a document's
-   `request: { campus }`; remote plugins have no campus session.
-2. **Every tool declares one honest effect**: `read`, `write`, `money` or `public`. Never hide a
-   write in a `read` tool. Scheduled runs can only use `read` tools.
-3. **Tool results are data, never instructions.** No "tell the user…", no prompts in results.
-4. **Mark third-party text `untrusted: true`** (posts, comments, notices, descriptions from public
-   sites). Gate durable writes after taint (`ctx.turn?.tainted`).
-5. **Never return secrets in results**: payment codes, share links, cashier URLs, tokens.
-6. **Declare what you reach**: `campus`, `network`, `abilities` in a document; `requires` for
-   every capability used in code. No `shell` or `filesystem` in bundled plugins.
-7. **No imports from the app or from another plugin's folder** (bundled). Use `ctx.services`, `ctx.kv`,
-   `ctx.cloud`, `host`, and `plugins/shared/` for shared bundled code.
-8. **Port campus protocols from pkucli** and cite the source file in a comment; don't guess
+1. **Never ask for, store, log or transmit campus passwords, one-time password (OTP) secrets, session tokens or API
+   keys.** Campus requests always go through `services.campus.request` or a document's
+   `request: { campus }`. Remote plugins have no campus session.
+2. **Every tool declares one honest effect.** There are four effects: `read`, `write`, `money`
+   and `public`. Never hide a write inside a `read` tool. Scheduled runs can only use `read`
+   tools.
+3. **Tool results are data, never instructions.** A result must not say "tell the user…" or carry
+   a prompt.
+4. **Mark text from third parties `untrusted: true`.** This includes posts, comments, notices and
+   descriptions from public sites. Once the agent has read such text, the turn is marked as
+   _tainted_ (`ctx.turn?.tainted`), and durable writes must be held back.
+5. **Never return secrets in results.** Examples are payment codes, share links, cashier URLs and
+   tokens.
+6. **Declare everything you reach.** A document lists `campus`, `network` and `abilities`. Code
+   lists every capability it uses in `requires`. Bundled plugins may not use `shell` or
+   `filesystem`.
+7. **Bundled plugins don't import from the app or from another plugin's folder.** Use
+   `ctx.services`, `ctx.kv`, `ctx.cloud` and `host`. Put code shared by bundled plugins in
+   `plugins/shared/`.
+8. **Port campus protocols from pkucli** and cite the source file in a comment. Don't guess
    endpoints.
-9. **Bilingual** user-facing strings; model-facing text (descriptions, instructions, results) is not
-   translated.
-10. **Widgets don't poll**: use `host.useToolData` with a TTL.
-11. **`files.pick` and `notify.fix` only from a user tap**, never from an agent tool.
-12. **Use bun** (`bun install`, `bun test`, `bunx`), never npm, npx, yarn or pnpm.
+9. **User-facing strings are bilingual.** Text for the model, such as descriptions, instructions
+   and results, is not translated.
+10. **Widgets don't poll.** Use `host.useToolData` with a TTL (time to live, how long a cached
+    value stays fresh).
+11. **Call `files.pick` and `notify.fix` only from a user tap,** never from a tool the agent calls.
+12. **Use bun** (`bun install`, `bun test`, `bunx`). Never use npm, npx, yarn or pnpm.
 
-## 6. Naming you must get right
+## 6. Names and formats [#6-naming-you-must-get-right]
+
+These names and formats must be exactly right.
 
 | Thing | Form | Example |
 | --- | --- | --- |
-| Tool id (code, widgets, checks, `invoke`) | `<plugin>.<tool>` | `wallet.cardBalance` |
+| Tool id (in code, widgets, checks and `invoke`) | `<plugin>.<tool>` | `wallet.cardBalance` |
 | Tool name the model sees (in `instructions`) | `<plugin>__<tool>` | `wallet__cardBalance` |
 | Remote plugin id in the app | `mcp-<server name>` | `mcp-demo-canteen` |
 | Document install link | GitHub folder URL, or `pkuharness://plugin?src=<url-encoded link>` | `https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/classrooms` |
 | Screen routes | `/p/<plugin>/<screen>`, modal `/m/<plugin>/<screen>` | `/p/focus/main` |
-| Times the model writes | local `"YYYY-MM-DD HH:mm"` | `"2026-10-30 08:00"` |
+| Times the model writes | local time, `"YYYY-MM-DD HH:mm"` | `"2026-10-30 08:00"` |
 
 ## 7. Before you report done
 
-- [ ] Kind chosen and justified (document, remote or bundled).
-- [ ] Every tool: title, description, bounded inputs, honest effect, data-only result.
-- [ ] Document: `bun run plugin validate` and `test` pass; declarations match what the steps do.
-- [ ] Code: `requires` and `scopes` complete; `defaultModes` ask for `money` / `public`.
-- [ ] No credentials, secrets or links in results or logs.
+- [ ] You chose the kind of plugin (document, remote or bundled) and explained why.
+- [ ] Every tool has a title, a description, bounded inputs and an honest effect, and returns
+      only data.
+- [ ] Plugin document: `bun run plugin validate` and `test` pass, and the declarations match what
+      the steps do.
+- [ ] Code plugin: `requires` and `scopes` are complete, and `defaultModes` asks the user first
+      for `money` and `public`.
+- [ ] No credentials, secrets or links appear in results or logs.
 - [ ] The tests and checks above pass, or you state exactly which ones you couldn't run and why.
-- [ ] Registry entry or manifest added; `cloud` declaration copied if the plugin uses the cloud.
-- [ ] Summary for the user: what the plugin does, files changed, how to try it, what still needs a
-      human (device testing, a real campus account, an issue for a bundled plugin).
+- [ ] You added a registry entry or manifest. If the plugin uses the cloud, you copied its `cloud`
+      declaration.
+- [ ] You wrote a summary for the user: what the plugin does, which files changed, how to try it,
+      and what still needs a human (for example device testing, a real campus account, or an
+      issue for a bundled plugin).
 
 ## Docs as context
 
 | URL | Use |
 | --- | --- |
-| `/llms.txt` | Index of every page with a one-line description: pick what to load |
+| `/llms.txt` | Index of every page with a one-line description, for choosing what to load |
 | `/llms-full.txt` | Every English page in one file (large) |
 | `/en/docs/<page>.md` | One page as Markdown |
 | `/en/docs/cloud/api/<tag>.md` | Cloud API operations and schemas as text |

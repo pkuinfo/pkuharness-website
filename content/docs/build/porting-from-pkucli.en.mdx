@@ -1,33 +1,45 @@
 ---
 title: Porting from pkucli
-description: pkucli is the protocol reference for PKU services. Port endpoints, login hops and quirks from its Rust crates into a plugin, leave sign-in to the harness, and credit the source file.
+description: pkucli is the protocol reference for PKU services. How to port endpoints, login steps and quirks from its Rust crates into a plugin, leave sign-in to the app, and credit the source file.
 icon: Terminal
 ---
 
-[`pkuinfo/pkucli`](https://github.com/pkuinfo/pkucli) is a Rust workspace of command-line tools for
-PKU web services. It has already worked out the hard parts: which endpoints exist, which login hops
-each service needs, which headers and parameters it insists on, and how its HTML is shaped. Port
-that behaviour instead of rediscovering it, and cite the source file in a comment.
+[`pkuinfo/pkucli`](https://github.com/pkuinfo/pkucli) is a set of command-line tools for PKU web
+services, written in Rust. Its authors have already worked out the hard parts of each service:
+which endpoints exist, which sign-in steps the service needs, which headers and parameters it
+requires, and how its HTML is structured.
+
+When you write a plugin for a service that pkucli already supports, port pkucli's behaviour instead
+of working it out again, and cite the source file in a comment. This page shows where to find things
+in pkucli, which parts belong in the plugin and which stay in the app, and an example.
+
+Most services sign in through IAAA, PKU's central sign-in system (iaaa.pku.edu.cn). After IAAA,
+each service usually needs one or more single sign-on (SSO) steps of its own. We call each such step
+a _login hop_.
 
 ## Where things are
 
 | pkucli crate | Service | In PKU Harness |
 | --- | --- | --- |
-| `common` | IAAA login (password, QR), TOTP, captcha, sessions, credentials | The harness (`src/core/campus` in the app); **not** in plugins |
+| `common` | IAAA login (password, QR code), TOTP codes, captcha, sessions, credentials | The app (`src/core/campus`); **not** in plugins |
 | `campuscard` | Campus card (bdcard) | `wallet` plugin, `card` campus service |
 | `treehole` | Treehole (树洞) | `treehole` plugin, `treehole` service |
 | `course` | Blackboard (教学网) | `courses` plugin, `blackboard` service |
 | `elective` | Course selection | `elective` plugin, `elective` service |
 | `cwfw`, `cwpay` | Finance, finance payments | `finance` plugin, `cwfw` / `cwpay` services |
 | `bdkj` | Room booking | `room-booking` plugin, `bdkj` service |
-| `portal` | Portal | Portal SSO hop inside the harness |
+| `portal` | Portal | The portal's SSO hop, inside the app |
 | `claspider` | Course recordings (智云课堂) | Planned |
 | `info-spider`, `info-auth` | WeChat articles | `notices` plugin reads single articles (cleaning ported from `info-spider`) |
 
-Inside a crate, `api.rs` (or `client.rs`) holds endpoints and response types, `login.rs` the
-service-specific sign-in hops, and `commands.rs` the user-facing operations.
+TOTP (time-based one-time password) is the six-digit code an authenticator app shows. Inside a
+crate, `api.rs` (or `client.rs`) holds the endpoints and response types, `login.rs` holds the
+service's own login hops, and `commands.rs` holds the operations a user runs.
 
 ## What moves where
+
+Each file of a pkucli crate maps to a place in PKU Harness. Sign-in moves into the app, and
+everything else moves into the plugin:
 
 ```
 pkucli crate                     PKU Harness
@@ -38,21 +50,22 @@ api.rs    (endpoints, types)     plugin: src/api.ts + zod/TS types
 commands.rs / display.rs         plugin: tools (data, not formatted text)
 ```
 
-- **Sign-in stays in the harness.** A plugin never implements IAAA or a service's SSO hops. If the
-  harness doesn't already sign in to the service you need (it handles `card`, `its`, `treehole`,
-  `blackboard`, `bdkj`, `cwfw`, `cwpay`, `elective`, `library`, `library-space`), open an issue in
-  `pku-harness`. A new service means a new adapter in `src/core/campus/adapters/`.
-- **Requests go through `services.campus.request(service, req)`.** Use paths relative to the
-  service host and the harness adds cookies or tokens.
+- **Sign-in stays in the app.** A plugin never implements IAAA or a service's SSO hops, so it never
+  handles a password. Today the app signs in to `card`, `its`, `treehole`, `blackboard`, `bdkj`,
+  `cwfw`, `cwpay`, `elective`, `library` and `library-space`. If the service you need is not in that
+  list, open an issue in `pku-harness`. A new service needs a new adapter in
+  `src/core/campus/adapters/`.
+- **Requests go through `services.campus.request(service, req)`.** Give paths relative to the
+  service's host. The app adds the cookies or tokens.
 - **Public pages** that need no login can use plain `fetch` with `requires: ['network']`. Copy
-  pkucli's headers (desktop user agent, `accept-language: zh-CN`), because some campus servers
-  reject anything else.
-- **Parse into data.** pkucli's `display.rs` formats output for a terminal. Tools return structured
-  JSON.
+  pkucli's headers, such as a desktop user agent and `accept-language: zh-CN`, because some campus
+  servers reject requests without them.
+- **Parse into data.** pkucli's `display.rs` formats output for a terminal. A tool returns structured
+  JSON instead, because its reader is the model or a screen.
 
 ## Example
 
-pkucli (Rust):
+Here is the campus card query in pkucli, written in Rust:
 
 ```rust title="crates/campuscard/src/api.rs"
 /// 查询校园卡信息
@@ -64,7 +77,9 @@ pub async fn query_card(&self) -> Result<CardQueryData> {
 }
 ```
 
-Plugin (TypeScript):
+The same request in a plugin, written in TypeScript. The comment at the top credits the pkucli file
+and records two quirks: amounts are in fen (0.01 yuan), and every call carries
+`synAccessSource=h5`.
 
 ```ts title="plugins/shared/campus-card.ts (abridged)"
 /**
@@ -86,16 +101,20 @@ export async function cardAccount(services: Services) {
 
 ## Second factors
 
-pkucli prompts in the terminal, which a plugin can't do. Service-level checks (Treehole's SMS check
-`40002`, the course token `40077`) turn into a tool result like
-`{ status: 'verification_required', methods: ['sms'], message }`, plus a tool that sends or redeems
-the code. The plugin's screen can offer `services.sms.awaitCode()`. IAAA-level second factors are
-the harness's job.
+Some services ask for an extra check, such as an SMS code. pkucli asks for the code in the
+terminal, which a plugin can't do. In a plugin, a check at the service level becomes a tool result
+such as `{ status: 'verification_required', methods: ['sms'], message }`, together with a tool that
+sends or redeems the code. Treehole's SMS check (error `40002`) and its course token (error `40077`)
+work this way. The plugin's screen can also offer `services.sms.awaitCode()`, which reads the code
+from the SMS.
+
+Second factors at the IAAA level are handled by the app, not by plugins.
 
 ## Rules
 
 - **MUST** cite the pkucli file you ported from in a comment at the top of the module.
-- **MUST** keep sign-in in the harness. Plugins only make requests.
-- **SHOULD** port each parser together with a fixture from a real (anonymised) response and a test.
-- **SHOULD** fix bugs in both places. If you find a quirk pkucli doesn't handle, open an issue or
-  PR in pkucli too.
+- **MUST** keep sign-in in the app. Plugins only make requests.
+- **SHOULD** port each parser together with a test and a fixture made from a real, anonymised
+  response.
+- **SHOULD** fix bugs in both places. If you find a quirk pkucli doesn't handle, open an issue or a
+  pull request in pkucli too.

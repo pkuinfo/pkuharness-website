@@ -1,16 +1,25 @@
 ---
 title: format
-description: Locale-aware date and time strings (Hermes ignores Intl locales), plus defineStrings for type-checked per-locale string tables.
+description: Functions that format dates and times for the app's language, plus defineStrings for defining per-language string tables.
 ---
 
-Source: `packages/sdk/src/format.ts`. Guide: [Languages](/en/docs/build/i18n). `AppLocale` is
-`'zh-Hans' | 'en'`.
+This module helps you show text in the app's current language. It does two things: it defines a
+plugin's Chinese and English string tables, and it formats dates, times and countdowns the way each
+language writes them.
 
-Hermes' `Intl` ignores locales, so these helpers format by hand. Their output matches the app's own
-date formatting, which keeps plugin screens consistent with the rest of the app. All of them are
-pure: pass `now` in tests.
+Source: `packages/sdk/src/format.ts`. Guide: [Languages](/en/docs/build/i18n). The `locale`
+parameter below has the type `AppLocale`, which is `'zh-Hans' | 'en'`.
+
+The app runs on Hermes, the JavaScript engine of React Native. Hermes' `Intl` ignores the locale
+argument, so these helpers don't use `Intl` and build the strings themselves. Their output matches
+the app's own date formatting, which keeps plugin screens consistent with the rest of the app. All
+of them are pure functions. In tests, pass the `now` argument to get fixed results.
 
 ## String tables
+
+A string table keeps the Chinese and English versions of the same text together. `defineStrings`
+type-checks the English version against the Chinese one: a missing or extra key, or a value of a
+different type, is a compile error.
 
 ```ts
 /** Per-locale string table; `en` must have exactly the keys (and value types) of `zh-Hans`. */
@@ -21,6 +30,8 @@ const defineStrings: <T>(table: { 'zh-Hans': T; en: NoInfer<T> }) => Localized<T
 ```
 
 ## Dates and times
+
+The table lists the signature of each formatting function and sample output in both languages.
 
 | Function | Signature | zh-Hans | en |
 | --- | --- | --- | --- |
@@ -43,6 +54,6 @@ formatRelative(data.updatedAt ?? Date.now(), locale);      // "3 分钟前" / "3
 formatCountdown(deadline - Date.now(), locale);            // "2小时10分" / "2h 10m"
 ```
 
-Timestamps the model sees are a separate matter. The harness adds the current time to every turn,
-and the schedule tools use `formatLocal` (`"2026-10-20 08:00 周二"`) from
-[scheduler](/en/docs/sdk/scheduler).
+These functions are for text the user sees. Timestamps for the model are handled separately. The
+host adds the current time to every chat turn, and the schedule tools use `formatLocal` from
+[scheduler](/en/docs/sdk/scheduler), which prints strings like `"2026-10-20 08:00 周二"`.

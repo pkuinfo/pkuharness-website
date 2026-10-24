@@ -4,7 +4,17 @@ description: Use PKU Harness Cloud from a bundled plugin. Declare the cloud mani
 icon: Plug
 ---
 
-## 1. Declare it
+This page explains how a bundled plugin (a TypeScript plugin built into the app) uses the cloud.
+The running example is the `card-share` plugin, which shares a campus-card payment code live
+with a friend. The steps follow the order in which you would build a plugin: declare the cloud
+in the manifest, handle consent and availability, then use the store or channels.
+
+## 1. Declare the cloud in the manifest [#1-declare-it]
+
+In the `cloud` field of `definePlugin`, a plugin states which cloud services it uses, whether
+its data is end-to-end (E2E) encrypted, and what data leaves the device. The host (the app that
+runs the plugin) limits the plugin's calls to this declaration and shows its disclosure to the
+user.
 
 ```ts
 import { definePlugin } from '@pku-harness/sdk';
@@ -31,26 +41,36 @@ export const cardSharePlugin = definePlugin({
 });
 ```
 
+The fields follow these rules:
+
 | Field | Rule |
 | --- | --- |
-| `protocol` | `1` |
-| `uses` | Only the services you call. The host refuses calls to any other. |
-| `disclosure.zh` | **Required** when `uses` isn't empty. In plain words, say exactly what leaves the device and what the server can see, one fact per line. If you add `en`, it must translate every line. |
-| `e2e` | `true` makes the host refuse plaintext store writes. Set it whenever you can. |
-| `optional` | `true` if the plugin also works without the cloud. Then don't list `'cloud'` in `requires`, and check `ctx.cloud?.available`. |
-| `pages` | Static viewer pages from `plugins/<id>/web`, served at `/w/<plugin>/<page>` for people without the app. |
-| `functions`, `backend` | Server functions, or an external backend URL (shown to the user before consent). Server functions are off on the official server for now; see [below](#server-functions). |
+| `protocol` | Always `1` |
+| `uses` | Only the services you call. The host refuses calls to any other service. |
+| `disclosure.zh` | Required when `uses` isn't empty; see below. |
+| `e2e` | `true` makes the host refuse plaintext store writes. Turn it on whenever you can. |
+| `optional` | `true` if the plugin also works without the cloud. |
+| `pages` | Static viewer pages for people without the app, built from `plugins/<id>/web` and served at `/w/<plugin>/<page>`. |
+| `functions`, `backend` | Server functions, or an external backend URL. An external backend is shown to the user before consent. |
 
-## 2. Consent
+`disclosure` is the data notice that users read. In plain words, say exactly what leaves the
+device and what the server can see, one fact per line. If you also write `en`, it must translate
+the Chinese line for line.
 
-Every plugin needs the user's consent. The plugin's page in Settings has a **Cloud** section
-showing the provider host, your disclosure lines, an E2E badge, the services used and usage
-against quota, plus an **Allow cloud** switch and a **Clear this plugin's cloud data** button.
+If you set `optional: true`, don't list `'cloud'` in `requires`, and check `ctx.cloud?.available`
+before using it. Server functions are off on the official server; see [below](#server-functions).
 
-Until the user allows it, every call throws `CloudError('consent_required')`. In a screen, ask
-first with `cloud.requestConsent()`: it shows the host's consent sheet and resolves `true` (right
-away if the user already allowed it) or `false` if they decline. Agent tool calls never prompt.
-Let the error through, and the agent tells the user where to allow it.
+## 2. Get the user's consent [#2-consent]
+
+Every plugin needs the user's consent on its own. The plugin's page in Settings has a **Cloud**
+section. It shows the provider host, your disclosure lines, an E2E badge, the services used and
+usage against quota. It also has an **Allow cloud** switch and a **Clear this plugin's cloud
+data** button.
+
+Until the user allows it, every cloud call from the plugin throws
+`CloudError('consent_required')`. In a screen, you can ask first with `cloud.requestConsent()`.
+It shows the host's consent sheet and resolves `true` if the user agrees or `false` if they
+decline. If the user agreed earlier, it resolves `true` right away.
 
 ```tsx
 const start = async () => {
@@ -59,6 +79,10 @@ const start = async () => {
   // …
 };
 ```
+
+When the AI assistant calls a plugin tool, the host never shows the consent sheet. A tool
+doesn't need special handling: let the error through, and the assistant tells the user where to
+allow the cloud. If you want to return a clearer result, catch the error like this:
 
 ```ts
 import { isCloudError } from '@pku-harness/sdk';
@@ -72,7 +96,11 @@ try {
 }
 ```
 
-## 3. Availability
+## 3. Check that the cloud is available [#3-availability]
+
+The user may not have configured a provider or given consent, or the provider may be
+unreachable. In each case `ctx.cloud?.available` is `false`, and the plugin should return a clear
+result instead of making the call.
 
 ```ts
 const cloud = ctx.cloud;
@@ -83,10 +111,15 @@ if (!cloud?.available) {
 ```
 
 `status()` returns `{ provider: 'official' | 'custom' | 'off', baseURL?, consented, online }`.
-When the phone is offline, store reads fall back to a local mirror, while writes and function
-calls fail fast with `offline` (there is no silent outbox). Channels reconnect with backoff.
 
-## 4. Store
+When the phone is offline, operations behave differently. Store reads fall back to a local
+mirror. Writes and function calls fail at once with `offline`; the host doesn't queue them to
+send silently later. Channels reconnect on their own with backoff.
+
+## 4. Use the store [#4-store]
+
+The store is a key-value store for small pieces of settings or state. This example reads a
+counter, adds one and writes it back:
 
 ```ts
 const cur = await ctx.cloud!.store.get<{ count: number }>('counter');
@@ -94,17 +127,18 @@ await ctx.cloud!.store.put('counter', { count: (cur?.value.count ?? 0) + 1 }, { 
 const keys = await ctx.cloud!.store.list('history/');
 ```
 
-- The provider namespaces keys to `(device, plugin)`, so no other plugin can read them.
-- `ifVersion` gives you optimistic concurrency (`0` means the key must not exist yet). On a
-  mismatch the server answers `409 conflict`, which the host throws as `CloudError('protocol')`.
-- `ttlS` makes a value expire. Default quotas: 1 MB and 1,000 keys per plugin per device, 64 KB
-  per value.
+- The provider namespaces keys by `(device, plugin)`, so no other plugin can read them.
+- `ifVersion` gives you optimistic concurrency: a write succeeds only if the current version
+  matches the one you pass. `0` means the key must not exist yet. On a mismatch the server
+  answers `409 conflict`, which the host throws as `CloudError('protocol')`.
+- `ttlS` sets how long a value lives, in seconds. The value is deleted when it expires.
+- Default quotas are 1 MB and 1,000 keys per plugin per device, and 64 KB per value.
 
-## 5. Channels
+## 5. Use relay channels [#5-channels]
 
-A channel relays end-to-end encrypted frames between the owner's phone and the people who open a
-share link. The provider forwards ciphertext and gates who may join; only link holders can
-decrypt.
+A channel relays end-to-end encrypted data frames between the owner's phone and the people who
+open a share link. The provider forwards ciphertext and controls who may join. Only people who
+hold the share link can decrypt.
 
 ```ts
 const channel = await cloud.channels.open({
@@ -128,17 +162,24 @@ await channel.close();
 off();
 ```
 
-- `send(peerId | '*', msg)` seals the message for each peer. Frames are at most 4 KB, at most 60
-  per minute.
-- `mailbox.put(slot, msg, ttlS)` leaves sealed blobs that peers can read while you're offline.
-- `kick(peerId)` drops a viewer and frees the seat; the same link then works for a new viewer.
-- `channels.get(id)` and `list()` survive app restarts, because the keys live in the keystore.
-- For long shares on Android, keep the app alive with
+Channels also offer these methods:
+
+- `send(peerId | '*', msg)` encrypts the message for each peer and sends it. A frame is at most
+  4 KB, and you can send at most 60 frames per minute.
+- `mailbox.put(slot, msg, ttlS)` leaves an encrypted blob that peers can read while you're
+  offline.
+- `kick(peerId)` removes a viewer and frees the seat, so the same link then works for a new
+  viewer.
+- `channels.get(id)` and `list()` still work after the app restarts, because the channel keys
+  are kept in the system keystore.
+- For long shares on Android, keep the app running with
   `services.ongoing.start({ title, until, onStop })`. `services.ongoing` exists only on Android.
 
-### Showing the link
+### Showing the share link [#showing-the-link]
 
-`channel.link` is a `SecretLink`. You can't read the URL, and it serialises as `"[secret link]"`.
+`channel.link` is a `SecretLink` object. Plugin code can't read the URL inside it, and
+serialising it only gives `"[secret link]"`. To hand the link to the user, use the components
+the host provides:
 
 ```tsx
 const { QRCode, Button } = host.components;
@@ -146,13 +187,13 @@ const { QRCode, Button } = host.components;
 <Button title="分享给朋友" onPress={() => void host.shareLink?.(channel.link, { message: '我的付款码' })} />
 ```
 
-You **must not** return links from tools or write them to logs. A tool returns
-`{ status: 'awaiting_user' }` and opens a screen instead.
+Don't return links from tools, and don't write them to logs. A tool should return
+`{ status: 'awaiting_user' }` and open a screen where the user does the sharing.
 
-## 6. Registry entry
+## 6. Add the cloud to your registry entry [#6-registry-entry]
 
-Copy the cloud declaration into your `registry.json` entry, so the marketplace shows "uses cloud"
-before anyone installs the plugin:
+The marketplace shows whether a plugin uses the cloud before anyone installs it. For this, copy
+the cloud declaration into your entry in `registry.json`:
 
 ```json
 {
@@ -165,30 +206,40 @@ before anyone installs the plugin:
 }
 ```
 
-The registry validator checks that `disclosure.zh` is there when `uses` isn't empty, that `en`
-(if given) translates every line, and that an external `backend.url` uses HTTPS.
+The registry validator checks three things. `disclosure.zh` must be present when `uses` isn't
+empty. If `en` is given, it must translate every line. An external `backend.url` must use HTTPS.
 
 ## Server functions
 
-<Callout type="warn" title="Off on the official server for now">
-  Keep your plugin on the phone, or run your own backend.
+<Callout type="warn" title="Off on the official server">
+  Keep your plugin's work on the phone, or run your own backend.
 </Callout>
 
-A `PLUGIN.md` plugin declares server functions in a `server:` section (with the same steps and
-expressions as its tools) and calls them through the `cloud.call { fn, input }` ability. Widgets
-can bind `{ fn }`. The section implies `uses: [functions]` and requires `disclosure`. The
-reference server runs `access: user` functions at `POST /v1/fn/<plugin>/<name>` and
-`access: public` ones at `/v1/p/<plugin>/<name>`, with server KV, crypto and HTTPS to the
-declared hosts. See [Cloud → Server functions](/en/docs/cloud#server-functions) and
+A `PLUGIN.md` plugin can declare server functions in a `server:` section, using the same steps
+and expressions as its tools, and call them through the `cloud.call { fn, input }` ability.
+Widgets can bind `{ fn }` too. The section implies `uses: [functions]` and requires
+`disclosure`.
+
+The reference server runs `access: user` functions at `POST /v1/fn/<plugin>/<name>` and
+`access: public` ones at `/v1/p/<plugin>/<name>`. It gives functions a server-side key-value
+store, crypto helpers and HTTPS requests to the declared hosts. See
+[Cloud → Server functions](/en/docs/cloud#server-functions) and
 [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)
 (on hold).
 
 ## Viewer pages
 
-People without the app open `https://<provider>/s/<id>#k=…`, which redirects to
-`/w/<plugin>/<page>?c=<id>#k=…` (the fragment survives the redirect). Build the page in
-`plugins/<id>/web` as a static site (Vite + Preact, for example), read `k` from `location.hash`,
-and use [`@pku-harness/cloud-protocol`](/en/docs/cloud/protocol-package) to derive the keys, join
-and decrypt. Pages have to work in the WeChat webview, so don't depend on WebCrypto (the package
-uses pure-JS noble crypto) and fall back to SSE when WebSockets aren't available.
-`plugins/card-share/web` is a complete viewer to copy from.
+A viewer page is a web page for people who don't have the app. When someone opens
+`https://<provider>/s/<id>#k=…`, they are redirected to `/w/<plugin>/<page>?c=<id>#k=…`. The part
+after `#` is the URL fragment. It survives the redirect, and browsers never send it to the
+server.
+
+Build the viewer page as a static site in `plugins/<id>/web`, with Vite + Preact for example.
+The page reads `k` from `location.hash` and uses
+[`@pku-harness/cloud-protocol`](/en/docs/cloud/protocol-package) to derive the keys, join the
+channel and decrypt.
+
+Viewer pages have to work in the WeChat in-app browser, which means two things. First, don't
+depend on WebCrypto; the package uses the noble libraries, written in pure JavaScript. Second,
+fall back to Server-Sent Events (SSE) when WebSockets aren't available. `plugins/card-share/web`
+is a complete viewer page you can copy from.

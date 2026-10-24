@@ -43,6 +43,8 @@ async function pageMarkdown(page: DocsPage): Promise<string> {
 export const docsLlms = llms(source, {
   renderPage: async (page) => {
     const description = page.data.description ? `> ${page.data.description}\n\n` : '';
-    return `# ${page.data.title} (${page.url})\n\n${description}${await pageMarkdown(page)}`;
+    // Explicit heading ids (`## 标题 [#english-id]`) are for the web page; drop them for readers of the Markdown.
+    const body = (await pageMarkdown(page)).replace(/^(#{1,6} .*?) \[#[\w-]+\]$/gm, '$1');
+    return `# ${page.data.title} (${page.url})\n\n${description}${body}`;
   },
 });

@@ -1,60 +1,109 @@
 ---
 title: 插件
-description: 插件文档（PLUGIN.md）由 App 解释执行，通过链接安装；内置 TypeScript 插件随 App 发布；远程插件是通过 URL 添加的 MCP 服务器。三者共用同一个注册表、同一套权限和同一个 Agent 循环。
+description: 插件有三种形式。插件文档（PLUGIN.md）由 App 解释执行，通过链接安装；内置 TypeScript 插件随 App 发布；远程插件是通过 URL 添加的 MCP 服务器。三者共用同一个注册表、同一套权限系统和同一个 Agent 循环。
 icon: Puzzle
 ---
 
-PKU Harness 的每项能力都是插件（plugin），所有插件地位平等。插件可以是 App 解释执行的**文档**、打包进 App 的 **TypeScript** 模块，也可以是**远程**的 MCP 服务器。助手、权限系统和插件市场对这三种一视同仁。
+在 PKU Harness 里，每一项连接校园服务的功能都由一个插件（plugin）提供。插件有三种形式。最常见的是**插件文档**：一个包含 `PLUGIN.md` 文件的文件夹，App 读取并按照其中的说明执行。另外两种分别是内置在 App 中的 **TypeScript 插件**，以及运行在服务器上、通过 MCP（Model Context Protocol，模型上下文协议）连接的**远程插件**。
 
-## 三种形式，一套约定 [#three-kinds-one-contract]
+助手、权限系统和插件市场用同样的方式对待这三种插件。内置插件和社区插件使用同一套权限系统。
 
-| | 文档（`PLUGIN.md`） | 内置 TypeScript | 远程 |
+## 插件的三种形式 [#three-kinds-one-contract]
+
+### 插件文档 [#plugin-documents]
+
+插件文档是一个文件夹。文件夹里有一份 YAML 清单、一段写给助手的说明，以及用 YAML 步骤写成的工具。如果插件有小组件，小组件用生成式界面的 JSON 来描述。
+
+插件文档在手机上运行，由 App 解释执行。整个过程中不会运行任何插件代码。
+
+它通过一个链接发布，可以是 GitHub 文件夹，也可以是任意一个 `PLUGIN.md` 的 URL。要更新插件，只需要 `git push`。官方的插件文档也随 App 内置，同样从各自的链接更新。
+
+插件文档可以访问它声明过的校园服务（使用用户的会话）和公开网站，也可以使用[宿主能力](/docs/build/declarative-plugins#host-abilities)。它能提供小组件、页面、设置项和快捷指令。
+
+### 内置 TypeScript 插件 [#bundled-plugins]
+
+内置插件是一个基于 `@pku-harness/sdk` 的 TypeScript 模块，用 `definePlugin` 定义。它运行在手机上的 App 内部，随 App 的新版本或签名的空中更新（OTA）一起发布。
+
+内置插件可以使用宿主服务、原生界面和 PKU Harness Cloud。原生界面包括页面、小组件、设置项、快捷指令和标签页。
+
+### 远程插件 [#remote-plugins]
+
+远程插件是一个通过 Streamable HTTP 通信的 MCP 服务器，可以用任何语言编写。它运行在你自己控制的 HTTPS 服务器上。
+
+发布远程插件时，你部署自己的服务器。用户可以添加它的 URL，也可以从插件市场安装。远程插件只能提供工具，它的结果会作为数据交给模型。
+
+### 三种形式的对比 [#comparison]
+
+| | 插件文档 | 内置插件 | 远程插件 |
 | --- | --- | --- | --- |
-| 是什么 | 一个文件夹：YAML 清单 + 给助手的说明 + 用 YAML 步骤写的工具，小组件用生成式界面 JSON 描述 | 基于 `@pku-harness/sdk`（`definePlugin`）的 TypeScript 模块 | 走 Streamable HTTP 的 MCP 服务器，任何语言都行 |
-| 在哪运行 | 在手机上，由 App 解释（不运行任何插件代码） | 在手机上，App 内部 | 你自己控制的任意 HTTPS 服务器 |
-| 怎么发布 | 一个链接（GitHub 文件夹或任意 `PLUGIN.md` URL），更新就是 `git push`。官方文档插件也随 App 内置，并从各自的链接更新 | 随 App 发版（或签名的 OTA 更新） | 部署你的服务器，用户添加它的 URL，或从插件市场安装 |
-| 能用什么 | 声明过的校园服务（使用用户的会话）、公开站点和[宿主能力](/docs/build/declarative-plugins#host-abilities)；小组件、页面、设置项、快捷指令 | 宿主服务、原生界面（页面、小组件、设置项、快捷指令、标签页）、PKU Harness Cloud | 只有工具（结果作为数据交给模型） |
-| 能否看到校园账号密码 | 不能：校园请求由框架代为签发 | 不能：只通过 `services.campus.request` 拿到响应 | 不能，任何时候都不能 |
-| 信任级别 | 官方（内置或来自 `pkuinfo/pku-harness-plugins`）或社区；社区插件的工具在 `write` / `money` / `public` 前会先询问，结果视为不可信 | 在插件仓库中经过审核 | 第三方：修改类效果默认先询问；任何结果都会污染（taint）当前轮次 |
-| 工具 id | `<plugin id>.<tool>`，例如 `classrooms.free` | `<plugin id>.<tool>`，例如 `wallet.cardBalance` | `mcp-<server name>.<tool>`，例如 `mcp-demo-canteen.menu` |
+| 运行位置 | 手机，由 App 解释执行 | 手机，App 内部 | 你的 HTTPS 服务器 |
+| 发布方式 | 一个链接 | 随 App 发布 | 部署服务器 |
+| 能否看到校园账号密码 | 不能 | 不能 | 不能 |
+| 工具 id | `<plugin id>.<tool>` | `<plugin id>.<tool>` | `mcp-<server name>.<tool>` |
+| 工具 id 示例 | `classrooms.free` | `wallet.cardBalance` | `mcp-demo-canteen.menu` |
 
-应用商店禁止下载可执行代码。文档是数据而不是代码，所以社区插件可以作为文档在手机上运行，也可以通过 MCP 远程运行。官方的校园集成 classrooms、campus-events、grades、canteen、shuttle 和 notices 都是文档插件。TypeScript 只留给框架自己的功能（界面、看板、定时任务、日程、待办、记忆、模型服务商……），以及插件语言暂时还表达不了的集成。
+三种插件都看不到校园账号密码。插件文档的校园请求由框架代为签发；内置插件只能通过 `services.campus.request` 拿到响应；远程插件根本没有校园会话。
 
-## 怎么选 [#choosing]
+### 信任级别 [#trust]
+
+插件文档分为官方和社区两类。官方插件文档随 App 内置，或者来自 `pkuinfo/pku-harness-plugins` 仓库。社区插件的工具在执行 `write`、`money` 或 `public` 效果之前会先询问你，它们返回的结果也被视为不可信的内容。
+
+内置插件都在插件仓库中经过审核。
+
+远程插件属于第三方。默认情况下，会修改数据的工具都要先询问你。远程插件返回的任何结果都会「污染」（taint）当前这一轮对话。这意味着什么，请看[安全模型](/docs/concepts/security)。
+
+### 为什么大多数插件是文档 [#why-documents]
+
+应用商店禁止 App 下载可执行代码。插件文档是数据，不是代码，所以社区插件可以以文档的形式在手机上运行，也可以通过 MCP 在远程运行。
+
+官方的校园服务插件 classrooms、campus-events、grades、canteen、shuttle 和 notices 都是插件文档。TypeScript 只用于框架自己的功能，例如界面、看板、定时任务、日程、待办、记忆和模型服务商，以及插件语言暂时还无法表达的服务。
+
+## 如何选择插件的形式 [#choosing]
 
 ```
-Is it campus or public requests plus extraction (with the user's campus session if needed)?
-├─ yes → plugin document (PLUGIN.md). Start from the quickstart, or ask the AI in the app.
-└─ no  → Does it need general code or a server of your own?
-         ├─ yes → remote plugin. Start from templates/remote-plugin.
-         └─ no, it needs the device or native UI the language lacks
-              → bundled TypeScript plugin (open an issue first), or propose a host ability.
+插件只需要请求校园网站或公开网站，再从响应里提取数据吗？（需要时可以带上用户的校园会话）
+├─ 是 → 插件文档（PLUGIN.md）。从快速上手开始，或者让 App 里的 AI 帮你写。
+└─ 否 → 需要通用代码，或者需要你自己的服务器吗？
+         ├─ 是 → 远程插件。从 templates/remote-plugin 开始。
+         └─ 否，需要设备能力，或插件语言做不到的原生界面
+              → 内置 TypeScript 插件（请先开一个 issue），或者提议新增一项宿主能力。
 ```
 
-简单说：如果只是发校园或公开请求再提取数据（必要时带上用户的校园会话），写插件文档，可以从快速上手开始，或者直接让 App 里的 AI 帮你写。需要通用代码或自己的服务器，就做远程插件，从 `templates/remote-plugin` 开始。如果需要插件语言还不支持的设备能力或原生界面，就做内置 TypeScript 插件（先开 issue），或者提议新增一个宿主能力。
+大多数校园服务只需要发请求、再从响应里提取数据，这类插件写成插件文档就够了。你可以从[快速上手](/docs/build/quickstart)开始，也可以直接让 App 里的 AI 帮你写。
+
+如果需要通用代码或自己的服务器，就写远程插件，从 `templates/remote-plugin` 模板开始。只有需要插件语言还不支持的设备能力或原生界面时，才写内置 TypeScript 插件。这种情况请先开一个 issue。你也可以提议新增一项宿主能力，让插件文档也能做到。
 
 ## 插件在 App 中的生命周期 [#lifecycle-in-the-app]
 
-1. **注册**：内置插件和内置文档在启动时注册。通过链接安装的文档，在用户确认审查页后注册，文件和内容哈希保存在设备上。远程插件在用户安装时注册：App 连接服务器，列出工具，缓存清单。
-2. **可用**：设备满足它的 `requires` [能力需求](/docs/concepts/capabilities)。不可用的插件对助手隐藏，设置里会说明原因。
-3. **启用**：默认开启。非核心插件都可以关闭；核心插件（`core: true`，例如生成式界面、记忆）不能关闭。
-4. **调用**：所有调用走同一条路径：校验输入（zod），检查对应效果的授权方式，必要时请求批准，执行工具，返回结果。
-5. **更新**（仅文档插件）：App 每天最多重新拉取一次链接。声明不变的新内容直接生效，声明变宽的要等用户确认。见[声明式插件 → 更新](/docs/build/declarative-plugins#updates)。
+一个插件从安装到使用，会经过下面五个阶段。
 
-## 远程插件细节 [#remote-plugins-in-detail]
+1. **注册。** 内置插件和内置的插件文档在 App 启动时注册。通过链接安装的插件文档，要等你在审查页上确认后才注册，它的文件和内容哈希会保存在手机上。远程插件在你安装时注册：App 连接服务器，列出它的工具，并缓存它的清单。
+2. **可用。** 手机满足插件在 `requires` 中声明的[能力需求](/docs/concepts/capabilities)时，插件才可用。不可用的插件对助手隐藏，设置页会说明原因。
+3. **启用。** 插件默认是开启的。你可以关闭任何非核心插件。核心插件（标记为 `core: true`，例如生成式界面和记忆）不能关闭。
+4. **调用。** 每次调用都走同一条路径。App 先用 zod 校验输入，再检查这个效果对应的授权方式，必要时请你批准，然后执行工具并返回结果。
+5. **更新。** 这一步只适用于插件文档。App 每天最多重新拉取一次插件的链接。如果新内容的声明没有变化，就直接生效；如果声明的权限变宽了，要等你确认后才生效。详见[声明式插件 → 更新](/docs/build/declarative-plugins#updates)。
 
-- 用户（或经批准的助手）添加一个 MCP Streamable HTTP URL，以及可选的 bearer token。token 存进密钥库。
-- 插件 id 是 `mcp-` 加上 MCP 服务器 `name`（来自 `initialize` 响应）的 slug。服务器名请用你在注册表里的 id，这样插件市场才能把两者对应起来。
-- 每个 MCP 工具都会变成一个注册表工具，输入 schema 从 JSON Schema 转成 zod。`annotations.readOnlyHint: true` 的是 `read` 工具，其余都是 `write`。
-- 远程插件的默认授权方式：`read` 自动执行，`write`/`money`/`public` 先询问。
-- 结果包装成 `{ source, data }`（取 `structuredContent`，或把文本解析成 JSON）。插件在系统提示词里的那一段会告诉模型：这些是数据，不是指令。
-- MCP 工具名会被规整为 `[a-zA-Z0-9_-]`（其他字符变成 `_`），并截断到 40 个字符。请用简短的 ASCII 驼峰命名。
+## 远程插件的细节 [#remote-plugins-in-detail]
+
+**添加。** 你，或者经你批准的助手，可以添加一个 MCP Streamable HTTP 地址，并可选地附上一个 bearer token。这个 token 保存在密钥库里。
+
+**插件 id。** 远程插件的 id 由 `mcp-` 加上 MCP 服务器的 `name` 组成，`name` 取自 `initialize` 响应，并会被转换成 slug 形式。请用你在注册表里的 id 作为服务器名，这样插件市场才能把两者对应起来。
+
+**工具。** 每个 MCP 工具都会变成注册表里的一个工具，它的输入 schema 会从 JSON Schema 转换成 zod。标记了 `annotations.readOnlyHint: true` 的工具是 `read` 工具，其余工具都是 `write` 工具。
+
+**默认授权。** 对于远程插件，`read` 工具自动执行，`write`、`money` 和 `public` 工具要先询问你。
+
+**结果。** 结果会被包装成 `{ source, data }`。其中 `data` 取自 `structuredContent`，或者把文本解析成 JSON。系统提示词里有一段关于这个插件的说明，它告诉模型：这些结果是数据，不能当作指令执行。
+
+**工具名。** MCP 工具名会被规整为只含 `[a-zA-Z0-9_-]` 的形式，其他字符会变成 `_`，长度会截断到 40 个字符。所以请使用简短的 ASCII 驼峰命名。
 
 ## 合并与重命名插件 [#merging-and-renaming-plugins]
 
-`PluginDef.legacy` 让一个插件接管旧的 id。例如 `wallet` 取代了 `campus-card`、`netfee` 和 `utilities`。之后宿主会把旧的插件 id、工具 id 和小组件 key 映射到新的上面，并把用户的设置迁移一次。见 [SDK → plugin](/docs/sdk/plugin#pluginlegacy)。
+`PluginDef.legacy` 字段让一个插件接管旧插件的 id。例如，`wallet` 插件取代了 `campus-card`、`netfee` 和 `utilities` 三个旧插件。
 
-## 下一步 [#next]
+设置了这个字段之后，宿主会把旧的插件 id、工具 id 和小组件 key 映射到新的上面，并把你原来的设置迁移一次。详见 [SDK → plugin](/docs/sdk/plugin#pluginlegacy)。
+
+## 继续阅读 [#next]
 
 - [工具与效果](/docs/concepts/tools-and-effects)
 - [第一个插件](/docs/build/quickstart)和[声明式插件](/docs/build/declarative-plugins)

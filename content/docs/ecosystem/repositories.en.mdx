@@ -1,20 +1,49 @@
 ---
 title: Repositories
-description: The pkuinfo repositories (the app, the plugins/SDK/registry repository, pkucli, pkubdcard and this website) and how they fit together.
+description: The repositories of the pkuinfo organisation (the app, the plugins repository, pkucli, pkubdcard and this website), what each one contains and how they depend on each other.
 icon: FolderGit2
 ---
 
-Everything is open source under the [`pkuinfo`](https://github.com/pkuinfo) GitHub organisation.
+All of the project's code is open source and lives in the [`pkuinfo`](https://github.com/pkuinfo)
+GitHub organisation. The project is split into five repositories.
 
-| Repository | Stack | What it is |
-| --- | --- | --- |
-| [`pku-harness`](https://github.com/pkuinfo/pku-harness) | Expo SDK 58, React Native 0.88, TypeScript, bun | **The app**: the harness itself (agent loop, design system, host services, campus sessions, scheduler). Android first. |
-| [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) | TypeScript, zod, bun workspace | The SDK (`@pku-harness/sdk`), every bundled plugin (`@pku-harness/plugins`), the marketplace registry (`@pku-harness/registry`), the cloud protocol (`@pku-harness/cloud-protocol`), the remote plugin template and examples. **Start here to build a plugin.** |
-| [`pkucli`](https://github.com/pkuinfo/pkucli) | Rust workspace (reqwest, tokio, clap) | Command-line tools for PKU web services, and the **protocol reference** for every service the app talks to. Also ships agent skills. |
-| [`pkubdcard`](https://github.com/pkuinfo/pkubdcard) | Go (Gin) + Preact | A web app for sharing a campus-card payment code, and an earlier port of pkucli's campus-card flow. Its UI and rate limits shaped the cloud `card-share` design. |
-| [`pkuharness-website`](https://github.com/pkuinfo/pkuharness-website) | Next.js 16 + Fumadocs 16, bun | This website: landing page, downloads, these docs and the marketplace. |
+| Repository | Stack |
+| --- | --- |
+| [`pku-harness`](https://github.com/pkuinfo/pku-harness) | Expo SDK 58, React Native 0.88, TypeScript, bun |
+| [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) | TypeScript, zod, bun workspace |
+| [`pkucli`](https://github.com/pkuinfo/pkucli) | Rust workspace (reqwest, tokio, clap) |
+| [`pkubdcard`](https://github.com/pkuinfo/pkubdcard) | Go (Gin) + Preact |
+| [`pkuharness-website`](https://github.com/pkuinfo/pkuharness-website) | Next.js 16 + Fumadocs 16, bun |
+
+## What each repository is for [#what-each-repository-is-for]
+
+**`pku-harness`** is the app itself. It contains the harness, which is the core that runs the AI
+agent loop and hosts the plugins, together with the design system, the host services, the campus
+sessions and the scheduler. The app targets Android first.
+
+**`pku-harness-plugins`** holds everything a plugin author needs. It contains the SDK
+(`@pku-harness/sdk`), every bundled plugin (`@pku-harness/plugins`), the marketplace registry
+(`@pku-harness/registry`), the cloud protocol (`@pku-harness/cloud-protocol`), the remote plugin
+template and some examples. If you want to build a plugin, start here.
+
+**`pkucli`** is a set of command-line tools for PKU web services. It is also the protocol
+reference for every campus service the app talks to: when the app needs a login flow or an
+endpoint, it is ported from here. The repository also ships agent skills.
+
+**`pkubdcard`** is a web app for sharing a campus-card payment code. It was an earlier port of
+pkucli's campus-card flow, and its UI and rate limits shaped the design of the cloud `card-share`
+plugin.
+
+**`pkuharness-website`** is this website. It serves the landing page, the downloads, these docs
+and the marketplace.
 
 ## How they fit together
+
+All campus logins go through IAAA (`iaaa.pku.edu.cn`), PKU's unified login service. pkucli
+documents the campus protocols, and the app follows them. The app includes
+`pku-harness-plugins` as a git submodule. Remote plugins connect to the app through the Model
+Context Protocol (MCP), and the PKU Harness Cloud provider is built on the cloud protocol and the
+reference cloud server from the plugins repository.
 
 ```
                  PKU IAAA (iaaa.pku.edu.cn)
@@ -31,6 +60,9 @@ Everything is open source under the [`pkuinfo`](https://github.com/pkuinfo) GitH
    pkuharness-website: docs · marketplace (registry.json + indexed repos) · downloads (GitHub releases)
 ```
 
+The website stands beside the others. Its marketplace reads `registry.json` and the plugin
+repositories it has indexed, and its download page lists the app's GitHub releases.
+
 ## Inside pku-harness-plugins
 
 | Folder | Contents |
@@ -45,18 +77,22 @@ Everything is open source under the [`pkuinfo`](https://github.com/pkuinfo) GitH
 | `registry` | Marketplace schema and `registry.json` |
 | `templates/remote-plugin`, `examples/*` | The remote plugin template, plus `demo-canteen` and `mock-llm` |
 
-These are private workspace packages; nothing goes to npm. The app pulls the repository in as its
-git submodule `plugins/`. Plugin documents are shared the way skills are, as a folder or a link the
-app interprets. See [Declarative plugins](/en/docs/build/declarative-plugins).
+These packages are private to the workspace, and none of them is published to npm. The app pulls
+the whole repository in as its git submodule `plugins/`.
+
+Plugin documents are shared the same way as agent skills: as a folder or a link, which the app
+reads and interprets. See [Declarative plugins](/en/docs/build/declarative-plugins).
 
 ## Bundled plugins today
 
-Plugin documents: `classrooms`, `campus-events`, `grades`, `canteen`, `shuttle`, `notices`.
+The app currently bundles the following plugin documents: `classrooms`, `campus-events`,
+`grades`, `canteen`, `shuttle` and `notices`.
 
-TypeScript: `ui` (generative UI), `dashboard`, `scheduler`, `todo`, `schedule`, `timetable`,
-`course-sync`, `authenticator` (手机令牌), `calendar` (校历), `wallet` (campus card, network fee,
+It also bundles these TypeScript plugins: `ui` (generative UI), `dashboard`, `scheduler`,
+`todo`, `schedule`, `timetable`, `course-sync`, `authenticator` (手机令牌, the IAAA mobile
+token), `calendar` (校历, the academic calendar), `wallet` (campus card, network fee,
 utilities), `card-share` (share a payment code through the Cloud), `courses` (Blackboard),
-`course-catalog`, `treehole`, `elective`, `finance`, `library`, `room-booking`, `memory`, `plugins`
-(plugin management and AI authoring), `deepseek`, `openai-compatible`.
+`course-catalog`, `treehole`, `elective`, `finance`, `library`, `room-booking`, `memory`,
+`plugins` (plugin management and AI authoring), `deepseek` and `openai-compatible`.
 
-The [marketplace](/en/marketplace) has a description of each.
+The [marketplace](/en/marketplace) has a description of each one.

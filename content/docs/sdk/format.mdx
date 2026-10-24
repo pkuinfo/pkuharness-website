@@ -1,24 +1,30 @@
 ---
 title: format
-description: 按语言格式化日期和时间（Hermes 的 Intl 不认 locale），以及用 defineStrings 定义带类型检查的多语言字符串表。
+description: 按界面语言格式化日期和时间的函数，以及用来定义多语言字符串表的 defineStrings。
 ---
 
-源码：`packages/sdk/src/format.ts`。指南：[多语言](/docs/build/i18n)。`AppLocale` 的取值是
+这个模块帮你按 App 当前的语言显示文字。它提供两类工具：一是定义插件的中英文字符串表，二是把日期、时间和倒计时格式化成符合该语言习惯的字符串。
+
+源码：`packages/sdk/src/format.ts`。指南：[多语言](/docs/build/i18n)。下文中的 `locale` 参数类型是 `AppLocale`，取值为
 `'zh-Hans' | 'en'`。
 
-Hermes 的 `Intl` 会忽略 locale，所以这些函数是手写格式化的，输出和应用自身的日期格式一致，插件界面看起来就和应用其他地方一样。它们都是纯函数，测试时传入 `now` 即可。
+App 运行在 React Native 的 JavaScript 引擎 Hermes 上。Hermes 的 `Intl` 会忽略 locale 参数，所以这些函数不使用 `Intl`，自己拼出字符串。它们的输出和 App 自身的日期格式一致，插件界面因此和 App 其他地方保持统一。这些函数都是纯函数，测试时传入 `now` 参数即可得到固定结果。
 
 ## 字符串表 [#string-tables]
 
+字符串表把同一组文案的中文版和英文版放在一起。`defineStrings` 以中文版为准做类型检查：英文版少了或多了某个键，或者值的类型不同，编译时就会报错。
+
 ```ts
-/** Per-locale string table; `en` must have exactly the keys (and value types) of `zh-Hans`. */
+/** 按语言划分的字符串表；`en` 的键（以及值的类型）必须与 `zh-Hans` 完全一致。 */
 type Localized<T> = { 'zh-Hans': T; en: T };
 
-/** Define a plugin's string table with `en` type-checked against `zh-Hans`. */
+/** 定义插件的字符串表，`en` 按 `zh-Hans` 做类型检查。 */
 const defineStrings: <T>(table: { 'zh-Hans': T; en: NoInfer<T> }) => Localized<T>;
 ```
 
 ## 日期和时间 [#dates-and-times]
+
+下表列出各个格式化函数的签名，以及它们在两种语言下的输出示例。
 
 | 函数 | 签名 | zh-Hans | en |
 | --- | --- | --- | --- |
@@ -41,5 +47,5 @@ formatRelative(data.updatedAt ?? Date.now(), locale);      // "3 分钟前" / "3
 formatCountdown(deadline - Date.now(), locale);            // "2小时10分" / "2h 10m"
 ```
 
-给模型看的时间戳是另一回事：宿主会在每一轮对话里附上当前时间，定时相关的工具使用
-[scheduler](/docs/sdk/scheduler) 里的 `formatLocal`（`"2026-10-20 08:00 周二"`）。
+这些函数用于给用户看的界面。给模型看的时间戳另有处理：宿主会在每一轮对话中附上当前时间，定时相关的工具则使用
+[scheduler](/docs/sdk/scheduler) 里的 `formatLocal`，输出形如 `"2026-10-20 08:00 周二"`。

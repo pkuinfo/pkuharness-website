@@ -1,10 +1,14 @@
 ---
 title: 界面扩展
-description: 内置插件通过 `contributes` 添加页面、设置项、标签页内容、看板小组件和快捷指令，界面用框架提供的 HostUI 组件搭建。
+description: 内置插件怎样通过 `contributes` 添加页面、设置项、标签页内容、看板小组件和快捷指令，并用 App 传入的 HostUI 组件搭建界面。
 icon: PanelsTopLeft
 ---
 
-内置插件可以添加原生界面，而且不需要导入任何 App 代码。页面和小组件会通过 props 收到 `HostUI`：里面有框架的组件、主题 token、触感反馈、导航和数据 hook。这样插件的界面看起来就是原生的，App 升级后也照样能用。
+本页介绍内置插件怎样给 App 添加自己的界面。阅读前请先看[内置插件](/docs/build/bundled-plugin)。插件文档的小组件和页面用生成式界面的 JSON 描述，写法见[声明式插件](/docs/build/declarative-plugins)。
+
+内置插件添加原生界面时，不需要导入任何 App 代码。每个页面和小组件都会通过 props 收到一个名为 `HostUI` 的对象，里面有 App 的组件、主题 token、触感反馈、导航和数据 hook。插件的界面全部用这些东西绘制，所以看起来和 App 的其他部分一致，App 改版后也照样能用。
+
+插件添加的所有界面，都列在 `definePlugin` 的 `contributes` 里：
 
 ```ts
 contributes: {
@@ -12,7 +16,7 @@ contributes: {
   settings: [{ screen: 'main', title: '专注', subtitle: '专注时段', icon: 'clock' }],
   widgets:  { today: { title: '今日专注', description: '…', sizes: ['sm', 'md'], component: FocusWidget } },
   commands: { focus: { description: '打开专注', aliases: ['专注'], run: (_i, { navigate }) => navigate('/p/focus/main') } },
-  tabs:     [{ slot: 'schedule', screen: 'main' }],   // only for plugins that own a tab
+  tabs:     [{ slot: 'schedule', screen: 'main' }],   // 只有负责某个标签页的插件才需要
 },
 ```
 
@@ -22,11 +26,11 @@ contributes: {
 interface ScreenContribution {
   title: string;
   component: ComponentType<PluginScreenProps>;
-  presentation?: 'push' | 'modal';   // modal → /m/<plugin>/<screen> (forms); default push → /p/<plugin>/<screen>
+  presentation?: 'push' | 'modal';   // modal → /m/<plugin>/<screen>（表单）；默认 push → /p/<plugin>/<screen>
 }
 ```
 
-`PluginScreenProps` 包含：`host`、`services`、`kv`、`invoke(toolId, input?)`、`params`（路由查询参数）、`cloud?`。
+页面是一个 React 组件。默认以普通页面（`push`）的方式打开，表单请设置 `presentation: 'modal'`。组件会收到 `PluginScreenProps`，其中有 `host`、`services`、`kv`、`invoke(toolId, input?)`、`params`（路由的查询参数）和 `cloud?`。
 
 ```tsx
 import type { PluginScreenProps } from '@pku-harness/sdk';
@@ -43,7 +47,7 @@ export function EditScreen({ host, params, invoke }: PluginScreenProps) {
 }
 ```
 
-用 `host.navigate('/p/<plugin>/<screen>')` 或 `host.navigate('/m/<plugin>/<screen>?id=…')` 跳转，用 `host.dismiss()` 关闭弹出页。普通页面以 `host.components.Screen` 为根组件，弹出的表单页用 `SheetScreen`。
+打开页面用 `host.navigate('/p/<plugin>/<screen>')`，打开弹出页用 `host.navigate('/m/<plugin>/<screen>?id=…')`，关闭弹出页用 `host.dismiss()`。普通页面以 `host.components.Screen` 为根组件，弹出的表单页以 `SheetScreen` 为根组件。
 
 ## 设置项 [#settings-rows]
 
@@ -51,14 +55,14 @@ export function EditScreen({ host, params, invoke }: PluginScreenProps) {
 interface SettingsContribution { screen: string; title: string; subtitle?: string; icon?: string }
 ```
 
-每一行点开都会进入你的某个页面。设置 → 插件 里的插件详情页还会列出它的页面、小组件、工具和权限。
+设置项是通往你某个页面的入口，点开后进入它指定的页面。除了这些设置项，「设置 → 插件」里的插件详情页还会列出插件的页面、小组件、工具和权限。
 
 ## 小组件 [#widgets]
 
 ```ts
 interface WidgetContribution {
   title: string;
-  description: string;                 // for the agent: what it shows and what config does
+  description: string;                 // 写给助手看：显示什么内容，config 起什么作用
   sizes?: ('sm' | 'md' | 'lg')[];
   defaultSize?: 'sm' | 'md' | 'lg';
   configSchema?: z.ZodType<Record<string, unknown>>;
@@ -66,26 +70,30 @@ interface WidgetContribution {
 }
 ```
 
-- 卡片外框（标题、背景、更新时间、长按菜单）由看板负责绘制。你只画内容，并根据 `size` 调整布局：`sm` 是半宽小卡片，`md` 占满一行，`lg` 是大号主卡片。
-- 用 `host.useToolData(tool, args, { ttlMinutes })` 加载数据（见 [看板](/docs/concepts/dashboard#refresh-owned-by-the-host)），不要轮询。
-- 处理好 `status: 'loading'`（显示骨架屏）、没有数据（显示错误文字，并可用 `data.refresh()` 重试）和未登录这几种状态。
-- `config` 由 Agent 或用户选择，并用 `configSchema` 校验。每个字段用 `.describe()` 写说明，并在 `description` 里提到它们（“config.names limits it to certain canteens”）。
-- 每个小组件都挂在一个错误边界里，崩溃时只显示一条提示，不会拖垮整个看板。
+小组件是看板上的一张卡片。编写时请注意以下几点：
+
+- 卡片的外框由看板绘制，包括标题、背景、数据更新时间和长按菜单。你只需要绘制内容，并根据 `size` 调整布局：`sm` 是半宽的小卡片，`md` 占满一行，`lg` 是大号主卡片。
+- 用 `host.useToolData(tool, args, { ttlMinutes })` 加载数据（见[看板](/docs/concepts/dashboard#refresh-owned-by-the-host)）。刷新时机由 App 决定，所以不要轮询。
+- 处理好三种状态。`status` 为 `'loading'` 时显示骨架屏；没有数据时显示错误文字，并让用户可以通过 `data.refresh()` 重试；还要处理未登录的情况。
+- 小组件的 `config` 由助手或用户选择，并用 `configSchema` 校验。每个字段用 `.describe()` 写说明，并在 `description` 里提到这些字段（「config.names limits it to certain canteens」），这样助手才知道有哪些配置。
+- 每个小组件都放在一个错误边界（error boundary）里。即使它崩溃，看板也只在它的位置显示一条提示，其他小组件照常工作。
 
 ## 快捷指令 [#slash-commands]
 
 ```ts
 type CommandContribution = {
-  description: string;       // one line in the / menu
-  aliases?: string[];        // e.g. Chinese names: ['余额']
-  argHint?: string;          // placeholder; present = the command takes input
+  description: string;       // 在 / 菜单里显示的一行说明
+  aliases?: string[];        // 别名，例如中文名：['余额']
+  argHint?: string;          // 输入框占位提示；写了它，表示指令接受输入
 } & (
-  | { prompt: string }       // sent as the user's message; {{input}} is replaced
+  | { prompt: string }       // 作为用户消息发送；{{input}} 会被替换
   | { run: (input: string, ctx: { services: HostServices; navigate: (href: string) => void; locale: AppLocale }) => Promise<string | void> | string | void }
 );
 ```
 
-指令名只能用小写（`^[a-z][a-z0-9-]*$`）。重名时，框架会加上命名空间，变成 `/plugin:name`。`prompt` 指令把文字发给 Agent；`run` 指令在本地运行，返回的字符串作为提示显示在聊天里，不会发给模型。
+快捷指令是聊天输入框 `/` 菜单里的一项。指令名只能用小写字母、数字和连字符（`^[a-z][a-z0-9-]*$`）。如果两个插件用了同一个名字，App 会给它们加上插件 id 作为前缀，变成 `/plugin:name`。
+
+指令有两种。`prompt` 指令把一段文字发给助手，就像用户自己输入的一样。`run` 指令在设备上运行，它返回的字符串作为提示显示在聊天里，不会发给模型。
 
 ```ts
 commands: {
@@ -96,9 +104,11 @@ commands: {
 
 ## 标签页 [#tabs]
 
-框架有两个标签页位置：`dashboard` 和 `schedule`，分别由提供它们的已启用插件填充（目前是 `dashboard` 和 `schedule` 插件）。对话和设置两个标签页归框架自己所有。只有在你要替换这两个插件之一时，才需要提供标签页。
+App 有两个标签页位置：`dashboard` 和 `schedule`，分别由提供它们的已启用插件填充，目前是 `dashboard` 插件和 `schedule` 插件。对话和设置两个标签页属于 App 本身。只有在你要替换这两个插件之一时，才需要提供标签页。
 
 ## HostUI 要点 [#hostui-essentials]
+
+下面是 `host` 里最常用的成员：
 
 | 成员 | 用途 |
 | --- | --- |
@@ -108,7 +118,7 @@ commands: {
 | `host.useLocale()` | `'zh-Hans'` 或 `'en'` |
 | `host.navigate`、`back`、`dismiss`、`ask(text)` | 导航；`ask` 会切换到对话并发送一条消息 |
 | `host.haptics` | `tap`、`select`、`success`、`warning`（遵循用户设置） |
-| `host.useNow(ms)`、`formatAgo(ms)` | 定时刷新的当前时间、相对时间 |
+| `host.useNow(ms)`、`formatAgo(ms)` | 每隔 `ms` 更新一次的当前时间；相对时间 |
 | `host.useSecureDisplay({ brightness })` | 挂载期间禁止截屏（用于付款码） |
 | `host.useStoreVersion()` | 定时任务、待办、小组件或课表变化时重新渲染 |
 | `host.clipboard?`、`host.shareLink?` | 可选，使用前先判断是否存在 |
@@ -121,4 +131,4 @@ commands: {
 - **必须**把所有面向用户的文字放进 `strings.ts`，用 `host.useLocale()` 选择语言。
 - **必须**使用宿主图标集里的图标名：`card`、`wifi`、`book`、`bell`、`clock`、`location`、`sparkles`、`key`、`person`、`qr`、`warning`、`check`、`calendar`、`bus`、`food`、`wallet`、`library`、`room`、`school`、`ticket`、`medal`、`chart`、`search`、`globe`、`lock` 等（完整列表见 App 的 `src/components/icon.tsx`）。
 - **应当**给可点击的自定义内容加上 `accessibilityLabel`。
-- 文案：中文要简短，不用感叹号；英文用句首大写（sentence case），撇号用弯引号（’）。
+- 文案：中文要简短，不用感叹号；英文只有句首字母大写（sentence case），撇号用弯撇号（’）。

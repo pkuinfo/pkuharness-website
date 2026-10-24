@@ -3,26 +3,39 @@ title: cloud
 description: The plugin side of PKU Harness Cloud. CloudManifest, PluginCloud (store, channels, push, functions), Channel and its events, SecretLink, CloudStatus, CloudError and defineCloudFunction.
 ---
 
+PKU Harness Cloud is a set of optional cloud services. A plugin can use it to keep a small amount of
+data on a server, or to share content live through a relay with people who open a share link. This
+module defines the plugin side of it. A plugin declares the services it needs in its manifest and
+then calls them through a client that the host provides.
+
 Source: `packages/sdk/src/cloud.ts`. Guide: [Cloud → plugin guide](/en/docs/cloud/plugin-guide). Wire
 protocol: [`@pku-harness/cloud-protocol`](/en/docs/cloud/protocol-package) and the
 [API reference](/en/docs/cloud/api/meta).
 
-A plugin declares what it uses in `PluginDef.cloud` and gets a client bound to itself
-(`ctx.cloud`, `props.cloud`). The host keeps the device identity, tokens and keys, enforces the
-user's consent and the manifest, and talks to whichever provider the user picked (official,
-self-hosted or any URL). Your plugin never sees tokens, keys or provider credentials, and the agent
-never sees share links.
+## What the host keeps for your plugin [#what-the-host-keeps]
+
+A plugin declares the services it uses in `PluginDef.cloud` and gets a client bound to itself
+(`ctx.cloud`, `props.cloud`). The host keeps the device identity, tokens and keys. It checks that
+the user has given consent and that each call matches the plugin's manifest, and it talks to the
+provider the user picked. The provider can be the official server, a self-hosted server or any URL.
+
+Your plugin never sees tokens, keys or provider credentials, and the agent never sees share links.
 
 <Callout title="Host support">
   The app implements this client. `ctx.cloud` stays typed as optional (`PluginCloud | undefined`)
-  for hosts without cloud support, so check `ctx.cloud?.available`. `push` isn't offered yet: its
-  calls fail with `not_configured`. Server functions are off on the official server, which only
-  runs the relay and a small encrypted store, and the host refuses `functions.invoke` for an `e2e`
-  plugin because functions read their input in plaintext. Keep the work on the phone, or use your
-  own backend.
+  for hosts without cloud support, so check `ctx.cloud?.available` before using it.
+
+  `push` isn't offered yet, and its calls fail with `not_configured`. The official cloud instance
+  isn't deployed yet. Once it is, it will run only the relay and a small encrypted store, with
+  server functions switched off. Server functions also read their input in plaintext, so the host
+  refuses `functions.invoke` from a plugin that declares end-to-end encryption (`e2e`). Keep the
+  work on the phone when you can, and use your own backend when you really need a server.
 </Callout>
 
 ## CloudManifest
+
+`CloudManifest` is the manifest a plugin declares in `PluginDef.cloud`. It lists the services the
+plugin uses, what data leaves the device, and whether that data is end-to-end encrypted.
 
 ```ts
 type CloudService = 'store' | 'channels' | 'push' | 'files' | 'functions';
@@ -55,6 +68,8 @@ function defineCloudFunction<I extends z.ZodType, O extends z.ZodType>(d: CloudF
 ```
 
 ## PluginCloud
+
+`PluginCloud` is the client your plugin gets, and `CloudStatus` describes its current state.
 
 ```ts
 interface PluginCloud {
@@ -103,6 +118,9 @@ interface CloudStatus {
 ```
 
 ## Channel
+
+A channel is for live sharing. Your plugin opens a channel and gives someone its share link. Each
+person who opens the link becomes a peer of the channel.
 
 ```ts
 interface Channel {
@@ -167,6 +185,8 @@ class CloudError extends Error {
 
 function isCloudError(e: unknown, code?: CloudErrorCode): e is CloudError;
 ```
+
+The error codes mean the following:
 
 | Code | When |
 | --- | --- |

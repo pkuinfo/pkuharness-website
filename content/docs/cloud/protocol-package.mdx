@@ -4,11 +4,15 @@ description: '@pku-harness/cloud-protocol：App、服务商和查看页共用的
 icon: Package
 ---
 
-`@pku-harness/cloud-protocol` 是纯 TypeScript 实现，可以在 Hermes、Bun 和浏览器里运行。App、参考服务器和查看页引用的是同一份代码，所以线上格式和加密方式不会各自跑偏。依赖：`@noble/ciphers`、`@noble/curves` 和 `@noble/hashes`（锁定版本），peer 依赖 `zod ^4`。插件一般用不到它，因为云服务的活由宿主替插件干；服务器和查看页才需要引用它。
+`@pku-harness/cloud-protocol` 是云服务协议的公共实现，包含线上数据的 schema、接口路径、加密、分享链接、工作量证明和 token 挑战。如果你在编写云服务的服务器，或者为插件编写查看页，就会用到它。
 
-它位于 [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) 的 `packages/cloud-protocol`，没有发布到 npm。你可以在仓库检出里直接使用（workspace 包 `@pku-harness/cloud-protocol`），也可以把 `src/` 目录复制进你的服务器或页面构建中。
+这个包用纯 TypeScript 编写，可以在 Hermes（React Native 的 JavaScript 引擎）、Bun 和浏览器里运行。App、参考服务器和查看页引用的是同一份代码，所以三者的线上格式和加密方式始终一致。它依赖 `@noble/ciphers`、`@noble/curves` 和 `@noble/hashes`（锁定版本），并把 `zod ^4` 作为 peer 依赖。插件一般不需要引用它，因为宿主会替插件完成云服务相关的工作。
+
+它位于 [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) 仓库的 `packages/cloud-protocol` 目录，没有发布到 npm。你可以在仓库检出里直接使用它（workspace 包名为 `@pku-harness/cloud-protocol`），也可以把 `src/` 目录复制到你的服务器或页面项目中。
 
 ## 模块 [#modules]
+
+下表列出各模块的导出：
 
 | 模块 | 导出 |
 | --- | --- |
@@ -19,9 +23,11 @@ icon: Package
 | `auth.ts` | `signAuthChallenge`、`verifyAuthChallenge`、`authChallengeBytes`、`normaliseAudience`、`AUTH_CONTEXT`、`AUTH_MAX_SKEW_MS`（5 分钟）、`AUTH_NONCE_BYTES`（16）、`TOKEN_TTL_S`（600） |
 | `bytes.ts` | `toB64url`、`fromB64url`、`isB64url`、`utf8`、`fromUtf8`、`concatBytes`、`equalBytes`、`toHex` |
 
-线上约定：二进制数据用不带填充的 base64url；时间默认是 Unix 毫秒，字段名以 `S` 结尾的是秒；解析时会丢弃未知的键。
+线上数据遵循以下约定：二进制数据使用不带填充的 base64url 编码；时间默认是 Unix 毫秒，字段名以 `S` 结尾的则是秒；解析时会丢弃未知的键。
 
-## 查看页：加入通道并解密 [#viewer-page-join-a-channel-and-decrypt]
+## 示例：查看页加入通道并解密 [#viewer-page-join-a-channel-and-decrypt]
+
+下面的代码运行在查看页里。它从 URL 读出通道 id 和密钥，加入通道，然后解密收到的每一帧。
 
 ```ts
 import {
@@ -39,14 +45,14 @@ import {
   viewerPeerKey,
 } from '@pku-harness/cloud-protocol';
 
-// after GET /s/<id> the page is at /w/<plugin>/<page>?c=<id>#k=<secret>
+// 访问 GET /s/<id> 之后，页面位于 /w/<plugin>/<page>?c=<id>#k=<secret>
 const channelId = new URLSearchParams(location.search).get('c')!;
 const k = parseKeyFragment(location.hash);
 if (!k) throw new Error('link has no key');
 const { authKey, encKey } = deriveShareKeys(k);
 
 const info = channelInfoResponse.parse(await (await fetch(paths.publicChannel(channelId))).json());
-const meta = open(encKey, info.meta);          // the owner's sealed meta (validate it!)
+const meta = open(encKey, info.meta);          // 机主加密过的 meta（使用前务必校验）
 
 const me = generateBoxKeyPair();
 const joined = joinResponse.parse(
@@ -67,19 +73,23 @@ ws.onmessage = (ev) => {
 };
 ```
 
-参考服务器会把 `/s/<id>` 重定向到 `/w/<plugin>/<page>?c=<id>`。浏览器会自动在重定向后保留 `#k=` 片段，服务器全程看不到它。不支持 WebSocket 的内置浏览器改用 `GET /v1/c/{id}/events?t=`（SSE）和 `POST /v1/c/{id}/send`。完整的查看页可以参考 `plugins/card-share/web`（移植自 pkubdcard 的界面）。
+参考服务器会把 `/s/<id>` 重定向到 `/w/<plugin>/<page>?c=<id>`。浏览器在重定向后会自动保留 `#k=` 这段 URL 片段，而片段不会发给服务器，所以服务器始终看不到密钥。
 
-## 服务器：校验 token 请求 [#server-verify-a-token-request]
+有些应用内置的浏览器不支持 WebSocket。这时改用 `GET /v1/c/{id}/events?t=`（服务器推送事件，Server-Sent Events，SSE）接收数据，用 `POST /v1/c/{id}/send` 发送数据。完整的查看页可以参考 `plugins/card-share/web`，它的界面移植自 pkubdcard。
+
+## 示例：服务器校验 token 请求 [#server-verify-a-token-request]
+
+下面的代码运行在服务器上。设备用签名挑战换取 token 时，服务器先校验签名和时间，再检查 nonce 是否被用过，最后签发 token。
 
 ```ts
 import { authTokenRequest, fromB64url, verifyAuthChallenge } from '@pku-harness/cloud-protocol';
 
 const body = authTokenRequest.parse(await req.json());
-const device = await db.device(body.deviceId);           // stored signPub
+const device = await db.device(body.deviceId);           // 注册时保存的 signPub
 const check = verifyAuthChallenge(body, fromB64url(device.signPub), { aud: 'https://cloud.example.org' });
 if (!check.ok) return error(401, 'unauthorized', check.reason);
 if (await nonces.seen(body.nonce)) return error(401, 'unauthorized', 'replay');
-// issue a token with claims { sub: deviceId, plg: plugin, svc: services, iat, exp: iat + 600_000 }
+// 签发 token，声明为 { sub: deviceId, plg: plugin, svc: services, iat, exp: iat + 600_000 }
 ```
 
 全部接口见 [API 参考](/docs/cloud/api/meta)。

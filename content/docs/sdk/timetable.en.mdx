@@ -1,10 +1,17 @@
 ---
 title: timetable
-description: The Course and Semester types and pure timetable helpers for weeks expressions, teaching weeks, classes on a date, class status and class reminder triggers.
+description: The Course and Semester types for timetable data, and pure helpers that parse weeks expressions, find the teaching week, list the classes on a date, report class status and build class reminder triggers.
 ---
 
-Source: `packages/sdk/src/timetable.ts`. You get the data from `services.timetable`. Weekdays use
-JavaScript numbering: **0 = Sunday … 6 = Saturday**.
+This module describes timetable data and provides helper functions for working with it. Use it
+when your plugin shows today's classes, works out the current teaching week, or sets a reminder
+before a class. You get the timetable data itself from `services.timetable`.
+
+Source: `packages/sdk/src/timetable.ts`.
+
+Weekdays use JavaScript numbering: **0 = Sunday … 6 = Saturday**.
+
+## Types [#types]
 
 ```ts
 type Course = {
@@ -27,7 +34,7 @@ type Semester = { name: string; start: string /* "YYYY-MM-DD" */; weeks: number 
 
 ## Functions
 
-All of these are pure and unit-tested.
+All of these are pure functions, and all have unit tests.
 
 ```ts
 /**
@@ -61,7 +68,10 @@ function classStatus(c: Course, now: Date): { state: 'before' | 'ongoing' | 'aft
 function courseReminderTrigger(c: Course, minutesBefore: number, sem: Semester | null, now?: number): Trigger;
 ```
 
-For irregular week lists, `courseReminderTrigger` uses the full span from the first to the last week.
+If a course meets in irregular weeks, `courseReminderTrigger` covers the whole span from its first
+week to its last week.
+
+## Example [#example]
 
 ```ts
 const { courses, semester } = ctx.services.timetable.get();

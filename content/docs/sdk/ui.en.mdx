@@ -1,11 +1,18 @@
 ---
 title: ui
-description: 'HostUI (components, theme, navigation, haptics, live data hooks), the props that screens and widgets receive, and every contribution type (screens, Settings rows, tabs, widgets, commands).'
+description: 'Types for plugin UI: the props that screens and widgets receive, HostUI (components, theme, navigation, haptics, live data hooks) and every contribution type (screens, Settings rows, tabs, widgets, commands).'
 ---
+
+A plugin can add its own UI to the app, such as a screen, a Settings row or a dashboard widget.
+This UI is written in React, and the host provides the components, theme and data hooks it needs
+through `HostUI`. This page lists every UI-related type.
 
 Source: `packages/sdk/src/ui.ts`. Guide: [UI contributions](/en/docs/build/ui).
 
 ## Props
+
+The host passes `PluginScreenProps` when it renders one of the plugin's screens, and
+`PluginWidgetProps` when it renders one of its widgets.
 
 ```ts
 interface PluginScreenProps {
@@ -33,6 +40,9 @@ interface PluginWidgetProps {
 ```
 
 ## HostUI
+
+`HostUI` is the `host` in the props. It provides the host's components, haptics and navigation, and
+hooks that read the theme, the current time, the language and live data.
 
 ```ts
 type AppLocale = 'zh-Hans' | 'en';
@@ -75,6 +85,9 @@ interface HostUI {
 
 ## LiveData
 
+`useToolData`, `useWidgetData` and `useBindings` return `LiveData`. It holds the current value, the
+loading state and the most recent error.
+
 ```ts
 interface LiveData<T = unknown> {
   /** 'loading' only before the first value; afterwards errors keep the last value. */
@@ -91,13 +104,18 @@ interface LiveData<T = unknown> {
 }
 ```
 
-Live data is stale-while-revalidate. The last value is kept across launches and shows immediately.
-The host refetches when that value is older than its TTL, when the screen gets focus, when the app
-comes back to the foreground, once per TTL while the screen is visible, and when you call
-`refresh()`. Widgets, screens and scheduled checks that ask for the same tool with the same args
-share one request and one cache entry.
+Live data is stale-while-revalidate: the cached value shows first while a fresh one is fetched in
+the background. The last value is kept across app launches, so it shows as soon as the screen opens.
+
+Each value has a cache lifetime, its time to live (TTL). The host refetches when the value is older
+than its TTL, when the screen gets focus, when the app comes back to the foreground, once per TTL
+while the screen is visible, and when you call `refresh()`. Widgets, screens and scheduled checks
+that ask for the same tool with the same arguments share one request and one cache entry.
 
 ## HostTheme
+
+`host.useTheme()` returns the current theme. Use its colors, spacing, radii and text styles instead
+of hard-coded values, so that your UI follows the light and dark themes.
 
 ```ts
 type TextVariant = 'display' | 'title' | 'headline' | 'body' | 'bodyStrong' | 'callout' | 'caption' | 'micro' | 'numberXL' | 'numberL' | 'numberM';
@@ -169,7 +187,7 @@ interface HostComponents {
 | `Screen` | Root of a pushed screen: a header with title, back button and optional trailing element, plus pull-to-refresh. |
 | `SheetScreen` | Form sheet layout for modal screens: title and close button, a scrolling body, a primary action and optional secondary / danger actions. |
 | `Pressable` | Tappable container with the app's press feedback. |
-| `Hourglass` | Drains over `period` seconds aligned to Unix time (a TOTP window, for example) and flips at each boundary. |
+| `Hourglass` | Drains over `period` seconds aligned to Unix time and flips at each boundary, for example once per refresh window of a time-based one-time password (TOTP). |
 | `GenUI` | Renders a [generative UI spec](/en/docs/sdk/genui) with the host catalog. |
 | `SortableList` | Vertical list that the user reorders by dragging a handle. The plugin renders the rows. |
 | `PluginWidget` | Mounts a widget contributed by a plugin. Errors stay inside the widget, and it shows a notice if that plugin is off. |
@@ -177,6 +195,9 @@ interface HostComponents {
 | `QRCode` | Dark on white in every theme. `link` encodes a share link the plugin itself can't read, and wins over `value` when both are set. |
 
 ## Contributions
+
+A plugin declares the UI it adds to the app in `PluginDef.contributes`, whose type is
+`Contributions`.
 
 ```ts
 interface Contributions {
@@ -241,7 +262,10 @@ type CommandContribution = {
 );
 ```
 
-A plugin widget gets placed by the agent (`dashboard.addPluginWidget`) or by the user from the
-dashboard's widget gallery. Load its data with `host.useToolData` so it refreshes like every other
-widget; the dashboard draws the card chrome (title, background). Command names only get a
-`/plugin:name` prefix when two plugins pick the same name.
+A plugin widget can be added by the agent through `dashboard.addPluginWidget`, or by the user from
+the dashboard's widget gallery. Load the widget's data with `host.useToolData`, so that it refreshes
+the same way as every other widget. The dashboard draws the card's frame (title and background),
+and the widget draws only its content.
+
+Command names are normally used as they are. A command gets a `/plugin:name` prefix only when two
+plugins pick the same name.

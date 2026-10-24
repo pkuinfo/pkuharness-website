@@ -1,14 +1,20 @@
 ---
 title: Tools and effects
-description: Tools are a plugin's only API. Each one has an id, a title, a description for the model, a zod input schema and exactly one effect (read, write, money, public).
+description: Tools are the only way a plugin offers features. Each tool has an id, a title, a description for the model, a zod input schema and exactly one effect (read, write, money or public).
 icon: Wrench
 ---
 
-A **tool** is one typed operation. The agent calls it during a conversation, a screen calls it when
-the user taps (`invoke`), a widget reads it (`host.useToolData`), and a scheduled check runs it.
-Nothing else reaches into a plugin's capabilities, so a tool's definition is its API.
+A **tool** is one typed operation that a plugin provides, such as "check the campus-card balance"
+or "create a reminder".
 
-## Anatomy
+The same tool can be used in four ways. The agent calls it during a conversation. A screen calls
+it with `invoke` when the user taps. A widget reads it with `host.useToolData`. A scheduled check
+runs it. There is no other way to use a plugin's features, so the tools a plugin defines are
+exactly the features it offers.
+
+## Anatomy of a tool [#anatomy]
+
+Here is the definition of the campus-card balance tool.
 
 ```ts
 import { defineTool } from '@pku-harness/sdk';
@@ -26,75 +32,100 @@ const cardBalance = defineTool({
 });
 ```
 
-| Field | Rule |
-| --- | --- |
-| `title` | Chinese, short, shown to users. Add the English title in `i18n.en.tools.<name>.title`. |
-| `description` | For the model: **when** and **how** to use the tool, units, formats, limits. English or Chinese. Never translated. May be a function of host services (`Dynamic<string>`). |
-| `input` | A zod schema. Use `.describe()` on fields; the model sees the JSON Schema. |
-| `effect` | Exactly one of the four effects below. Be honest. |
-| `untrusted` | `true` when the result contains text written by third parties (forum posts, notices, event blurbs). |
-| `userOnly` | `true` for gates the agent must not open itself; the tool is hidden from the model and refused for agent and scheduler calls. |
-| `execute` | `(input, ctx) => Promise<output>`. Throw an `Error` with a clear, user-readable message on failure. |
+The rules for each field are as follows.
+
+- **`title`** is a short Chinese title shown to users. Put the English title in
+  `i18n.en.tools.<name>.title`.
+- **`description`** is written for the model. It tells the model **when** and **how** to use the
+  tool, and gives units, formats and limits. You can write it in English or Chinese, and it is
+  never translated. It can also be a function of host services (`Dynamic<string>`).
+- **`input`** is a zod schema. Add `.describe()` to each field, because the model sees the JSON
+  Schema generated from it.
+- **`effect`** is the tool's effect, one of the four in the next section. Choose it honestly.
+- **`untrusted`** is `true` when the result contains text written by third parties, such as forum
+  posts, notices or event descriptions.
+- **`userOnly`** is `true` for an action that only the user may start and the agent must not open
+  itself. The tool is hidden from the model, and calls from the agent or the scheduler are
+  refused.
+- **`execute`** has the form `(input, ctx) => Promise<output>`. On failure, throw an `Error` with a
+  clear message that the user can understand.
 
 ## Ids and names
 
-- Tool id: `<plugin id>.<tool name>`, e.g. `wallet.cardBalance`, `scheduler.create`. Use ids in
-  code: `invoke('memory.list')`, `host.useToolData('wallet.cardBalance')`, check jobs, widget
-  bindings.
-- Model-facing name: the id with the first `.` replaced by `__`, e.g. `wallet__cardBalance`.
-  Model APIs don't allow dots in tool names. Use this form when your `instructions` or
-  descriptions mention a tool (`"use canteen__openNow for …"`).
-- Remote plugins: `mcp-<server>.<tool>` / `mcp-<server>__<tool>`.
+A tool is written in two ways, one for code and one for the model.
 
-## Effects
+The **tool id** has the form `<plugin id>.<tool name>`, for example `wallet.cardBalance` or
+`scheduler.create`. Code always uses ids, for example in `invoke('memory.list')`,
+`host.useToolData('wallet.cardBalance')`, check jobs and widget bindings.
 
-| Effect | Means | Examples |
+The **name the model sees** is the id with its first `.` replaced by `__`, for example
+`wallet__cardBalance`. This is because model APIs don't allow dots in tool names. When your
+`instructions` or descriptions mention a tool, use this form, for example
+`"use canteen__openNow for …"`.
+
+For **remote plugins**, the tool id is `mcp-<server>.<tool>` and the model sees
+`mcp-<server>__<tool>`.
+
+## The four effects [#effects]
+
+An _effect_ describes what a tool changes. Each tool has exactly one effect.
+
+| Effect | Meaning | Examples |
 | --- | --- | --- |
-| `read` | Reads data, changes nothing anywhere | balance, timetable, search, list |
-| `write` | Changes state (on the device or a service) | add a to-do, create a reminder, follow a post, book a room |
+| `read` | Reads data and changes nothing | balance, timetable, search, list |
+| `write` | Changes state on the phone or on a service | add a to-do, create a reminder, follow a post, book a room |
 | `money` | Spends or moves money, or makes a payment possible | recharge the card, create a payment order, switch to the digital card for payment |
-| `public` | Publishes something others can see | post or reply on Treehole |
+| `public` | Publishes something that other people can see | post or reply on Treehole |
 
-Pick the **strongest** effect that applies. A tool that posts publicly and also writes local state
-is `public`. Effects drive [permissions](/en/docs/concepts/permissions): for each plugin and each
-effect, the user decides whether the agent may act directly, must ask, or may not act at all.
+If more than one effect applies, pick the **strongest**. For example, a tool that posts publicly
+and also changes local state has the effect `public`.
+
+Effects decide [permissions](/en/docs/concepts/permissions). For each effect of each plugin, you
+choose whether the agent may act directly, must ask first, or may not act at all.
 
 <Callout title="Scheduled runs only read">
-  A scheduled job runs with nobody watching, so the scheduler refuses every non-`read` tool, no
-  matter what the user's modes say. Only mark a tool `read` if it really changes nothing.
-  Otherwise checks built on it will mislead users.
+  Nobody is watching when a scheduled job runs. For this reason, the scheduler refuses every tool
+  whose effect is not `read`, whatever modes you have set. Only mark a tool `read` if it really
+  changes nothing. Otherwise, scheduled checks built on it will mislead users.
 </Callout>
 
-## Actors
+## Who calls a tool [#actors]
 
-`ctx.actor` tells you who called:
+`ctx.actor` tells the tool who made the call. There are three kinds of caller.
 
 | Actor | When | Approval |
 | --- | --- | --- |
-| `user` | A screen or widget called `invoke(...)` in response to a tap | Never asked: the tap is the intent |
-| `agent` | The model called the tool in a chat turn | Asked when the effect's mode is `ask` |
-| `scheduler` | A scheduled check or agent job | Only `read` tools; an `ask` mode means declined |
+| `user` | A screen or widget called `invoke(...)` after a tap | Never asked |
+| `agent` | The model called the tool during a conversation | Asked when the effect's mode is `ask` |
+| `scheduler` | A scheduled check or agent job | Only `read` tools are allowed |
 
-For agent calls inside a chat turn, `ctx.turn` is set to `{ sessionId, tainted, userAsked }`. See
-[Security model](/en/docs/concepts/security#prompt-injection).
+A call from the user is never questioned, because the tap itself shows what the user wants. When
+the scheduler meets a tool whose mode is `ask`, it treats the call as declined.
 
-## Results
+When the agent calls a tool during a conversation, `ctx.turn` is set to
+`{ sessionId, tainted, userAsked }`. The [security model](/en/docs/concepts/security#prompt-injection)
+explains what `tainted` means.
 
-- Return plain JSON that answers the question. Put units in field names (`balanceYuan`,
-  `minutesUntil`), use ISO or `"YYYY-MM-DD HH:mm"` local times, and include ids the model can pass
-  to the next tool.
-- Don't return instructions ("Now tell the user…"). The model sees results as data.
-- Keep results small. The harness caps a result at 12,000 characters in the model history (the UI
-  keeps the full output), so page or filter instead of dumping everything.
-- For an expected, recoverable state, return a status object instead of throwing, e.g.
-  `{ status: 'verification_required', methods: ['sms'], message: '…' }` (Treehole's SMS check).
-- Never return secrets: payment codes, tokens, share links. The campus-card payment code only ever
-  appears on a screen, never in a tool result.
+## How to return results [#results]
+
+- **Return JSON that answers the question directly.** Put units in field names, such as
+  `balanceYuan` and `minutesUntil`. Write times in ISO format or as local time
+  `"YYYY-MM-DD HH:mm"`. If the model may need to pass an id to the next tool, include the id.
+- **Don't return instructions** such as "Now tell the user…". The model treats results as data.
+- **Keep results small.** In the model's history, the harness cuts each result to 12,000
+  characters, while the UI keeps the full output. Page or filter the data instead of returning all
+  of it at once.
+- **For an expected state that the user can recover from, return a status object instead of
+  throwing.** For example, when Treehole needs an SMS check, return
+  `{ status: 'verification_required', methods: ['sms'], message: '…' }`.
+- **Never return secrets**, such as payment codes, tokens or share links. The campus-card payment
+  code is only ever shown on a screen, never in a tool result.
 
 ## Data sources
 
-`PluginDef.dataSources` lists read tools that work well for widgets and scheduled checks, each with
-a cache lifetime. The agent finds them with `dashboard.sources`.
+Some read tools work well for widgets and scheduled checks. A plugin lists these tools in
+`PluginDef.dataSources` and gives each one a cache lifetime. The agent finds them with
+`dashboard.sources`.
 
 ```ts
 dataSources: {
@@ -102,4 +133,4 @@ dataSources: {
 },
 ```
 
-`tool` is the tool name inside this plugin; `args` are fixed arguments.
+`tool` is the name of a tool inside this plugin. Fixed arguments, if any, go in `args`.

@@ -1,7 +1,11 @@
 ---
 title: plugin
-description: 'The plugin contract: definePlugin, defineTool, PluginDef, ToolDef, ToolContext, effects, actors, capabilities, KV, turn info, data sources, model providers, translations and legacy ids.'
+description: 'Every type you use to define a plugin: definePlugin, defineTool, PluginDef, ToolDef, ToolContext, effects, actors, capabilities, KV, turn info, data sources, model providers, translations and legacy ids.'
 ---
+
+Every bundled plugin exports one object defined with `definePlugin`. It states the plugin's name,
+the capabilities it needs, the tools it offers, its screens and so on. This page lists every field
+of that object and of a tool, and the context a tool receives when it runs.
 
 Source: `packages/sdk/src/plugin.ts`.
 
@@ -16,6 +20,8 @@ Both return their argument unchanged. They exist for type checking: `defineTool`
 `execute`'s input from the zod `input` schema.
 
 ## PluginDef
+
+`PluginDef` is the plugin object itself. The full type comes first, then each field.
 
 ```ts
 interface PluginDef {
@@ -51,7 +57,7 @@ interface PluginDef {
     core: { type: 'boolean', description: 'Part of the harness experience: always on, cannot be disabled.' },
     requires: { type: 'Capability[]', description: 'What the plugin needs from the device; unmet requirements hide it.' },
     cloud: { type: 'CloudManifest', description: "PKU Harness Cloud use. Without `optional: true`, also list 'cloud' in `requires`." },
-    remote: { type: '{ url: string; server: string }', description: 'Set by the host for installed remote (MCP) plugins. Never set it yourself.' },
+    remote: { type: '{ url: string; server: string }', description: 'Set by the host for installed remote plugins, which connect through the Model Context Protocol (MCP). Never set it yourself.' },
     defaultModes: { type: "Partial<Record<ToolEffect, 'auto' | 'ask' | 'off'>>", description: 'Default per-effect modes; the user can change them.', default: 'all auto' },
     scopes: { type: 'string[]', required: true, description: 'Campus services or hosts this plugin talks to, shown to the user.' },
     tools: { type: 'Record<string, ToolDef>', required: true, description: 'The API. Keys are tool names.' },
@@ -66,6 +72,9 @@ interface PluginDef {
 />
 
 ## ToolDef
+
+A tool is a function that a plugin offers to the agent, the user and the scheduler. Each entry in
+`tools` is a `ToolDef`.
 
 ```ts
 interface ToolDef<I extends z.ZodType = z.ZodType, O = unknown> {
@@ -85,13 +94,16 @@ interface ToolDef<I extends z.ZodType = z.ZodType, O = unknown> {
     description: { type: 'Dynamic<string>', required: true, description: 'Written for the model: when and how to use this tool. A function can read host info.' },
     input: { type: 'z.ZodType', required: true, description: 'Validated by the host before `execute` runs.' },
     effect: { type: 'ToolEffect', required: true, description: "'read' | 'write' | 'money' | 'public'." },
-    untrusted: { type: 'boolean', description: "Returns third-party text. Calling it taints the agent's turn. Remote plugins' tools always count." },
+    untrusted: { type: 'boolean', description: "The tool returns text written by third parties. Calling it marks the agent's turn as tainted. Tools of remote plugins always count as untrusted." },
     userOnly: { type: 'boolean', description: 'Only the user can run it from a screen: not offered to the model; agent and scheduler calls are refused.' },
     execute: { type: '(input: z.infer<I>, ctx: ToolContext) => Promise<O>', required: true, description: 'Does the work. Throw an Error with a user-readable message on failure.' },
   }}
 />
 
 ## ToolContext
+
+When the host calls `execute`, it passes a second argument, `ctx`. It tells you who is calling
+(`actor`) and gives you the plugin's private key-value store `kv` and the host services `services`.
 
 ```ts
 interface ToolContext {
@@ -126,6 +138,10 @@ interface KV {
 
 ## Effects and capabilities
 
+An effect (`ToolEffect`) says what a tool's call can lead to, and the host uses it to decide whether
+to ask the user before the call. A capability (`Capability`) is something the plugin needs the
+device to provide.
+
 ```ts
 type ToolEffect = 'read' | 'write' | 'money' | 'public';
 
@@ -145,12 +161,19 @@ See [Tools and effects](/en/docs/concepts/tools-and-effects) and [Capabilities](
 
 ## Dynamic values
 
+Some fields, such as `instructions` and a tool's `description`, can be a fixed value or a function.
+A function is called when the host builds the prompt and receives `HostServices`, so it can produce
+content from the current state. `resolveDynamic` evaluates either form.
+
 ```ts
 type Dynamic<T> = T | ((services: HostServices) => T);
 function resolveDynamic<T>(value: Dynamic<T>, services: HostServices): T;
 ```
 
 ## DataSourceDef
+
+A data source points at a read tool in the plugin that suits widgets and scheduled checks, with the
+arguments `args` and the cache lifetime `ttlMs`.
 
 ```ts
 interface DataSourceDef {
@@ -164,6 +187,8 @@ interface DataSourceDef {
 
 ## Request context
 
+`PluginDef.context` is called before each chat turn and receives a `ContextInput`.
+
 ```ts
 interface ContextInput {
   /** The user's latest message. */
@@ -176,10 +201,14 @@ interface ContextInput {
 const CONTEXT_MARK = { deleted: '[已删除]', corrected: '[更正]', arrow: ' → ' } as const;
 ```
 
-The host appends `- [已删除] old` and `- [更正] old → new` lines once, and only to chats whose
-history still shows `old`. Fact texts must not contain the arrow.
+When a fact is deleted or corrected, the host appends a line such as `- [已删除] old` or
+`- [更正] old → new`. It does so once, and only in chats whose history still shows `old`. For this
+reason, fact texts must not contain the arrow.
 
 ## PluginTranslation
+
+The names, descriptions and titles in a plugin's manifest are written in Chinese by default.
+`i18n.en` uses this type to supply English versions. Fields you leave out keep the Chinese text.
 
 ```ts
 type PluginTranslation = {
@@ -211,12 +240,15 @@ interface PluginLegacy {
 }
 ```
 
-Use this after merging or renaming plugins. The host maps old plugin ids (settings, screens
+Use this to keep old ids working after you merge or rename plugins. The host maps old plugin ids (settings, screens
 `/p/<old>/…`, widgets) and old tool ids to the new plugin, rewrites stored widgets and checks once,
-and carries settings over, keeping the strictest mode per effect. A legacy id never shadows a plugin
-that is actually installed.
+and carries settings over, keeping the strictest mode for each effect. If a plugin with an old id is
+actually installed, the host uses that plugin; the legacy mapping never hides it.
 
 ## Model providers
+
+A model provider supplies the language model for the agent, for example DeepSeek or any service
+with an OpenAI-compatible API. A plugin describes each provider in `providers` with a `ProviderDef`.
 
 ```ts
 type ProviderAuth = 'apiKey' | 'account' | 'none';
@@ -274,8 +306,9 @@ interface ProviderBalance { currency: string; total: number; granted?: number; t
 interface ProviderAccount { available: boolean; balances: ProviderBalance[] }
 ```
 
-A provider plugin is an ordinary plugin with `providers` set, usually with no tools. The real ones are
-`plugins/deepseek/src/index.ts` and `plugins/openai-compatible/src/index.ts` in the plugins repo.
+A provider plugin is an ordinary plugin with `providers` set, and it usually has no tools. Below is
+a minimal example. For the provider plugins in real use, see `plugins/deepseek/src/index.ts` and
+`plugins/openai-compatible/src/index.ts` in the plugins repository.
 
 ```ts
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';

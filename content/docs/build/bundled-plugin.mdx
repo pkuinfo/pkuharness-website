@@ -1,18 +1,24 @@
 ---
 title: 内置插件
-description: 用 definePlugin 编写随 App 一起发布的插件，通过一个完整示例走一遍工具、数据源、页面、设置项、小组件、快捷指令、英文文案和测试。
+description: 用 definePlugin 编写随 App 一起发布的插件。本页通过一个完整示例，依次介绍工具、数据源、页面、设置项、小组件、快捷指令、英文文字和测试。
 icon: Package
 ---
 
-内置插件（bundled plugin）是 `pku-harness-plugins/plugins/<id>` 下的一个 TypeScript 模块，只依赖 `@pku-harness/sdk`。它在手机上运行，只通过宿主服务（host services）和 App 打交道，可以添加原生界面。内置插件跟随 App 版本一起发布，所以**请先开一个 issue**：说明插件做什么，以及为什么不能写成插件文档或远程插件。
+内置插件（bundled plugin）是 `pku-harness-plugins/plugins/<id>` 下的一个 TypeScript 模块，只依赖 `@pku-harness/sdk`。它在手机上的 App 内部运行，只能通过「宿主服务」（host services）访问 App 的其他部分。宿主服务是 App 传给每个插件的一组对象，用于发起校园请求、发送通知、管理待办和定时任务等。和插件文档不同，内置插件可以添加原生界面。
+
+内置插件只能随 App 版本发布，所以**请先开一个 issue**，说明插件做什么，以及为什么不能写成插件文档或远程插件。
 
 <Callout title="大多数校园服务已经改用插件文档">
-  TypeScript 只用于框架自身的功能（界面、看板、定时任务、待办、日程、课表、记忆、插件管理、模型服务商、身份验证器、付款码页面），以及插件语言暂时表达不了的集成。官方的校园服务集成 classrooms、campus-events、grades、canteen、shuttle 和 notices 都是随 App 内置的[插件文档](/docs/build/declarative-plugins)，其余的正在迁移。如果你的插件只是请求校内或公开接口再提取数据，请改写 `PLUGIN.md`。如果它需要插件语言还没有的功能，请提议新增一个宿主能力（ability）。
+  TypeScript 用于 App 自身的功能：界面、看板、定时任务、待办、日程、课表、记忆、插件管理、模型服务商、身份验证器和付款码页面。插件语言暂时表达不了的接入也用 TypeScript。官方的校园接入 classrooms、campus-events、grades、canteen、shuttle 和 notices 都是随 App 内置的[插件文档](/docs/build/declarative-plugins)，其余的正在迁移。如果你的插件只是向校内或公开接口发请求、再提取数据，请改写 `PLUGIN.md`。如果它需要插件语言还没有的功能，请提议新增一项宿主能力（ability）。
 </Callout>
 
-本页从头写一个完整的插件 `focus`：记录专注时段，显示今天一共专注了多久。它不依赖任何外部服务，可以直接运行。如果要对接校园服务，把其中的存储调用换成 `ctx.services.campus.request(...)` 即可（见 [校园会话](/docs/concepts/campus-sessions)）。
+本页从头编写一个完整的插件 `focus`。它记录专注时段（比如做一小时作业），并显示你今天一共专注了多少分钟。这个插件不调用任何外部服务，可以直接运行。如果要对接校园服务，就把其中的存储调用换成 `ctx.services.campus.request(...)`（见[校园会话](/docs/concepts/campus-sessions)）。
+
+你需要 bun，并了解 TypeScript 和一些 React Native。第 1 到第 6 步都在你电脑上的插件仓库里完成，最后一节会在模拟器或手机上的 App 里运行这个插件。
 
 ## 目录结构 [#layout]
+
+插件放在 `plugins/` 下自己的文件夹里。除此之外，你还要修改两个共用文件：内置插件列表 `plugins/index.ts`，以及 `registry/registry.json`。
 
 <Files>
   <Folder name="pku-harness-plugins" defaultOpen>
@@ -57,11 +63,13 @@ icon: Package
 }
 ```
 
-插件工作区会把 `@pku-harness/sdk` 解析到 `packages/sdk/src`。所有包都是私有的，不会发布到 npm。添加其他运行时依赖之前请先和我们商量，因为所有代码都会打进 App 的安装包。
+每个插件都是插件工作区里的一个包，工作区会把 `@pku-harness/sdk` 解析到 `packages/sdk/src`。所有包都是私有的，不会发布到 npm。依赖写成 peer dependencies，因为它们由 App 提供。添加其他运行时依赖之前，请先和我们商量，因为所有代码都会打进 App 的安装包，让它变大。
 
 ## 2. 先写纯逻辑 [#2-pure-logic-first]
 
-不依赖 React Native 的逻辑放在普通模块里，这样 `bun test` 就能覆盖到。
+先写不依赖 React Native 的逻辑，放在普通模块里。导入了 `react-native` 的模块，不做 mock 的话 `bun test` 无法加载，所以把逻辑分开写，测试起来就很方便。
+
+这里的 `store.ts` 把专注时段保存在插件的键值（KV）存储里，并计算今天的分钟数。`minutesOn` 是一个纯函数：它把时间 `now` 当作参数传入，而不是自己读取时钟，所以测试可以传入任意时间。
 
 ```ts title="plugins/focus/src/store.ts"
 import type { KV } from '@pku-harness/sdk';
@@ -78,7 +86,7 @@ export async function saveSessions(kv: KV, list: Session[]): Promise<void> {
   await kv.set(KEY, list.slice(-500));
 }
 
-/** Minutes of focus on the local day of `now`, counting a running session up to `now`. Pure. */
+/** `now` 所在本地日期的专注分钟数，进行中的专注算到 `now` 为止。纯函数。 */
 export function minutesOn(list: Session[], now: number): number {
   const d = new Date(now);
   const start = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -97,6 +105,8 @@ export const running = (list: Session[]) => list.find((s) => s.endedAt == null) 
 
 ## 3. 插件本体 [#3-the-plugin]
 
+`src/index.ts` 把各部分组合起来。它定义了三个工具（`start`、`stop` 和 `today`）、一个供小组件使用的数据源，以及插件添加到 App 里的页面、设置项、小组件和快捷指令。
+
 ```ts title="plugins/focus/src/index.ts"
 import { definePlugin, defineTool } from '@pku-harness/sdk';
 import { z } from 'zod';
@@ -105,7 +115,7 @@ import { FocusScreen } from './screen';
 import { loadSessions, minutesOn, running, saveSessions } from './store';
 import { FocusWidget } from './widget';
 
-/** 专注: start/stop focus sessions and see today's total. Everything stays on the device. */
+/** 专注：开始、结束专注时段，查看今天的总时长。所有数据都留在设备上。 */
 export const focusPlugin = definePlugin({
   id: 'focus',
   name: '专注',
@@ -189,23 +199,23 @@ export const focusPlugin = definePlugin({
 });
 ```
 
-各部分的作用：
+`definePlugin` 接收一个描述整个插件的对象，其中各部分的作用如下：
 
 | 字段 | 作用 |
 | --- | --- |
 | `id` | 注册表 id，格式为 `^[a-z0-9][a-z0-9-]{1,40}$`。工具 id 会是 `focus.start`，模型看到的名字是 `focus__start`。 |
 | `name`、`description`、工具的 `title` | 中文，展示给用户。英文写在 `i18n.en` 里。 |
-| `instructions` | 追加到 Agent 的系统提示词（system prompt）里。每次请求都会带上，所以要短。提到工具时用模型名。 |
+| `instructions` | 加在助手的系统提示词（system prompt）里，每次请求都会发送，所以要写得短。提到工具时用模型名。 |
 | `dataSources` | 适合给小组件和定时检查用的读取工具，带缓存时长。 |
 | `contributes.screens` | 挂载在 `/p/focus/main`（`presentation: 'modal'` 时为 `/m/focus/<screen>`）。 |
 | `contributes.settings` | 设置页里的一行，点开进入某个页面。 |
-| `contributes.widgets` | 一个原生的看板小组件（widget），Agent 会读它的 `description`。 |
+| `contributes.widgets` | 一个原生的看板小组件（widget），助手会读取它的 `description`。 |
 | `contributes.commands` | 聊天输入框里的 `/focus` 快捷指令（这里是一个本地操作）。 |
 | `tools` | 插件的 API：每个工具一种效果（effect），用 zod 定义输入，返回数据。 |
 
 ## 4. 界面 [#4-ui]
 
-页面和小组件通过 `host` 拿到框架的组件，从不直接从 App 导入：
+页面和小组件通过 `host` 属性拿到 App 的组件，从不直接从 App 导入。这样插件就不依赖 App 的代码，App 改版后插件照样能用。页面、小组件和字符串表的写法如下：
 
 ```tsx title="plugins/focus/src/screen.tsx"
 import type { PluginScreenProps } from '@pku-harness/sdk';
@@ -214,7 +224,7 @@ import { strings } from './strings';
 
 type Today = { minutes: number; running: { label: string; startedAt: number } | null };
 
-/** Start and stop focus sessions. Calls the plugin's own tools, as the user. */
+/** 开始和结束专注。以用户身份调用插件自己的工具。 */
 export function FocusScreen({ host, invoke }: PluginScreenProps) {
   const { Screen, Stat, Button, Column, Text } = host.components;
   const s = strings[host.useLocale()];
@@ -247,7 +257,7 @@ import { strings } from './strings';
 
 type Today = { minutes: number; running: { label: string; startedAt: number } | null };
 
-/** Today's focus minutes; refreshed by the host (never poll from a widget). */
+/** 今天的专注分钟数；由宿主负责刷新（小组件里不要轮询）。 */
 export function FocusWidget({ host, size }: PluginWidgetProps) {
   const { Text, Skeleton } = host.components;
   const t = host.useTheme();
@@ -303,9 +313,11 @@ export const strings = defineStrings<Strings>({
 });
 ```
 
-`invoke` 以**用户身份**（`actor: 'user'`）运行工具：校验和权限照常，但不弹授权确认。做完修改操作后，记得刷新页面上正在显示的实时查询。
+页面用 `invoke` 调用插件自己的工具。`invoke` 以**用户身份**（`actor: 'user'`）运行工具：输入照常校验，权限照常生效，但不会弹出授权确认，因为用户刚刚亲手点了按钮。执行修改操作之后，要刷新页面上正在显示的实时查询，就像 `toggle` 里调用 `data.refresh()` 那样。
 
 ## 5. 测试 [#5-tests]
+
+测试覆盖第 2 步的纯函数 `minutesOn`。由于它把 `now` 当作参数，每个测试都可以固定时间。
 
 ```ts title="plugins/focus/src/store.test.ts"
 import { describe, expect, test } from 'bun:test';
@@ -332,7 +344,7 @@ describe('minutesOn', () => {
 
 ## 6. 注册插件 [#6-register-the-plugin]
 
-把它加进内置插件列表。这里的顺序就是它在设置页和系统提示词里的顺序：
+App 只加载 `plugins/index.ts` 里列出的插件，所以要把你的插件加进这个列表。列表的顺序也就是插件在设置页和系统提示词里的顺序：
 
 ```ts title="plugins/index.ts"
 import { focusPlugin } from './focus/src';
@@ -343,7 +355,7 @@ export const builtinPlugins: PluginDef[] = [
 ];
 ```
 
-再在 `registry/registry.json` 里加一条，图标不能和其他条目重复：
+然后在 `registry/registry.json` 里加一条记录，插件市场展示的就是这份列表。图标不能和其他条目重复：
 
 ```json
 {
@@ -360,17 +372,17 @@ export const builtinPlugins: PluginDef[] = [
 }
 ```
 
-最后全部检查一遍：
+最后，运行和持续集成（CI）相同的检查：
 
 ```bash
-bun test                          # your tests + the i18n coverage test (plugins/i18n.test.ts)
-bunx tsc --noEmit -p .            # typecheck SDK + plugins
-bun scripts/validate-registry.ts  # schema, unique ids and icons, built-ins exist
+bun test                          # 你的测试，以及多语言覆盖测试（plugins/i18n.test.ts）
+bunx tsc --noEmit -p .            # 对 SDK 和插件做类型检查
+bun scripts/validate-registry.ts  # 检查 schema、id 和图标是否唯一、内置插件是否存在
 ```
 
 ## 在 App 里运行 [#run-it-in-the-app]
 
-App 以 git 子模块 `plugins/` 的形式引入 `pku-harness-plugins`，`@pku-harness/sdk` 和内置插件都从这里解析，所以开发直接在子模块里进行。
+App 以 git 子模块 `plugins/` 的形式引入 `pku-harness-plugins`，并从这里加载 `@pku-harness/sdk` 和内置插件。所以要在 App 里看到你的插件，就要在这个子模块里开发。
 
 <Steps>
 <Step>
@@ -388,31 +400,31 @@ bun install
 
 ### 在 `plugins/` 里开发 [#work-in-plugins]
 
-创建 `plugins/plugins/focus/`（子模块里的 `plugins/` 目录），在 `plugins/plugins/index.ts` 里注册，然后运行 App：
+创建 `plugins/plugins/focus/`，也就是子模块里的 `plugins/` 目录。在 `plugins/plugins/index.ts` 里注册插件，然后运行 App：
 
 ```bash
-bun run android           # dev build on an emulator or device
-# or, with a dev build installed:
+bun run android           # 在模拟器或设备上运行开发版
+# 或者，已经装好开发版时：
 bunx expo start --dev-client
 ```
 
-保存后 Metro 会自动重新加载。要推送分支，把子模块的远程仓库指向你的 fork（`git -C plugins remote add …`）。pull request 提交到 `pku-harness-plugins`，之后再由 App 仓库提交子模块的版本更新。
+Metro 是 React Native 的 JavaScript 打包工具，你保存文件后它会自动重新加载 App。要推送分支，就把子模块的远程仓库指向你的 fork（`git -C plugins remote add …`）。pull request 提交到 `pku-harness-plugins`，之后再由 App 仓库更新子模块指向的提交。
 
 </Step>
 <Step>
 
 ### 试一试 [#try-it]
 
-打开 设置 → 专注，在看板的小组件库里添加小组件，输入 `/focus`，或者对助手说“开始专注高数作业”。
+有四种方式可以试用：打开「设置 → 专注」；在看板的小组件库里添加小组件；在对话里输入 `/focus`；或者对助手说「开始专注高数作业」。
 
 </Step>
 </Steps>
 
-没有模型 key？用 [模拟模型](/docs/build/testing#mock-model)。在设备上，仅开发版可用的深层链接可以直接运行某个工具：`pkuharness://dev?tool=focus.today&input={}`。
+如果你没有模型的 API key，可以用[模拟模型](/docs/build/testing#mock-model)。在设备上，有一种只在开发版里可用的深链接，可以直接运行某个工具：`pkuharness://dev?tool=focus.today&input={}`。
 
 ## 规则 [#rules]
 
 - **必须**只从 `@pku-harness/sdk`、`zod`、`react` 和 `react-native` 导入，外加你自己的文件和 `plugins/shared/`（内置插件之间共享的代码，比如 `campus-card.ts`）。不能导入 App 的代码，也不能导入其他插件目录里的文件。
-- **必须**遵守 [工具规则](/docs/build/tools)、[国际化规则](/docs/build/i18n) 和 [能力需求规则](/docs/concepts/capabilities)。
+- **必须**遵守[工具规则](/docs/build/tools)、[多语言规则](/docs/build/i18n)和[能力需求规则](/docs/concepts/capabilities)。
 - **必须**用 `host.useToolData` 加载小组件和页面的数据，不要轮询。
 - **应当**让 `instructions` 和 `context` 尽量短，因为每次请求都要为它们消耗 token。

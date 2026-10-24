@@ -1,13 +1,18 @@
 ---
 title: SDK reference
-description: '`@pku-harness/sdk`: the plugin contract (definePlugin, tools, providers, HostServices, HostUI, capabilities), the plugin language and pure helpers (recurrence, schedules, timetable, formatting). Where to get it and what each module exports.'
+description: 'Where to get `@pku-harness/sdk` and what each module exports. The SDK holds the plugin types (definePlugin, tools, providers, HostServices, HostUI, capabilities), the plugin language interpreter and pure helpers for recurrence, schedules, timetables and formatting.'
 icon: Braces
 ---
 
-A bundled plugin depends on `@pku-harness/sdk` and nothing else from us; the only other imports are
+`@pku-harness/sdk` is the package you use to write a bundled plugin. It defines the object a plugin
+exports and the interfaces the host gives to plugins, and it includes a set of pure helper
+functions. This section lists its types and functions module by module, for you to look up while
+you write a plugin.
+
+A bundled plugin depends on `@pku-harness/sdk` and nothing else from us. Its only other imports are
 `zod`, `react` and `react-native`. The SDK ships as TypeScript source in the plugins repository, and
-the app's bundler (Metro) compiles it together with the app code. Peer dependencies: `zod ^4`,
-`react >=19`.
+the app's bundler, Metro, compiles it together with the app code. Its peer dependencies are
+`zod ^4` and `react >=19`.
 
 ## Install
 
@@ -29,10 +34,12 @@ also runs in the app (see [Bundled plugin → Run it in the app](/en/docs/build/
 import { definePlugin, defineTool, type PluginScreenProps } from '@pku-harness/sdk';
 ```
 
-Everything is exported from the package root. The plugin language modules are also reachable one by
-one as `@pku-harness/sdk/lang/<module>`.
+Everything can be imported from the package root. You can also import the plugin language modules
+one at a time as `@pku-harness/sdk/lang/<module>`.
 
 ## Modules
+
+The table lists each source file of the SDK, its reference page and its main exports.
 
 | Module | Page | Main exports |
 | --- | --- | --- |
@@ -53,9 +60,13 @@ one as `@pku-harness/sdk/lang/<module>`.
 
 ## Conventions
 
-- Times are **epoch milliseconds**, read as device-local wall time where that matters. Strings
-  that the model or a form sees use local `"YYYY-MM-DD HH:mm"`.
+All SDK modules follow these conventions.
+
+- Times are **epoch milliseconds** (milliseconds since 1 January 1970 UTC). Where a time is read as
+  a clock time, it is read in the device's local time zone. Strings that the model or a form sees
+  use the local format `"YYYY-MM-DD HH:mm"`.
 - Timetable weekdays use JavaScript numbering (0 = Sunday … 6 = Saturday), but `weekdayName` takes
   1 = Monday … 7 = Sunday.
-- Schemas are zod 4 objects, and the types are `z.infer` of them.
-- Pure helpers import nothing from React Native and are unit-tested with `bun test`.
+- Schemas are zod 4 objects. The matching TypeScript types are derived from them with `z.infer`.
+- Pure helpers import nothing from React Native, so they can be unit-tested directly with
+  `bun test`.

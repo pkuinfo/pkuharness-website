@@ -1,12 +1,16 @@
 ---
 title: 生成式界面
-description: 助手用 JSON spec 描述界面，App 用原生组件渲染出来，可以出现在对话里（`ui.render`），也可以出现在看板上。表单提交的内容会作为用户的下一条消息发回去。
+description: 助手用 JSON 描述一段界面，App 用原生组件把它显示出来，可以显示在对话里（`ui.render`），也可以显示在看板上。表单提交的内容会作为你的下一条消息发回给助手。
 icon: Wand
 ---
 
-有时候文字不是最好的回答。助手需要你填一个金额、从列表里选一项，或者手上的数据更适合做成卡片时，它会直接回复一段界面。它写出一份 JSON **spec**，App 用一套固定的**组件目录**（catalog）里的原生组件把它画出来（基于 [json-render](https://github.com/vercel-labs/json-render)）。属性都是语义化的，比如色调（tone）和尺寸（size），不允许直接写颜色，所以助手搭出来的界面和 App 其他部分风格一致。助手搭建的看板小组件（widget）用的也是这套目录，它只需要学一种界面语言。
+有些回答用文字表达并不方便。例如，助手需要你填写一个金额，或者需要你从列表里选一项，或者手上的数据更适合用卡片展示。这时，助手可以直接回复一段界面。
 
-## Spec 结构 [#the-spec]
+具体做法是：助手写出一份 JSON 格式的界面描述，我们叫它 **spec**。App 从一套固定的**组件目录**（catalog）里取出对应的原生组件，把这段界面显示出来。这套机制基于 [json-render](https://github.com/vercel-labs/json-render)。
+
+组件的属性都是语义化的，例如色调（tone）和尺寸（size），不能直接写颜色值。因此，助手搭出来的界面和 App 其他部分的风格一致。助手搭建看板小组件时用的也是这套组件目录，所以它只需要学会一种界面描述方式。
+
+## spec 的结构 [#the-spec]
 
 ```ts
 // specSchema in @pku-harness/sdk (genui.ts)
@@ -23,7 +27,7 @@ type UISpec = {
 };
 ```
 
-属性可以绑定到状态：
+spec 里可以保存一份状态（`state`）。组件的属性可以绑定到状态上，有三种绑定方式。
 
 | 绑定 | 含义 |
 | --- | --- |
@@ -32,6 +36,8 @@ type UISpec = {
 | `{ "$template": "今天共 ${/today/count} 节课" }` | 插入状态值的字符串 |
 
 ## 组件目录 [#catalog]
+
+目录里共有 17 个组件。表中「可以有子元素」的组件用 `children` 包含其他组件；「绑定 `value`」表示这个输入控件的值应当用 `$bindState` 绑定到状态。
 
 | 组件 | 属性 | 说明 |
 | --- | --- | --- |
@@ -53,16 +59,20 @@ type UISpec = {
 | `DateTime` | `label`, `value`, `mode` | 原生选择器；值为本地时间 `"YYYY-MM-DD HH:mm"` |
 | `Button` | `label`, `variant` | 事件 `press` |
 
-`on.press` 支持两种动作：
+组件被点击时，会触发 `on.press` 里定义的动作。动作有两种。
 
 | 动作 | 参数 | 效果 |
 | --- | --- | --- |
 | `submit` | `{ label }` | 把 `/form` 下的全部内容作为用户的下一条消息发回给助手 |
-| `callTool` | `{ tool, input }` | 直接调用某个插件工具（权限检查和助手调用时相同） |
+| `callTool` | `{ tool, input }` | 直接调用某个插件工具 |
 
-这页文档可能过时，运行时的目录不会。`ui.render` 工具的描述里嵌入了 `services.genui.describeCatalog()` 的输出，`services.genui.checkSpec(spec)` 用来校验 spec。
+`callTool` 调用工具时，权限检查和助手调用时相同。
+
+这一页的内容可能落后于实际代码，但运行时的组件目录始终是最新的。`ui.render` 工具的描述里包含了 `services.genui.describeCatalog()` 的输出，所以助手看到的永远是当前的目录。`services.genui.checkSpec(spec)` 可以用来校验一份 spec。
 
 ## 示例：充值表单 [#example-a-top-up-form]
+
+下面的 spec 显示一张「充值校园卡」卡片，里面有一个金额选择和一个确认按钮。你点「确认」后，所选金额会作为你的下一条消息发回给助手。
 
 ```json
 {
@@ -85,6 +95,8 @@ type UISpec = {
 
 ## 写给插件作者 [#for-plugin-authors]
 
-远程插件（remote plugin）不能自己渲染界面，它们返回数据，由助手来渲染。内置插件（bundled plugin）的页面可以用 `host.components.GenUI` 渲染 spec：`<GenUI spec={spec} onSubmit={(form, label) => …} />`。
+远程插件不能自己显示界面。它们只返回数据，由助手来生成界面。
 
-生成式界面适合一次性的、对话里的场景。用户会经常打开的东西，请做成原生页面或小组件（`contributes.screens` / `widgets`）。
+内置插件的页面可以用 `host.components.GenUI` 显示一份 spec：`<GenUI spec={spec} onSubmit={(form, label) => …} />`。
+
+生成式界面适合对话中一次性的场景。如果用户会经常打开某个界面，请把它做成原生页面或小组件（`contributes.screens` / `widgets`）。

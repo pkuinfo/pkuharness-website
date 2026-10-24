@@ -1,42 +1,45 @@
 ---
 title: 参与贡献
-description: 如何为 PKU Harness 做贡献（插件、应用、协议参考和这份文档），以及约定、社区、安全问题报告和许可证。
+description: 如何为 PKU Harness 贡献插件、应用改动、协议说明和文档，以及需要遵守的约定、安全规则和许可证。
 icon: HeartHandshake
 ---
 
-PKU Harness 面向北大社区公开开发，每个仓库都欢迎 issue 和 pull request。
+PKU Harness 面向北大社区公开开发，每个仓库都欢迎 issue 和 pull request。本页说明不同的改动应该提交到哪个仓库，以及我们对贡献的要求。
 
 ## 从哪里入手 [#where-to-contribute]
 
-| 你想要 | 去这里 |
-| --- | --- |
-| 接入一个校园服务或增加一项功能 | 一般写成插件文档；需要服务器时，在你自己的仓库里写远程插件。官方插件放在 [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins)（请先开 issue）。参见[编写插件](/docs/build)。 |
-| 把插件上架 | [插件市场](/docs/marketplace) |
-| 修复或改进应用 | [`pku-harness`](https://github.com/pkuinfo/pku-harness)。先读 `AGENTS.md`、`docs/ARCHITECTURE.md` 和 `docs/DESIGN.md` |
-| 记录或修复校园服务协议 | [`pkucli`](https://github.com/pkuinfo/pkucli) |
-| 改进这份文档 | [`pkuharness-website`](https://github.com/pkuinfo/pkuharness-website) 的 `content/docs/` 目录（每页都有编辑链接） |
+该去哪个仓库，取决于你想改什么。
+
+- **接入一个校园服务或增加一项功能**：一般写成插件文档。如果插件需要自己的服务器，就在你自己的仓库里写一个远程插件。官方插件放在 [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) 仓库，动手之前请先在那里开一个 issue。参见[编写插件](/docs/build)。
+- **把插件上架**：参见[插件市场](/docs/marketplace)。
+- **修复或改进应用**：提交到 [`pku-harness`](https://github.com/pkuinfo/pku-harness)。开始之前请先读 `AGENTS.md`、`docs/ARCHITECTURE.md` 和 `docs/DESIGN.md`。
+- **记录或修复校园服务协议**：提交到 [`pkucli`](https://github.com/pkuinfo/pkucli)。
+- **改进这份文档**：提交到 [`pkuharness-website`](https://github.com/pkuinfo/pkuharness-website)。页面在 `content/docs/` 目录下，每一页都有编辑链接。
 
 ## 约定 [#conventions]
 
 - JavaScript 和 TypeScript 一律使用 **bun**（`bun install`、`bun run`、`bun test`、`bunx`）。
-- 提交保持小粒度，遵循 Conventional Commits：`feat(wallet): …`、`fix(treehole): …`、`docs: …`。
-- 插件仓库和应用仓库在提 pull request 之前都要通过 `bun run verify`，它跑的就是 CI 跑的内容（插件仓库：类型检查、插件清单校验、内置文档检查和全部测试；应用：类型检查、lint 和测试）。界面改动要在真机或模拟器上用深色、浅色两种主题检查。
-- 插件改动先合入 `pku-harness-plugins`，再在应用里提交 `plugins/` 子模块的版本更新。
+- 每次提交只做一件小事，提交信息遵循 Conventional Commits，例如 `feat(wallet): …`、`fix(treehole): …` 或 `docs: …`。
+- 在插件仓库或应用仓库提 pull request 之前，先运行 `bun run verify`，确认它通过。这个命令执行的检查和持续集成（CI）完全相同：插件仓库会做类型检查、插件清单校验、内置文档检查，并运行全部测试；应用仓库会做类型检查、lint，并运行测试。
+- 改了界面的话，要在真机或模拟器上分别用深色和浅色主题检查一遍。
+- 插件的改动先合入 `pku-harness-plugins`，再由应用仓库提交 `plugins/` 子模块的版本更新。
 - 校园服务协议从 pkucli 移植，并在注释里注明来源文件。
-- 文档和代码注释用英文。面向用户的文案以中文为主，每一条都要有英文翻译。
+- 文档和代码注释用英文书写。展示给用户的文字以中文为主，每一条都要配上英文翻译。
 
 ## 借助 AI 编程助手 [#using-ai-agents]
 
-这些仓库本来就是给人和编程助手一起开发的，每个仓库都有一份写明规则的 `AGENTS.md`（或 `CLAUDE.md`）。写插件时，把你的助手指向[给 AI 助手](/docs/for-agents)和这份文档的 Markdown 版本（`/llms.txt`）。提交的内容由你负责：审阅生成的代码，跑通检查，并且不要让助手接触真实的账号密码。
+这些仓库在设计上就是供人和编程助手一起开发的，每个仓库都有一份 `AGENTS.md`（或 `CLAUDE.md`），写明了各自的规则。如果你让助手帮忙写插件，可以把它指向[给 AI 助手](/docs/for-agents)这一页，以及这份文档的 Markdown 版本（`/llms.txt`）。
+
+提交的内容由你本人负责。请审阅生成的代码，亲自跑通检查，并且不要让助手接触真实的账号密码。
 
 ## 社区 [#community]
 
 - 想法和 bug 请在对应仓库的 GitHub issue 里讨论和报告。
-- 友善待人。应用、插件和网站仓库都有行为准则（`CODE_OF_CONDUCT.md`）。
+- 请友善待人。应用、插件和网站这三个仓库都有行为准则（`CODE_OF_CONDUCT.md`）。
 
 ## 安全 [#security]
 
-发现漏洞请按受影响仓库的 `SECURITY.md` 私下报告，不要发公开 issue。也不要在 issue、测试数据或日志里放真实的账号密码、token 或个人信息。
+发现漏洞时，请按照受影响仓库的 `SECURITY.md` 私下报告，不要发公开的 issue。另外，不要在 issue、测试数据或日志里放入真实的账号密码、token 或个人信息。
 
 ## 许可证 [#license]
 

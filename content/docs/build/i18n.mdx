@@ -1,17 +1,22 @@
 ---
 title: 多语言（i18n）
-description: 内置插件同时提供中文和英文。清单里的文字在 `i18n.en` 里写英文覆盖，界面和小组件文字放进 `defineStrings` 表，日期交给 SDK 的格式化函数，给模型看的文字不翻译。
+description: 内置插件怎样同时提供中文和英文。清单里的文字在 `i18n.en` 里写英文版，页面和小组件的文字放进 `defineStrings` 表，日期交给 SDK 的格式化函数，给模型看的文字不翻译。
 icon: Languages
 ---
 
-App 支持简体中文（`zh-Hans`，源语言）和英文（`en`），用户在设置里选择“跟随系统 / 简体中文 / English”。每个内置插件（bundled plugin）**必须**两种语言都写全，插件仓库里的 `plugins/i18n.test.ts` 会逐个检查覆盖情况。
+App 支持简体中文（`zh-Hans`）和英文（`en`）。中文是源语言：每个字符串先用中文写，再补上英文版。用户在设置里选择「跟随系统」「简体中文」或「English」。
+
+每个内置插件（bundled plugin）都**必须**把两种语言写全。插件仓库里的测试 `plugins/i18n.test.ts` 会逐个检查插件，缺少英文字符串就会失败。本页讲的是内置插件。插件文档的英文文字全部写在清单的 `i18n.en` 部分（见[声明式插件](/docs/build/declarative-plugins#the-manifest)）。
 
 ## 哪些要翻译 [#what-gets-translated]
+
+给人看的文字要翻译。只给模型看的文字，比如工具描述和插件说明，只写一份，不翻译。
 
 | 文字 | 位置 | 是否翻译 |
 | --- | --- | --- |
 | 插件 `name`、`description` | `definePlugin`（中文）+ `i18n.en` | 是 |
 | 工具 `title` | `tools.<name>.title` + `i18n.en.tools.<name>.title` | 是 |
+| 工具 `summary`（仅插件文档） | 工具文件里的 `summary` + `i18n.en.tools.<name>.summary` | 是 |
 | 小组件标题和描述 | `contributes.widgets` + `i18n.en.widgets` | 是 |
 | 页面标题 | `contributes.screens` + `i18n.en.screens` | 是 |
 | 设置项 | `contributes.settings` + `i18n.en.settings.<screen>` | 是 |
@@ -21,7 +26,9 @@ App 支持简体中文（`zh-Hans`，源语言）和英文（`en`），用户在
 | 页面和小组件里的文字 | `src/strings.ts`（`defineStrings`） | 是 |
 | 工具 `description`、`instructions`、`context`、工具结果 | 给模型看 | **否** |
 
-## 清单的英文覆盖 [#manifest-overlay]
+## 清单的英文版本 [#manifest-overlay]
+
+中文字符串照常写在 `definePlugin` 里，英文版写在 `i18n.en` 里。下面的例子来自 `shuttle` 插件：
 
 ```ts
 definePlugin({
@@ -42,9 +49,11 @@ definePlugin({
 });
 ```
 
-`en` 里缺的字段运行时会回退到中文，但测试会失败，所以要全部填上。
+运行时，`en` 里缺少的字段会回退到中文。但覆盖测试仍会失败，所以请全部填上。
 
 ## 字符串表 [#string-tables]
+
+页面和小组件里的文字放在字符串表里，每个插件一张，位于 `src/strings.ts`。先用类型定义一次所有的键，再为每种语言分别给出值：
 
 ```ts title="src/strings.ts"
 import { defineStrings } from '@pku-harness/sdk';
@@ -65,11 +74,13 @@ const s = strings[host.useLocale()];
 <Text>{s.none}</Text>
 ```
 
-`defineStrings` 会拿 `en` 和 `zh-Hans` 做类型检查：键要一样，值的类型也要一样。带参数的字符串写成函数。不要把翻译好的片段拼成句子。
+在组件里，用 `host.useLocale()` 选出用户所用语言的那张表。
+
+`defineStrings` 会拿 `en` 和 `zh-Hans` 做类型检查：两者的键必须相同，值的类型也必须相同。带参数的字符串写成函数。不要把翻译好的片段拼接成句子，因为两种语言的语序不同。
 
 ## 日期和数字 [#dates-and-numbers]
 
-App 的 JavaScript 引擎 Hermes 不认 `Intl` 的语言设置，所以请用 SDK 提供的格式化函数：
+App 运行在 JavaScript 引擎 Hermes 上，而 Hermes 会忽略 `Intl` 的语言设置，`toLocaleDateString` 之类的函数因此会给出错误的格式。请改用 SDK 提供的格式化函数，其中大多数接收来自 `host.useLocale()` 的语言参数 `l`：
 
 | 函数 | zh-Hans | en |
 | --- | --- | --- |
@@ -86,11 +97,11 @@ App 的 JavaScript 引擎 Hermes 不认 `Intl` 的语言设置，所以请用 SD
 
 ## 英文文案规范 [#english-copy-rules]
 
-覆盖测试也会检查英文的写法：
+覆盖测试还会检查英文字符串的写法：
 
 - 除了括号里的注释和引号内的内容，不能出现中文。`Treehole (树洞)` 是可以的。
 - 用弯撇号（`’`），不用直撇号（`'`）。
 - 不用感叹号。
-- 简短，用句首大写（sentence case）。校园专有名词用官方英文名或拼音：Peking University、Treehole (树洞)、Course (教学网 / Blackboard)、Campus Card。
+- 简短，并使用句首大写（sentence case），即只有第一个单词和专有名词首字母大写。校园专有名词用官方英文名或拼音：Peking University、Treehole (树洞)、Course (教学网 / Blackboard)、Campus Card。
 
-中文文案同理：简短，不用感叹号。
+中文文字也一样：写得简短，不用感叹号。

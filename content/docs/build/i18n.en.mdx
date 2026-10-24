@@ -1,19 +1,28 @@
 ---
 title: Languages (i18n)
-description: Bundled plugins ship in Chinese and English. Manifest strings get an English overlay in `i18n.en`, screen and widget text goes in a `defineStrings` table, dates go through the SDK formatters, and text meant for the model stays untranslated.
+description: How a bundled plugin provides Chinese and English. Manifest strings get English versions in `i18n.en`, screen and widget text goes in a `defineStrings` table, dates go through the SDK formatters, and text for the model stays untranslated.
 icon: Languages
 ---
 
-The app speaks Simplified Chinese (`zh-Hans`, the source language) and English (`en`). Users
-pick 跟随系统 / 简体中文 / English in Settings. Every bundled plugin **MUST** be complete in both,
-and `plugins/i18n.test.ts` in the plugins repository checks coverage for each one.
+The app is available in Simplified Chinese (`zh-Hans`) and English (`en`). Chinese is the source
+language: you write every string in Chinese first and then add the English version. Users choose
+跟随系统 (follow the system), 简体中文 or English in Settings.
+
+Every bundled plugin **MUST** be complete in both languages. The test `plugins/i18n.test.ts` in the
+plugins repository checks each plugin and fails when an English string is missing. This page covers
+bundled plugins. A plugin document puts all its English text in the `i18n.en` section of its
+manifest (see [Declarative plugins](/en/docs/build/declarative-plugins#the-manifest)).
 
 ## What gets translated
+
+Text that people read is translated. Text that only the model reads, such as tool descriptions and
+instructions, is written once and not translated.
 
 | Text | Where | Translate? |
 | --- | --- | --- |
 | Plugin `name`, `description` | `definePlugin` (Chinese) + `i18n.en` | Yes |
 | Tool `title`s | `tools.<name>.title` + `i18n.en.tools.<name>.title` | Yes |
+| Tool `summary` (plugin documents only) | `summary` in the tool file + `i18n.en.tools.<name>.summary` | Yes |
 | Widget titles and descriptions | `contributes.widgets` + `i18n.en.widgets` | Yes |
 | Screen titles | `contributes.screens` + `i18n.en.screens` | Yes |
 | Settings rows | `contributes.settings` + `i18n.en.settings.<screen>` | Yes |
@@ -24,6 +33,9 @@ and `plugins/i18n.test.ts` in the plugins repository checks coverage for each on
 | Tool `description`, `instructions`, `context`, tool results | For the model | **No** |
 
 ## Manifest overlay
+
+The Chinese strings stay where they are in `definePlugin`. The English versions go in `i18n.en`.
+This example is from the `shuttle` plugin:
 
 ```ts
 definePlugin({
@@ -44,10 +56,13 @@ definePlugin({
 });
 ```
 
-Anything missing from `en` falls back to Chinese at runtime, but the test fails, so fill in
-everything.
+At runtime, anything missing from `en` falls back to Chinese. The coverage test still fails, so fill
+in everything.
 
 ## String tables
+
+Text inside screens and widgets lives in a string table, one per plugin, in `src/strings.ts`. You
+define its keys once as a type, then give a value for each language:
 
 ```ts title="src/strings.ts"
 import { defineStrings } from '@pku-harness/sdk';
@@ -68,13 +83,17 @@ const s = strings[host.useLocale()];
 <Text>{s.none}</Text>
 ```
 
+In a component, pick the table for the user's language with `host.useLocale()`.
+
 `defineStrings` type-checks `en` against `zh-Hans`, so both need the same keys with the same value
-types. Strings with parameters are functions. Never build a sentence by concatenating translated
-fragments.
+types. A string with parameters is a function. Never build a sentence by joining translated
+fragments, because word order differs between the two languages.
 
 ## Dates and numbers
 
-Hermes, the app's JavaScript engine, ignores `Intl` locales. Use the SDK formatters instead:
+Hermes, the JavaScript engine the app runs on, ignores `Intl` locales. `toLocaleDateString` and
+similar functions therefore give the wrong format. Use the SDK formatters instead. Most of them take
+the locale `l` from `host.useLocale()`:
 
 | Function | zh-Hans | en |
 | --- | --- | --- |
@@ -91,12 +110,13 @@ Details in [SDK → format](/en/docs/sdk/format).
 
 ## English copy rules
 
-The coverage test checks style too:
+The coverage test also checks how English strings are written:
 
 - No Chinese except inside a parenthesised gloss or quotes. `Treehole (树洞)` is fine.
 - Curly apostrophes (`’`), not straight ones (`'`).
 - No exclamation marks.
-- Keep it short and in sentence case. Campus proper nouns use the official English name or pinyin:
-  Peking University, Treehole (树洞), Course (教学网 / Blackboard), Campus Card.
+- Keep it short and in sentence case, which capitalises only the first word and proper nouns.
+  Campus proper nouns use the official English name or pinyin: Peking University, Treehole (树洞),
+  Course (教学网 / Blackboard), Campus Card.
 
-Chinese copy follows the same spirit: short, no exclamation marks.
+Chinese text follows the same idea: keep it short and use no exclamation marks.

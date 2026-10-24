@@ -4,18 +4,24 @@ description: '@pku-harness/cloud-protocol: the zod wire schemas, path builders, 
 icon: Package
 ---
 
-`@pku-harness/cloud-protocol` is pure TypeScript that runs on Hermes, Bun and in browsers. The
-app, the reference server and viewer pages import the same code, so the wire format and the
-encryption can't drift apart. Dependencies: `@noble/ciphers`, `@noble/curves` and `@noble/hashes`
-(pinned), with `zod ^4` as a peer. Plugins normally don't import it, because the host does the
-cloud work for them. Servers and viewer pages do.
+`@pku-harness/cloud-protocol` is the shared implementation of the cloud protocol: wire
+schemas, endpoint paths, encryption, share links, proof of work and the token challenge. You use
+it when you write a cloud server, or a viewer page for a plugin.
 
-It lives in `packages/cloud-protocol` of
-[`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) and isn't published to
-npm. Use it from a checkout (workspace package `@pku-harness/cloud-protocol`), or copy the `src/`
-folder into your server or page build.
+The package is pure TypeScript and runs on Hermes (the JavaScript engine of React Native), Bun
+and in browsers. The app, the reference server and viewer pages import the same code, so their
+wire format and encryption always match. It depends on `@noble/ciphers`, `@noble/curves` and
+`@noble/hashes` (pinned versions), with `zod ^4` as a peer dependency. Plugins normally don't
+import it, because the host does the cloud work for them.
+
+It lives in the `packages/cloud-protocol` folder of the
+[`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) repository and isn't
+published to npm. Use it from a checkout (the workspace package is named
+`@pku-harness/cloud-protocol`), or copy the `src/` folder into your server or page project.
 
 ## Modules
+
+The table lists what each module exports:
 
 | Module | Exports |
 | --- | --- |
@@ -26,10 +32,14 @@ folder into your server or page build.
 | `auth.ts` | `signAuthChallenge`, `verifyAuthChallenge`, `authChallengeBytes`, `normaliseAudience`, `AUTH_CONTEXT`, `AUTH_MAX_SKEW_MS` (5 min), `AUTH_NONCE_BYTES` (16), `TOKEN_TTL_S` (600) |
 | `bytes.ts` | `toB64url`, `fromB64url`, `isB64url`, `utf8`, `fromUtf8`, `concatBytes`, `equalBytes`, `toHex` |
 
-Wire conventions: binary data is base64url without padding, times are Unix ms unless the name
-ends in `S` (seconds), and parsing strips unknown keys.
+Wire data follows these conventions. Binary data is base64url without padding. Times are Unix
+milliseconds, except fields whose name ends in `S`, which are seconds. Parsing strips unknown
+keys.
 
-## Viewer page: join a channel and decrypt
+## Example: a viewer page joins a channel and decrypts [#viewer-page-join-a-channel-and-decrypt]
+
+This code runs in a viewer page. It reads the channel id and the secret from the URL, joins the
+channel, and decrypts each frame it receives.
 
 ```ts
 import {
@@ -75,12 +85,18 @@ ws.onmessage = (ev) => {
 };
 ```
 
-The reference server redirects `/s/<id>` to `/w/<plugin>/<page>?c=<id>`. The browser carries
-the `#k=` fragment across the redirect by itself, and the server never sees it. Webviews without
-WebSocket use `GET /v1/c/{id}/events?t=` (SSE) and `POST /v1/c/{id}/send` instead. For a complete
-viewer, see `plugins/card-share/web` (a port of pkubdcard's UI).
+The reference server redirects `/s/<id>` to `/w/<plugin>/<page>?c=<id>`. The browser keeps the
+`#k=` URL fragment across the redirect by itself. Fragments are never sent to the server, so the
+server never sees the secret.
 
-## Server: verify a token request
+Some in-app browsers don't support WebSocket. They receive data with `GET /v1/c/{id}/events?t=`
+(Server-Sent Events, SSE) and send with `POST /v1/c/{id}/send` instead. For a complete viewer
+page, see `plugins/card-share/web`, whose UI is ported from pkubdcard.
+
+## Example: a server verifies a token request [#server-verify-a-token-request]
+
+This code runs on a server. When a device signs a challenge to get a token, the server checks the
+signature and the time, checks that the nonce hasn't been used, and then issues the token.
 
 ```ts
 import { authTokenRequest, fromB64url, verifyAuthChallenge } from '@pku-harness/cloud-protocol';

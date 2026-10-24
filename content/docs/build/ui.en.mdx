@@ -1,12 +1,19 @@
 ---
 title: UI contributions
-description: Bundled plugins add screens, Settings rows, tab content, dashboard widgets and slash commands through `contributes`, built from the harness's HostUI components.
+description: How a bundled plugin adds screens, Settings rows, tab content, dashboard widgets and slash commands through `contributes`, using the components the app passes in as HostUI.
 icon: PanelsTopLeft
 ---
 
-Bundled plugins can add native UI without importing any app code. Screens and widgets receive
-`HostUI` as props: the harness's components, theme tokens, haptics, navigation and data hooks. That
-way plugin UI looks native and keeps working as the app changes.
+This page explains how a bundled plugin adds its own UI to the app. It assumes you have read
+[Bundled plugin](/en/docs/build/bundled-plugin). Plugin documents describe their widgets and screens
+as generative-UI JSON instead; see [Declarative plugins](/en/docs/build/declarative-plugins).
+
+A bundled plugin adds native UI without importing any app code. Each screen and widget receives an
+object called `HostUI` through its props. It holds the app's components, theme tokens, haptics,
+navigation and data hooks. Because the plugin draws everything with these, its UI looks like the rest
+of the app and keeps working when the app changes.
+
+Everything a plugin adds is listed under `contributes` in `definePlugin`:
 
 ```ts
 contributes: {
@@ -28,8 +35,9 @@ interface ScreenContribution {
 }
 ```
 
-`PluginScreenProps`: `host`, `services`, `kv`, `invoke(toolId, input?)`, `params` (route query
-parameters), `cloud?`.
+A screen is a React component. By default it opens as a normal page (`push`). Set
+`presentation: 'modal'` for forms. The component receives `PluginScreenProps`: `host`, `services`, `kv`,
+`invoke(toolId, input?)`, `params` (the query parameters of the route) and `cloud?`.
 
 ```tsx
 import type { PluginScreenProps } from '@pku-harness/sdk';
@@ -46,9 +54,10 @@ export function EditScreen({ host, params, invoke }: PluginScreenProps) {
 }
 ```
 
-Navigate with `host.navigate('/p/<plugin>/<screen>')` or `host.navigate('/m/<plugin>/<screen>?id=…')`,
-and close a modal with `host.dismiss()`. Use `host.components.Screen` as the root of a push screen
-and `SheetScreen` for a modal form.
+To open a screen, call `host.navigate('/p/<plugin>/<screen>')`, or
+`host.navigate('/m/<plugin>/<screen>?id=…')` for a modal. Close a modal with `host.dismiss()`. Use
+`host.components.Screen` as the root of a push screen, and `SheetScreen` as the root of a modal
+form.
 
 ## Settings rows
 
@@ -56,8 +65,9 @@ and `SheetScreen` for a modal form.
 interface SettingsContribution { screen: string; title: string; subtitle?: string; icon?: string }
 ```
 
-Each row opens one of your screens. The plugin's page under Settings → Plugins also lists its
-screens, widgets, tools and permissions.
+A Settings row is a shortcut to one of your screens. Each row opens the screen it names. Apart from
+these rows, the plugin's page under Settings → Plugins lists its screens, widgets, tools and
+permissions.
 
 ## Widgets
 
@@ -72,17 +82,21 @@ interface WidgetContribution {
 }
 ```
 
-- The dashboard draws the card chrome (title, background, freshness, long-press menu). You draw only
-  the content, and adapt it to `size`: `sm` is a half-width tile, `md` full width, `lg` a hero.
+A widget is a card on the dashboard. Keep these points in mind when you write one:
+
+- The dashboard draws the card's frame: the title, the background, how fresh the data is, and the
+  long-press menu. You draw only the content. Adapt it to `size`: `sm` is a half-width tile, `md`
+  is full width, and `lg` is a large feature card.
 - Load data with `host.useToolData(tool, args, { ttlMinutes })` (see
-  [Dashboard](/en/docs/concepts/dashboard#refresh-owned-by-the-host)). Don't poll.
-- Handle `status: 'loading'` (show a skeleton), a missing value (error text plus a retry through
-  `data.refresh()`) and the signed-out state.
-- `config` is picked by the agent or the user and validated against `configSchema`. Describe each
-  field with `.describe()` and mention them in `description` ("config.names limits it to certain
-  canteens").
-- Each widget is mounted in an error boundary, so a crash shows a notice instead of breaking the
-  dashboard.
+  [Dashboard](/en/docs/concepts/dashboard#refresh-owned-by-the-host)). The app decides when to
+  refresh, so don't poll.
+- Handle three states. While `status` is `'loading'`, show a skeleton. When there is no value, show
+  the error text and let the user retry with `data.refresh()`. Also handle the signed-out state.
+- The assistant or the user picks the widget's `config`, which is validated against
+  `configSchema`. Describe each field with `.describe()`, and mention the fields in `description`
+  ("config.names limits it to certain canteens") so the assistant knows they exist.
+- Each widget is mounted inside an error boundary. If it crashes, the dashboard shows a notice in
+  its place and the other widgets keep working.
 
 ## Slash commands
 
@@ -97,9 +111,13 @@ type CommandContribution = {
 );
 ```
 
-Command names are lowercase (`^[a-z][a-z0-9-]*$`). If two collide, the harness namespaces them as
-`/plugin:name`. A `prompt` command sends text to the agent. A `run` command runs locally, and the
-string it returns appears as a notice in the chat; it never reaches the model.
+A slash command is an entry in the `/` menu of the chat composer. Command names are lowercase
+(`^[a-z][a-z0-9-]*$`). If two plugins use the same name, the app prefixes both with the plugin id,
+as `/plugin:name`.
+
+A command does one of two things. A `prompt` command sends text to the assistant as if the user had
+typed it. A `run` command runs on the device; the string it returns appears as a notice in the chat
+and never reaches the model.
 
 ```ts
 commands: {
@@ -110,11 +128,14 @@ commands: {
 
 ## Tabs
 
-The harness has two tab slots, `dashboard` and `schedule`, each filled by whichever enabled plugin
-contributes it (today, the `dashboard` and `schedule` plugins). Chat and Settings belong to the
-harness itself. Contribute a tab only if you are replacing one of those two plugins.
+The app has two tab slots, `dashboard` and `schedule`. Each is filled by the enabled plugin that
+contributes it, which today is the `dashboard` plugin and the `schedule` plugin. The Chat and
+Settings tabs belong to the app itself. Contribute a tab only if you are replacing one of those two
+plugins.
 
 ## HostUI essentials
+
+These are the members of `host` you will use most:
 
 | Member | Use |
 | --- | --- |
@@ -124,7 +145,7 @@ harness itself. Contribute a tab only if you are replacing one of those two plug
 | `host.useLocale()` | `'zh-Hans'` or `'en'` |
 | `host.navigate`, `back`, `dismiss`, `ask(text)` | Navigation; `ask` switches to chat and sends a message |
 | `host.haptics` | `tap`, `select`, `success`, `warning` (respects user settings) |
-| `host.useNow(ms)`, `formatAgo(ms)` | Ticking time, relative time |
+| `host.useNow(ms)`, `formatAgo(ms)` | The current time, updated every `ms`; relative time |
 | `host.useSecureDisplay({ brightness })` | Block screenshots while mounted (payment codes) |
 | `host.useStoreVersion()` | Re-render when jobs, to-dos, widgets or the timetable change |
 | `host.clipboard?`, `host.shareLink?` | Optional; check before use |
@@ -140,4 +161,5 @@ Full signatures are in [SDK → ui](/en/docs/sdk/ui).
   `wallet`, `library`, `room`, `school`, `ticket`, `medal`, `chart`, `search`, `globe`, `lock`, … (the
   full list is `src/components/icon.tsx` in the app).
 - **SHOULD** give tappable custom content an `accessibilityLabel`.
-- Copy: Chinese, short, no exclamation marks. English in sentence case with curly apostrophes (’).
+- Copy: Chinese text is short and has no exclamation marks. English text is in sentence case and uses
+  curly apostrophes (’).

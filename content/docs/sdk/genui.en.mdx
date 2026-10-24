@@ -1,7 +1,12 @@
 ---
 title: genui
-description: specSchema and the UISpec type for generative UI specs, plus the SpecCheck result that services.genui.checkSpec returns.
+description: specSchema and the UISpec type, which describe generative UI specs, plus the SpecCheck result that services.genui.checkSpec returns.
 ---
+
+The agent can build a piece of interface during a chat, such as a form or a list to choose from.
+It describes that interface in JSON, which we call a _spec_. This module defines the shape of a
+spec. You use it when one of your tools accepts a spec written by the agent, or when you show a
+spec in a screen.
 
 Source: `packages/sdk/src/genui.ts`. Concepts: [Generative UI](/en/docs/concepts/generative-ui).
 
@@ -29,6 +34,10 @@ export type UISpec = z.infer<typeof specSchema>;
 export type SpecCheck = { ok: true; spec: UISpec } | { ok: false; issues: string[] };
 ```
 
+A spec is a set of elements. `elements` is keyed by id, and `root` names the id of the root
+element. Each element picks a component with `type` and lists the ids of its child elements in
+`children`. `state` holds the initial state of the interface.
+
 `specSchema` only checks the shape. Whether each `type` exists in the catalog and whether its props
 are valid is up to the host, through `services.genui.checkSpec(spec)`:
 
@@ -37,5 +46,5 @@ const r = ctx.services.genui.checkSpec(spec);
 if (!r.ok) return { shown: false, issues: r.issues }; // let the model fix its spec
 ```
 
-Use `specSchema` as the input schema of any tool that accepts a spec (`ui.render` and
-`dashboard.upsertWidget` do this). To render a spec in a screen, use `host.components.GenUI`.
+A tool that accepts a spec can use `specSchema` directly as its input schema. `ui.render` and
+`dashboard.upsertWidget` both do this. To render a spec in a screen, use `host.components.GenUI`.

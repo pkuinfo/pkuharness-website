@@ -1,7 +1,9 @@
 ---
 title: plugin
-description: '插件契约：definePlugin、defineTool、PluginDef、ToolDef、ToolContext、效果、调用方、能力需求、KV、轮次信息、数据源、模型服务商、翻译和旧 id。'
+description: '定义插件时用到的全部类型：definePlugin、defineTool、PluginDef、ToolDef、ToolContext、效果、调用方、能力需求、KV、轮次信息、数据源、模型服务商、翻译和旧 id。'
 ---
+
+每个内置插件都导出一个用 `definePlugin` 定义的对象，里面写明插件的名称、需要的能力、提供的工具和界面等。这一页列出这个对象和工具的全部字段，以及工具运行时收到的上下文。
 
 源码：`packages/sdk/src/plugin.ts`。
 
@@ -12,9 +14,11 @@ function definePlugin(def: PluginDef): PluginDef;
 function defineTool<I extends z.ZodType, O>(def: ToolDef<I, O>): ToolDef;
 ```
 
-两个函数都原样返回参数，作用只是类型检查：`defineTool` 会根据 zod 的 `input` schema 推断出 `execute` 的入参类型。
+两个函数都原样返回参数，用途只是类型检查。`defineTool` 会根据 zod 的 `input` schema 推断出 `execute` 的入参类型。
 
 ## PluginDef [#plugindef]
+
+`PluginDef` 是插件对象本身。下面先给出完整的类型，再逐个说明字段。
 
 ```ts
 interface PluginDef {
@@ -50,7 +54,7 @@ interface PluginDef {
     core: { type: 'boolean', description: '属于 Harness 核心体验：始终启用，不能关闭。' },
     requires: { type: 'Capability[]', description: '插件需要设备提供什么；有不满足的需求时插件会被隐藏。' },
     cloud: { type: 'CloudManifest', description: "如何使用 PKU Harness Cloud（云服务）。没有写 `optional: true` 时，还要在 `requires` 里列出 'cloud'。" },
-    remote: { type: '{ url: string; server: string }', description: '宿主为已安装的远程（MCP）插件填写，不要自己设置。' },
+    remote: { type: '{ url: string; server: string }', description: '宿主为已安装的远程插件（通过 Model Context Protocol，即 MCP 连接）填写，不要自己设置。' },
     defaultModes: { type: "Partial<Record<ToolEffect, 'auto' | 'ask' | 'off'>>", description: '每种效果的默认授权方式，用户可以修改。', default: '全部 auto' },
     scopes: { type: 'string[]', required: true, description: '插件会访问的校园服务或主机，展示给用户看。' },
     tools: { type: 'Record<string, ToolDef>', required: true, description: '插件的 API，键是工具名。' },
@@ -59,12 +63,14 @@ interface PluginDef {
     instructions: { type: 'Dynamic<string>', description: "追加到助手的系统提示词末尾。写短一些；提到工具时用模型侧名称（`plugin__tool`）。" },
     context: { type: '(input: ContextInput) => Promise<string | undefined>', description: '每轮 Agent 对话前调用，返回的文本会标记为数据，在这一轮展示给模型。每次请求都要消耗 token。' },
     contributes: { type: 'Contributions', description: '页面、设置项、标签页、小组件、命令。' },
-    i18n: { type: '{ en?: PluginTranslation }', description: "清单里面向用户的字符串的英文版本。给模型看的文本不翻译。" },
-    legacy: { type: 'PluginLegacy', description: '这个插件取代掉的旧 id，让已存的数据继续可用。' },
+    i18n: { type: '{ en?: PluginTranslation }', description: "清单中给用户看的字符串的英文版本。给模型看的文本不翻译。" },
+    legacy: { type: 'PluginLegacy', description: '这个插件取代的旧 id，用来让已保存的数据继续可用。' },
   }}
 />
 
 ## ToolDef [#tooldef]
+
+工具是插件提供给助手、用户和调度器调用的函数。`tools` 里的每一项都是一个 `ToolDef`。
 
 ```ts
 interface ToolDef<I extends z.ZodType = z.ZodType, O = unknown> {
@@ -84,24 +90,26 @@ interface ToolDef<I extends z.ZodType = z.ZodType, O = unknown> {
     description: { type: 'Dynamic<string>', required: true, description: '写给模型看：什么时候用、怎么用这个工具。写成函数时可以读取宿主信息。' },
     input: { type: 'z.ZodType', required: true, description: '宿主在运行 `execute` 之前校验。' },
     effect: { type: 'ToolEffect', required: true, description: "'read' | 'write' | 'money' | 'public'." },
-    untrusted: { type: 'boolean', description: "返回第三方写的文本。调用后这一轮 Agent 对话会被标记为受污染。远程插件的工具一律算作此类。" },
+    untrusted: { type: 'boolean', description: "工具会返回第三方写的文本。调用后，这一轮 Agent 对话会被标记为受污染（tainted）。远程插件的工具一律算作此类。" },
     userOnly: { type: 'boolean', description: '只能由用户在页面里运行：不提供给模型，助手和调度器的调用都会被拒绝。' },
-    execute: { type: '(input: z.infer<I>, ctx: ToolContext) => Promise<O>', required: true, description: '执行实际工作。失败时抛出带有用户能看懂的消息的 Error。' },
+    execute: { type: '(input: z.infer<I>, ctx: ToolContext) => Promise<O>', required: true, description: '执行实际工作。失败时抛出一个 Error，消息要写得让用户能看懂。' },
   }}
 />
 
 ## ToolContext [#toolcontext]
 
+宿主调用 `execute` 时会传入第二个参数 `ctx`。它说明这次是谁在调用（`actor`），并提供插件私有的键值存储 `kv` 和宿主服务 `services`。
+
 ```ts
 interface ToolContext {
   pluginId: string;
   actor: Actor;
-  /** Set for agent calls inside a chat turn. */
+  /** 助手在一轮对话中调用时才有值。 */
   turn?: TurnInfo;
-  /** This plugin's private store. */
+  /** 本插件的私有存储。 */
   kv: KV;
   services: HostServices;
-  /** PKU Harness Cloud, bound to this plugin; optional until every host build wires it. */
+  /** 绑定到本插件的 PKU Harness Cloud；在所有宿主版本都接入之前是可选的。 */
   cloud?: PluginCloud;
   signal?: AbortSignal;
 }
@@ -110,9 +118,9 @@ type Actor = 'user' | 'agent' | 'scheduler';
 
 interface TurnInfo {
   sessionId?: string;
-  /** Earlier in this turn the agent called an untrusted tool (or any remote plugin). */
+  /** 本轮中助手此前调用过不受信任的工具（或任何远程插件）。 */
   tainted: boolean;
-  /** The user's own message in this turn asks to remember something. */
+  /** 用户在本轮自己发的消息中要求记住某件事。 */
   userAsked?: boolean;
 }
 
@@ -125,24 +133,28 @@ interface KV {
 
 ## 效果与能力需求 [#effects-and-capabilities]
 
+效果（`ToolEffect`）说明一个工具会产生什么后果，宿主据此决定调用前是否要征求用户同意。能力需求（`Capability`）说明插件需要设备具备什么条件。
+
 ```ts
 type ToolEffect = 'read' | 'write' | 'money' | 'public';
 
 type Capability =
-  | 'network'          // general internet access
-  | 'campus-network'   // hosts reachable only from the PKU network
-  | 'campus-session'   // authenticated campus HTTP via the host (credentials never exposed)
+  | 'network'          // 普通的互联网访问
+  | 'campus-network'   // 只能从北大校园网访问的主机
+  | 'campus-session'   // 经宿主发出的已登录校园 HTTP 请求（不会暴露凭据）
   | 'notifications'
-  | 'background'       // periodic background execution
-  | 'shell'            // never available on phones; plugins needing it must run remotely
+  | 'background'       // 定期在后台运行
+  | 'shell'            // 手机上永远不可用；需要它的插件必须远程运行
   | 'filesystem'
-  | 'cloud'            // a PKU Harness Cloud provider is configured; see PluginDef.cloud
-  | 'ongoing';         // persistent ongoing notification / foreground service (Android only)
+  | 'cloud'            // 已配置 PKU Harness Cloud 服务；见 PluginDef.cloud
+  | 'ongoing';         // 常驻通知 / 前台服务（仅 Android）
 ```
 
 另见[工具与效果](/docs/concepts/tools-and-effects)和[能力需求](/docs/concepts/capabilities)。
 
 ## 动态值 [#dynamic-values]
+
+有些字段（如 `instructions` 和工具的 `description`）既可以写成固定的值，也可以写成函数。写成函数时，宿主在构建提示词时调用它并传入 `HostServices`，你可以据此按当前状态生成内容。`resolveDynamic` 对这两种写法统一求值。
 
 ```ts
 type Dynamic<T> = T | ((services: HostServices) => T);
@@ -151,10 +163,12 @@ function resolveDynamic<T>(value: Dynamic<T>, services: HostServices): T;
 
 ## DataSourceDef [#datasourcedef]
 
+数据源指向插件里一个适合给小组件和定时检查使用的读取工具，并给出调用参数 `args` 和缓存时长 `ttlMs`。
+
 ```ts
 interface DataSourceDef {
   title: string;
-  /** Tool name inside this plugin. */
+  /** 本插件内的工具名。 */
   tool: string;
   args?: Record<string, unknown>;
   ttlMs: number;
@@ -163,33 +177,37 @@ interface DataSourceDef {
 
 ## 请求上下文 [#request-context]
 
+`PluginDef.context` 函数在每轮对话前被调用，收到的参数是 `ContextInput`。
+
 ```ts
 interface ContextInput {
-  /** The user's latest message. */
+  /** 用户最新的一条消息。 */
   query: string;
   kv: KV;
   services: HostServices;
 }
 
-/** Markers for context lines that retract a fact shown earlier. */
+/** 用来撤回先前展示过的事实的上下文行标记。 */
 const CONTEXT_MARK = { deleted: '[已删除]', corrected: '[更正]', arrow: ' → ' } as const;
 ```
 
-宿主只会在历史里仍然显示 `old` 的对话中追加 `- [已删除] old` 和 `- [更正] old → new` 这样的行，而且只追加一次。事实文本里不能含有这个箭头。
+当一条事实被删除或更正时，宿主会追加 `- [已删除] old` 或 `- [更正] old → new` 这样的行。它只在历史里仍然显示 `old` 的对话中追加，而且只追加一次。因此，事实文本本身不能含有这个箭头。
 
 ## PluginTranslation [#plugintranslation]
+
+插件清单中的名称、描述、标题等默认用中文写。`i18n.en` 用这个类型提供英文版本，没有写出的字段沿用中文。
 
 ```ts
 type PluginTranslation = {
   name?: string;
   description?: string;
-  /** Tool titles, keyed by tool name. */
+  /** 工具标题，以工具名为键。 */
   tools?: Record<string, { title?: string }>;
   widgets?: Record<string, { title?: string; description?: string }>;
   screens?: Record<string, { title?: string }>;
-  /** Settings rows, keyed by the screen they open. */
+  /** 设置项，以它打开的页面为键。 */
   settings?: Record<string, { title?: string; subtitle?: string }>;
-  /** `prompt`: the English template for prompt commands. */
+  /** `prompt`：提示词类命令的英文模板。 */
   commands?: Record<string, { description?: string; argHint?: string; aliases?: string[]; prompt?: string }>;
   providers?: Record<string, { name?: string; description?: string; credentialHint?: string; models?: Record<string, { name?: string; description?: string }> }>;
   dataSources?: Record<string, { title?: string }>;
@@ -200,18 +218,20 @@ type PluginTranslation = {
 
 ```ts
 interface PluginLegacy {
-  /** Old plugin ids now served by this plugin, e.g. ['campus-card', 'netfee']. */
+  /** 现在由本插件承接的旧插件 id，例如 ['campus-card', 'netfee']。 */
   pluginIds?: string[];
-  /** Old full tool id → tool name in this plugin, e.g. { 'campus-card.getBalance': 'cardBalance' }. */
+  /** 旧的完整工具 id → 本插件中的工具名，例如 { 'campus-card.getBalance': 'cardBalance' }。 */
   tools?: Record<string, string>;
-  /** Old `<plugin>.<widget>` → widget key in this plugin's `contributes.widgets`. */
+  /** 旧的 `<plugin>.<widget>` → 本插件 `contributes.widgets` 中的小组件键。 */
   widgets?: Record<string, string>;
 }
 ```
 
-合并或重命名插件之后用它。宿主会把旧插件 id（设置、`/p/<old>/…` 页面、小组件）和旧工具 id 映射到新插件，一次性改写已存的小组件和检查任务，并沿用原有设置（每种效果取最严格的授权方式）。旧 id 不会遮蔽真正安装着的插件。
+合并或重命名插件之后，用它保留旧 id。宿主会把旧插件 id（设置、`/p/<old>/…` 页面、小组件）和旧工具 id 映射到新插件，一次性改写已保存的小组件和检查任务，并沿用原有设置，每种效果取最严格的授权方式。如果某个旧 id 对应的插件实际仍然安装着，宿主使用那个插件，不会用旧 id 映射遮盖它。
 
 ## 模型服务商 [#model-providers]
+
+模型服务商为助手提供语言模型，例如 DeepSeek 或任何兼容 OpenAI 接口的服务。插件在 `providers` 中用 `ProviderDef` 描述一个服务商。
 
 ```ts
 type ProviderAuth = 'apiKey' | 'account' | 'none';
@@ -227,18 +247,18 @@ interface ProviderDef {
   credentialHint?: string;
   listModels?: (config: ProviderConfig) => Promise<ProviderModel[]>;
   signIn?: () => Promise<string>;
-  /** Read the account balance with the user's own credential. */
+  /** 用用户自己的凭据读取账户余额。 */
   balance?: (config: ProviderConfig) => Promise<ProviderAccount>;
-  /** Returns an AI SDK `LanguageModel` (typed loosely). */
+  /** 返回一个 AI SDK 的 `LanguageModel`（类型写得比较宽松）。 */
   createModel: (config: ProviderConfig) => unknown;
 }
 
 interface ProviderConfig {
   baseURL: string;
   model: string;
-  /** API key or account token from the host's secure storage. */
+  /** 来自宿主安全存储的 API key 或账户 token。 */
   credential?: string;
-  /** Streaming fetch provided by the host (e.g. expo/fetch). */
+  /** 宿主提供的支持流式响应的 fetch（例如 expo/fetch）。 */
   fetch: typeof fetch;
 }
 
@@ -246,22 +266,22 @@ interface ProviderModel {
   id: string;
   name?: string;
   description?: string;
-  /** Context window in tokens. Unknown: 128k assumed. */
+  /** 上下文窗口大小，单位为 token。未知时按 128k 处理。 */
   contextWindow?: number;
-  /** Image attachments are offered only when 'image' is listed. */
+  /** 只有列出 'image' 时才允许添加图片附件。 */
   inputModalities?: ('text' | 'image')[];
   pricing?: ModelPricing;
 }
 
 interface ModelPricing {
   currency: 'CNY' | 'USD';
-  /** Per 1M tokens. */
+  /** 每 100 万 token 的价格。 */
   inputCacheHit: number;
   inputCacheMiss: number;
   output: number;
-  /** Peak windows in the provider's time zone: weekdays (0 = Sunday) and [startHour, endHour). */
+  /** 服务商时区内的高峰时段：星期几（0 = 周日）和 [startHour, endHour)。 */
   peak?: { multiplier: number; utcOffsetMinutes: number; weekdays: number[]; hours: [number, number][] };
-  /** Where the numbers come from (URL + date checked). */
+  /** 价格的出处（URL 和核对日期）。 */
   source?: string;
 }
 
@@ -269,7 +289,7 @@ interface ProviderBalance { currency: string; total: number; granted?: number; t
 interface ProviderAccount { available: boolean; balances: ProviderBalance[] }
 ```
 
-服务商插件就是设置了 `providers` 的普通插件，通常没有工具。可以参考插件仓库里实际在用的
+服务商插件就是设置了 `providers` 的普通插件，通常不提供工具。下面是一个最小的例子。实际使用中的服务商插件可以参考插件仓库里的
 `plugins/deepseek/src/index.ts` 和 `plugins/openai-compatible/src/index.ts`。
 
 ```ts

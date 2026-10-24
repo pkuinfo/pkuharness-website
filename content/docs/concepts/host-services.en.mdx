@@ -1,33 +1,58 @@
 ---
 title: Host services
-description: Everything a bundled plugin does outside itself goes through `HostServices`, which the harness passes in as `ctx.services` (tools) and `props.services` (screens, widgets).
+description: Whenever a bundled plugin needs to do something outside itself, it goes through `HostServices`. The harness passes it in as `ctx.services` in tools and as `props.services` in screens and widgets.
 icon: Server
 ---
 
-Bundled plugins never import app code. Instead, the harness hands them a `HostServices` object:
-`ctx.services` inside tools, `props.services` in screens and widgets. Each plugin also gets its own
-key-value store (`ctx.kv` / `props.kv`) and, if it declares one, a cloud client (`ctx.cloud`).
+Bundled plugins never import app code. The system features a plugin needs, such as sending a
+campus request or creating a scheduled task, are provided by the app. We call these features
+**host services**.
+
+The harness gives a plugin its host services in one `HostServices` object. Inside a tool it is
+`ctx.services`. In screens and widgets it is `props.services`.
+
+Each plugin also gets its own key-value store (`ctx.kv` / `props.kv`). If the plugin declares the
+cloud, it also gets a cloud client (`ctx.cloud`).
 
 ## Overview
 
-| Service | What it gives you | Notes |
-| --- | --- | --- |
-| `campus` | Signed-in campus HTTP (`request(service, req)`), sign-in status, current 手机令牌 code, signed-in hand-off to the browser | Requires `campus-session`. See [Campus sessions](/en/docs/concepts/campus-sessions). |
-| `scheduler` | Create, update, remove, list jobs; run a check now | Exact notifications and scheduled checks. See [Scheduler](/en/docs/concepts/scheduler). |
-| `widgets` | Dashboard widgets: list, put, remove, reorder, preview, resolve, catalog | See [Dashboard](/en/docs/concepts/dashboard). |
-| `todos` | To-dos with optional reminders | |
-| `timetable` | Courses, semester, class reminder setting | |
-| `notify` | Whether reminders can fire on the minute; open the fix for what's missing | Call `fix` only from a tap |
-| `sms` | One-tap SMS code takeover (`awaitCode()`) | Android SMS User Consent; no SMS permission |
-| `files` | System file picker (`pick`) | User-initiated only; never from an agent tool |
-| `browser` | Open a URL in the system browser tab | For cashiers, documents, logins the harness can't do |
-| `crypto` | `sha256(text)` | Plugins have no crypto of their own |
-| `registry` | Installed plugins and tools (read-only) | |
-| `remote` | Install, uninstall, check remote MCP plugins | Used by the `plugins` plugin |
-| `genui` | Describe the generative-UI catalog, validate a spec | |
-| `ongoing?` | Android foreground service with an ongoing notification | Present only with the `ongoing` capability |
+| Service | What it provides |
+| --- | --- |
+| `campus` | Signed-in campus HTTP requests and sign-in status |
+| `scheduler` | Creating, updating, removing and listing scheduled jobs |
+| `widgets` | Managing dashboard widgets |
+| `todos` | To-dos, optionally with reminders |
+| `timetable` | Courses, the semester and the class-reminder setting |
+| `notify` | Whether reminders can fire on time, and a way to fix what's missing |
+| `sms` | One-tap reading of SMS codes |
+| `files` | The system file picker |
+| `browser` | Opening a URL in the system browser |
+| `crypto` | `sha256(text)` |
+| `registry` | Installed plugins and tools (read-only) |
+| `remote` | Installing, uninstalling and checking remote MCP plugins |
+| `genui` | The generative-UI catalog and spec validation |
+| `ongoing?` | An Android foreground service with a persistent notification |
 
-Exact signatures are in [SDK → HostServices](/en/docs/sdk/host-services).
+The exact signatures are in [SDK → HostServices](/en/docs/sdk/host-services). Here are some
+points to keep in mind when you use them.
+
+- **`campus`** centres on `request(service, req)`. It can also return the current mobile-token
+  (手机令牌) code, and it can hand off to the browser while keeping you signed in. It requires the
+  `campus-session` capability. See [Campus sessions](/en/docs/concepts/campus-sessions).
+- **`scheduler`** is used for exact notifications and scheduled checks, and it can run a check
+  immediately. See [Scheduler](/en/docs/concepts/scheduler).
+- **`widgets`** can list, put, remove, reorder, preview and resolve widgets, and it provides the
+  component catalog. See [Dashboard](/en/docs/concepts/dashboard).
+- **`notify`** has a `fix` method that may only be called from a tap.
+- **`sms`** provides `awaitCode()`, which uses Android's SMS User Consent feature and needs no SMS
+  permission.
+- **`files`** provides `pick`, which only the user can start. Never call it from a tool the agent
+  calls.
+- **`browser`** is for cashier pages, documents, and sign-ins that the harness can't do itself.
+- **`crypto`** exists because plugins have no cryptography library of their own.
+- **`remote`** is used by the `plugins` plugin.
+- **`ongoing`** exists only when the phone has the `ongoing` capability, which is why its name
+  has a question mark.
 
 ## Private storage: `kv`
 
@@ -39,10 +64,17 @@ interface KV {
 }
 ```
 
-Each plugin gets its own namespace, stored in SQLite on the device, with JSON values. It is not the
-keystore, so don't put secrets the user typed in it, and don't put large blobs in it either.
+Each plugin's `kv` has its own namespace. The values are stored as JSON in a SQLite database on
+the phone.
+
+`kv` is not the keystore. Don't store secrets that the user typed in it, and don't store large
+blobs either.
 
 ## Example: a tool that uses three services
+
+This tool creates a scheduled check. Every morning at 8:00 it looks up the campus-card balance and
+notifies you if the balance is below an amount you choose. It uses `campus`, `scheduler` and
+`kv`.
 
 ```ts
 import { defineTool } from '@pku-harness/sdk';
@@ -74,11 +106,13 @@ export const remindLowBalance = defineTool({
 
 ## Rules
 
-- **MUST** reach the app only through `services`, `kv`, `cloud` and (in UI) `host`. No imports
-  from the app, no global singletons shared between plugins.
-- **MUST NOT** import another plugin's code. Copy the small helper instead (bundled plugins do this
-  for their HTTP helpers).
-- **MUST** call `files.pick` and `notify.fix` only in response to a user's tap (`files.pick` never
-  from an agent tool).
-- **SHOULD** use public `fetch` only for public, unauthenticated pages (`requires: ['network']`),
-  and `services.campus.request` for anything that needs the user's session.
+- You **must** reach the app only through `services`, `kv`, `cloud` and, in UI, `host`. Don't
+  import from the app, and don't share global singletons between plugins.
+- You **must not** import another plugin's code. You can copy a small helper instead, which is
+  what bundled plugins do for their HTTP helpers. Code that several bundled plugins need goes in
+  `plugins/shared/`, for example `campus-card.ts`, which `wallet` and `card-share` both use.
+- You **must** call `files.pick` and `notify.fix` only in response to a tap from the user. Never
+  call `files.pick` from a tool the agent calls.
+- You **should** use a plain `fetch` only for public pages that need no sign-in, and declare
+  `requires: ['network']`. Every request that needs the user's session goes through
+  `services.campus.request`.

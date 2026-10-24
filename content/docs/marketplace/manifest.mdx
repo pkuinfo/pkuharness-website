@@ -1,10 +1,12 @@
 ---
 title: 清单参考
-description: 插件市场如何读取 PLUGIN.md（插件语言 v1）、扫描器去哪里找、检查哪些内容，以及远程 MCP 服务器使用的 pku-harness.plugin.json 兼容方案。
+description: 插件市场如何读取 PLUGIN.md（插件语言 v1）、扫描器在哪里查找插件、检查哪些内容，以及远程 MCP 服务器使用的 pku-harness.plugin.json 格式。
 icon: FileJson
 ---
 
-一个插件就是一个**带 `PLUGIN.md` 的文件夹**。YAML frontmatter 是清单，Markdown 正文是给助手的使用说明。完整的语言规范（工具、步骤、表达式、界面）见 [`docs/PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md)。本页只讲插件市场会读取和检查的部分。入门介绍请看[声明式插件](/docs/build/declarative-plugins)。
+本页列出插件市场会读取和检查的插件内容。准备上架仓库时，或者扫描器报出一个你看不懂的问题时，可以来这里查。
+
+一个插件就是一个带 `PLUGIN.md` 文件的文件夹。文件开头的 YAML frontmatter 是插件的「清单」（manifest），说明插件是什么、可以访问哪些东西；下面的 Markdown 正文是交给助手的使用说明。完整的插件语言（工具、步骤、表达式和界面）见 [`docs/PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md)。如果你刚开始写插件，请先读[声明式插件](/docs/build/declarative-plugins)。
 
 ```md title="campus-tools/canteen/PLUGIN.md"
 ---
@@ -29,65 +31,107 @@ i18n:
 Use `menu` when the user asks what to eat or which canteen is open. Prices are in yuan.
 ```
 
-## 扫描器去哪里找 [#where-the-scanner-looks]
+## 扫描器在哪里查找插件 [#where-the-scanner-looks]
 
-扫描器通过 GitHub API 读取仓库的默认分支：
+扫描器通过 GitHub API 读取仓库的默认分支，并用下面两种方式之一查找插件。
 
-1. 如果仓库根目录有 **`pku-harness.json`**，扫描器只检查其中列出的文件夹（最多 200 个），并按列出的顺序。大型 monorepo 适合这样做：
+1. 如果仓库根目录有 **`pku-harness.json`** 文件，扫描器只检查其中列出的文件夹（最多 200 个），并按列出的顺序检查。大型 monorepo 适合这样做：
 
    ```json title="pku-harness.json"
    { "plugins": ["plugins/canteen", "plugins/library-seat"] }
    ```
 
-   `"."` 表示仓库根目录。列出的文件夹里没有清单会报错。
+   `"."` 表示仓库根目录。如果列出的文件夹里没有清单，扫描器会报错。
 
-2. 否则，任意层级的每个 **`PLUGIN.md`** 都算一个插件。名为 `node_modules` 或以 `.` 开头的文件夹会被跳过。
+2. 否则，仓库里任意层级的每个 **`PLUGIN.md`** 都算一个插件。扫描器会跳过存放依赖、测试和测试数据的文件夹，所以其中的示例清单不会被上架。跳过的文件夹有：
 
-一个文件夹只对应一个插件。如果一个文件夹里有多份清单，**`PLUGIN.md` 优先**，其次是 `pku-harness.plugin.json`，最后是带 `"pkuHarness"` 对象的 `package.json`（见[远程 MCP 插件](#remote-mcp-plugins)）。
+   - `node_modules`，以及名称以 `.` 开头的文件夹；
+   - `test`、`tests` 和 `__tests__`；
+   - `fixtures`、`__fixtures__` 和 `testdata`；
+   - `e2e`（端到端测试）。
 
-提交时也可以指向一个子文件夹（`https://github.com/owner/repo/tree/main/plugins`），这样只扫描那个文件夹。
+   只要路径中有一层文件夹叫这些名字，就会被跳过。例如 `plugins/canteen/tests/PLUGIN.md` 不会上架。`pku-harness.json` 里列出的文件夹则一定会被检查，不论它叫什么名字。
 
-## Frontmatter [#frontmatter]
+一个文件夹最多对应一个插件。如果一个文件夹里有多种清单，扫描器**优先使用 `PLUGIN.md`**，其次是 `pku-harness.plugin.json`，最后是带 `"pkuHarness"` 对象的 `package.json`（见[远程 MCP 插件](#remote-mcp-plugins)）。
+
+提交时也可以填一个子文件夹的 URL，例如 `https://github.com/owner/repo/tree/main/plugins`。这样扫描器只查找这个文件夹。
+
+## Frontmatter 字段 [#frontmatter]
+
+下表列出所有顶层字段。「必填」一栏为空的字段都是可选的。
 
 | 字段 | 必填 | 说明 |
 |---|---|---|
 | `spec` | 是 | `1`。App 会拒绝它不认识的版本。 |
 | `id` | 是 | `^[a-z0-9][a-z0-9-]{1,40}$`。在整个插件市场里唯一，因为工具会注册为 `<id>.<tool>`。 |
-| `name` | 是 | 显示名称，中文优先。 |
+| `name` | 是 | 显示名称，以中文为主。 |
 | `description` | 是 | 一句话，4–200 个字符。 |
-| `version` | 是 | 语义化版本号。如果 YAML 会把它读成数字就加引号（`"1.0"` 本来也不是合法的 semver）。 |
+| `version` | 是 | 语义化版本号（semver）。如果 YAML 会把它读成数字，请加引号（`"1.0"` 本来也不是合法的 semver）。 |
 | `author` | 是 | GitHub 用户名或名字。 |
-| `icon`、`homepage` | | 宿主图标集里的图标名；一个 URL。 |
+| `icon`、`homepage` | | App 图标集里的图标名；一个 URL。 |
 | `minApp` | | 插件需要的最低 App 版本（`x.y.z`）。 |
-| `campus` | | **带着用户会话**调用的校园服务：`card`、`its`、`treehole`、`blackboard`、`elective`、`cwfw`、`cwpay`、`bdkj`、`library`、`library-space`、`portal`…… |
-| `network` | | 会访问的公开主机（`dining.pku.edu.cn`、`*.example.com`），只允许 HTTPS。 |
-| `abilities` | | 宿主能力：`verify`、`otp`、`todos`、`timetable`、`scheduler`、`browser`、`campusPage`、`sms`、`files`、`crypto`、`cloud`（[操作与效果](/docs/build/declarative-plugins#host-abilities)）。写别的名字会报错（App 会拒绝）。 |
-| `shared` | | 一个 YAML 文件（`shared.yaml`），里面的 `constants` 和 `functions` 所有工具都能用。 |
-| `tools` | | 工具名 → 文件（`tools/menu.yaml`）或内联工具的映射。每个工具都有 `title`、`description` 和如实填写的 `effect`：`read`、`write`、`money` 或 `public`。 |
+| `campus` | | App **带着用户会话**调用的校园服务（取值见下文）。 |
+| `network` | | 插件访问的公开主机（`dining.pku.edu.cn`、`*.example.com`），只允许 HTTPS。 |
+| `abilities` | | 插件用到的宿主能力（取值见下文）。 |
+| `shared` | | 一个 YAML 文件（`shared.yaml`），其中的 `constants` 和 `functions` 所有工具都能使用。 |
+| `tools` | | 工具名到文件（`tools/menu.yaml`）或内联工具的映射，见[工具](#tools)。 |
 | `dataSources` | | 供小组件和定时检查轮询的读取工具：`{ tool, args?, ttl }`。 |
-| `widgets`、`screens` | | 名称 → JSON 文件的映射（生成式界面 spec + 数据绑定）。 |
-| `settings`、`commands`、`defaultModes` | | 设置项、斜杠命令、按效果建议的授权方式。 |
-| `requires` | | 可以不写，因为它会从各项声明中**推导**出来（见下文）。 |
-| `cloud` | | 使用 PKU Harness Cloud，并附上大白话的数据说明（[见下文](#cloud-disclosure)）。 |
-| `server` | | 服务端函数（[CLOUD-FUNCTIONS.md](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)）。需要 `cloud.disclosure`，隐含 `cloud.uses: [functions]`。**官方服务器暂不开启**：请让插件在手机端完成工作，或使用你自己的后端。 |
-| `i18n.en` | | 英文的 `name`、`description` 及其他覆盖字符串。 |
+| `widgets`、`screens` | | 名称到 JSON 文件的映射（生成式界面 spec 加数据绑定）。 |
+| `settings`、`commands`、`defaultModes` | | 设置项、斜杠命令，以及按效果建议的授权方式。 |
+| `requires` | | 可以不写，因为插件市场会根据其他字段[推导](#derived-capabilities)出来。 |
+| `cloud` | | 使用 PKU Harness Cloud，并附上通俗易懂的数据说明（[见下文](#cloud-disclosure)）。 |
+| `server` | | 服务端函数。官方服务器暂不开启（见下文）。 |
+| `i18n.en` | | 英文字符串：`name`、`description`，以及 `tools.<name>.{title,summary}` 等覆盖项。 |
 | `remote` | | `{ mcp: https URL, auth?: none \| bearer }`，把这个文件夹变成[远程 MCP 插件](#remote-mcp-plugins)。 |
 
-**Markdown 正文**会成为插件给模型的使用说明。插件市场会在插件页上展示它（超过 20,000 个字符的部分会被截掉），超过 8,000 个字符时给出警告，因为每次对话都会带上它。只写清楚什么时候用哪个工具、数字代表什么就够了。
+**`campus`** 可以填这些服务名：`card`、`its`、`treehole`、`blackboard`、`elective`、`cwfw`、`cwpay`、`bdkj`、`library`、`library-space`、`portal`，以及 App 认识的其他服务。写了未知的服务名会得到警告。
+
+**`abilities`** 可以填 `verify`、`otp`、`todos`、`timetable`、`scheduler`、`browser`、`campusPage`、`sms`、`files`、`crypto` 和 `cloud`。每种能力提供哪些操作、对应什么效果，见[声明式插件指南](/docs/build/declarative-plugins#host-abilities)。写别的名字会报错，因为 App 会拒绝它。
+
+**`server`** 声明服务端函数，这些函数运行在 PKU Harness Cloud 上（[CLOUD-FUNCTIONS.md](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)）。带 `server` 的插件必须写 `cloud.disclosure`，并且隐含 `cloud.uses: [functions]`。官方服务器**暂不开启**服务端函数，使用官方实例的用户无法运行它们。请让插件在手机上完成工作，或者使用你自己的后端。
+
+### 使用说明 [#the-instructions]
+
+`PLUGIN.md` 的 Markdown 正文会成为插件给模型的使用说明。App 每次对话都会带上它，所以请写得简短，讲清楚什么时候用哪个工具、数字代表什么即可。插件市场会在插件页上展示正文，超过 20,000 个字符的部分会被截掉；正文超过 8,000 个字符时会给出警告。
+
+### 工具 [#tools]
+
+`tools` 里的每一项都是助手可以调用的一个工具。它可以是一个 YAML 文件的路径（例如 `tools/menu.yaml`），也可以直接内联写在清单里。每个工具都必须有 `title`、`description` 和如实填写的 `effect`：`read`、`write`、`money` 或 `public`。
+
+工具还可以有一个 `summary`：一行简短的说明，最多 80 个字符，告诉用户这个工具做什么。`description` 是写给模型看的，往往很长；`summary` 是写给用户看的。插件页会把它显示在工具标题下方，插件市场的搜索也会匹配它。
+
+```yaml title="tools/talks.yaml"
+title: 学术日历
+summary: 近期的学术讲座
+description: >-
+  Academic talks between two dates, sorted by start time. Default: today to 30 days ahead.
+effect: read
+untrusted: true
+```
+
+如果想让英文版插件市场显示英文的标题和简介，请在 `PLUGIN.md` 的 `i18n.en.tools.<name>` 下添加。没有英文简介的工具会显示中文简介。
+
+```yaml
+i18n:
+  en:
+    name: Campus events
+    description: Calendars of academic talks and campus activities.
+    tools: { talks: { title: Academic talks, summary: Upcoming academic talks } }
+```
 
 ### 文件 [#files]
 
-App 加载的每个文件都必须在 frontmatter 里点名（`tools`、`shared`、`widgets`、`screens`），App 从不遍历文件夹。扫描器会检查每个路径：
+App 只加载 frontmatter 在 `tools`、`shared`、`widgets` 和 `screens` 里点名的文件，从不遍历文件夹去找别的文件。对每个点名的路径，扫描器会检查它：
 
-- 相对于 `PLUGIN.md`，不含 `..`、不以 `/` 开头、没有 URL 协议；
+- 相对于 `PLUGIN.md`，不含 `..`，不以 `/` 开头，也没有 URL 协议；
 - 在仓库里确实存在（文件缺失是**错误**）；
 - 连同 `PLUGIN.md` 总共不超过 **512 KB**（按 GitHub 文件树里的 blob 大小计算）。
 
-扫描器还会下载每个被点名的工具文件，读出它的 `title` 和 `effect`，插件页会把它们作为权限面板的一部分展示出来。`tests/`、`README.md` 和 `assets/` 会被忽略。
+扫描器还会下载每个点名的工具文件，读出它的 `title`、`summary` 和 `effect`，插件页会把这些作为权限面板的一部分展示出来。frontmatter 没有点名的文件，例如 `tests/`、`README.md` 和 `assets/`，都会被忽略。
 
 ### 推导出的能力需求 [#derived-capabilities]
 
-插件页和筛选器里显示的 `requires`，是你写的内容加上各项声明隐含的内容：
+插件页和插件市场的筛选器会显示一份 `requires` 列表。它包括你在 `requires` 里写的内容，以及其他声明隐含的内容：
 
 | 声明 | 隐含 |
 |---|---|
@@ -99,11 +143,19 @@ App 加载的每个文件都必须在 frontmatter 里点名（`tools`、`shared`
 
 ### 安装链接 [#install-links]
 
-每个 `PLUGIN.md` 插件的页面都会显示它的安装链接（默认分支上的 GitHub 文件夹 URL，比如 `https://github.com/alice/campus-tools/tree/main/canteen`）、一个*在 App 中打开*按钮（深链接为 `pkuharness://plugin?src=<url-encoded install link>`），以及这个深链接的二维码。页面上显示的标识是 `owner/repo/path`。
+每个 `PLUGIN.md` 插件的页面都会给出安装方式：
+
+- 安装链接，即默认分支上的 GitHub 文件夹 URL，例如 `https://github.com/alice/campus-tools/tree/main/canteen`；
+- *在 App 中打开*按钮，深链接为 `pkuharness://plugin?src=<url-encoded install link>`；
+- 这个深链接的二维码。
+
+页面上显示的标识是 `owner/repo/path`。
 
 ## 远程 MCP 插件 [#remote-mcp-plugins]
 
-远程插件跑在你自己的服务器上，通过 Streamable HTTP 提供 MCP 服务。App 把它当作 MCP 服务器 `mcp-<id>` 来连接，所以请把服务器的 `name` 设成插件的 `id`。用一个只有 `remote`、没有工具的 `PLUGIN.md` 来描述它（在这里声明的工具会被忽略，并给出警告）：
+远程插件运行在你自己的服务器上，通过 Streamable HTTP 提供 MCP（Model Context Protocol，模型上下文协议）服务。App 把它当作名为 `mcp-<id>` 的 MCP 服务器来连接，所以请把服务器的 `name` 设成插件的 `id`。
+
+描述远程插件时，`PLUGIN.md` 只需要 `remote` 字段，不写工具。工具由服务器提供，所以文件里声明的工具会被忽略，并给出警告。
 
 ```md title="PLUGIN.md"
 ---
@@ -119,11 +171,11 @@ remote: { mcp: "https://canteen.example.com/mcp", auth: none }
 Use the tools when the user asks how crowded a canteen is.
 ```
 
-远程服务器永远拿不到校园会话，所以远程插件写了 `campus` 会得到警告。
+远程服务器永远拿不到用户的校园会话，因此远程插件写了 `campus` 会得到警告。
 
-### 兼容方案：`pku-harness.plugin.json` [#fallback-pku-harnesspluginjson]
+### 旧格式：`pku-harness.plugin.json` [#fallback-pku-harnesspluginjson]
 
-在 `PLUGIN.md` 的 `remote.mcp` 取代它之前，插件市场仍然会为远程 MCP 服务器读取 `pku-harness.plugin.json`（以及 `package.json` 里的 `"pkuHarness"`）。把 `$schema` 指向 [`/schema/plugin-manifest.v1.json`](/schema/plugin-manifest.v1.json)，编辑器就能边写边校验。
+在 `PLUGIN.md` 的 `remote.mcp` 取代它之前，插件市场仍然会为远程 MCP 服务器读取 `pku-harness.plugin.json`，以及 `package.json` 里的 `"pkuHarness"` 对象。把 `$schema` 指向 [`/schema/plugin-manifest.v1.json`](/schema/plugin-manifest.v1.json)，编辑器就能在你输入时检查这个文件。
 
 ```json title="pku-harness.plugin.json"
 {
@@ -141,25 +193,29 @@ Use the tools when the user asks how crowded a canteen is.
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `id` | string | 是 | `^[a-z0-9][a-z0-9-]{1,40}$`，在整个插件市场里唯一。**请把它用作 MCP 服务器的 `name`**：App 把插件安装为 `mcp-<id>`，并据此判断它是否已安装。 |
-| `name` | string | 是 | 显示名称，中文优先（不超过 40 个字符）。 |
+| `id` | string | 是 | `^[a-z0-9][a-z0-9-]{1,40}$`，在整个插件市场里唯一。请把它用作 MCP 服务器的 `name`（见下文）。 |
+| `name` | string | 是 | 显示名称，以中文为主（不超过 40 个字符）。 |
 | `description` | string | 是 | 一句话，4–200 个字符，说明它能帮同学做什么。 |
 | `author` | string | | 默认是仓库的 GitHub 所有者。 |
 | `kind` | `"remote"` \| `"builtin"` | | 默认 `"remote"`。`"builtin"` 保留给随 App 内置的插件。 |
-| `endpoint` | https URL \| null | | 公开的 MCP 端点（Streamable HTTP）。**自建**插件省略或填 `null`。必须是 `https://`、公网主机，不能带凭据或查询字符串。 |
-| `auth` | `"none"` \| `"bearer"` | | 默认 `"none"`。`"bearer"` 表示用户要在 App 里粘贴一个 token。 |
-| `icon` | string | | App 图标集里的图标名（`wallet`、`food`、`library`、`bus`……），或指向方形图片的 `https://` URL。 |
-| `requires` | capability[] | | 插件需要什么，见下文。 |
-| `scopes` | string[] | | 插件会访问的主机名（`"dining.pku.edu.cn"`、`"*.example.com"`），会展示给用户。 |
+| `endpoint` | https URL \| null | | 公开的 MCP 端点（Streamable HTTP）。**自建**插件不写，或填 `null`。 |
+| `auth` | `"none"` \| `"bearer"` | | 默认 `"none"`。填 `"bearer"` 时，用户要在 App 里粘贴一个 token。 |
+| `icon` | string | | App 图标集里的图标名（`wallet`、`food`、`library`、`bus`……），或者指向方形图片的 `https://` URL。 |
+| `requires` | capability[] | | 插件需要什么，见[能力需求](#capabilities-requires)。 |
+| `scopes` | string[] | | 插件访问的主机名（`"dining.pku.edu.cn"`、`"*.example.com"`），会展示给用户。 |
 | `tags` | string[] | | 小写的搜索标签。 |
-| `cloud` | object | | PKU Harness Cloud 的使用声明，从 `PluginDef.cloud` 复制过来，见下文。 |
+| `cloud` | object | | PKU Harness Cloud 的使用声明，从 `PluginDef.cloud` 复制过来，见[下文](#cloud-disclosure)。 |
 | `version` | string | | 显示在插件页上。 |
-| `license` | string | | SPDX 标识，比如 `"MIT"`。 |
+| `license` | string | | SPDX 许可证标识，例如 `"MIT"`。 |
 | `homepage` | https URL | | 文档或项目主页。 |
 | `i18n.en` | `{ name?, description? }` | | 英文字符串。 |
 | `$schema` | string | | 扫描器会忽略它。 |
 
-未知字段会被忽略并给出警告，免得拼写错误让数据悄悄丢失。
+`id` 的作用不只在插件市场。App 会把插件安装为名为 `mcp-<id>` 的 MCP 服务器，并靠这个名字判断插件是否已安装。如果服务器的 `name` 与 `id` 不同，App 就无法把两者对应起来。
+
+`endpoint` 必须使用 `https://` 和公网主机，不能包含凭据或查询字符串。
+
+未知字段会被忽略，同时给出警告。这样拼错字段名时，你会知道有数据没有生效。
 
 #### 写在 package.json 里 [#in-packagejson]
 
@@ -179,24 +235,30 @@ Use the tools when the user asks how crowded a canteen is.
 }
 ```
 
-`description`、`version`、`license` 和 `homepage` 默认取 package 自身的字段，`pkuHarness` 里写了的会覆盖它们。**没有 `id`** 的 `pkuHarness` 对象被视为 SDK 元数据（内置插件用的是 `{ "builtin": true }`），不会上架。
+`description`、`version`、`license` 和 `homepage` 默认取 package 自身的字段，`pkuHarness` 里写的值会覆盖它们。**没有 `id`** 的 `pkuHarness` 对象被视为 SDK 元数据，不会上架。内置插件用的就是这种写法：`{ "builtin": true }`。
 
 ## 能力需求（`requires`） [#capabilities-requires]
+
+下表中的每个值都会显示在插件页上，右栏是展示给用户的含义。
 
 | 值 | 展示给用户的含义 |
 |---|---|
 | `network` | 会访问互联网上的服务器。 |
 | `campus-network` | 部分主机只在北大校园网内响应。 |
-| `campus-session` | 使用用户已登录的校园会话办事。`PLUGIN.md` 插件通过声明 `campus` 获得它（由 App 签发请求）；远程 MCP 服务器永远拿不到，所以扫描器会警告。 |
+| `campus-session` | 使用用户已登录的校园会话办事。 |
 | `notifications` | 发送本地通知。 |
 | `background` | App 关闭时也会运行定时检查。 |
-| `shell`、`filesystem` | 手机两者都没有，App 会隐藏需要它们的插件。会给出警告。 |
+| `shell`、`filesystem` | 手机上两者都没有。App 会隐藏需要它们的插件，扫描器也会给出警告。 |
 | `cloud` | 使用 PKU Harness Cloud，必须有 `cloud` 块。 |
 | `ongoing` | 显示一个实时的持续活动。 |
 
-远程插件跑在你的服务器上，所以只声明需要**手机**提供的东西。
+`PLUGIN.md` 插件通过声明 `campus` 获得 `campus-session`，请求由 App 自己签发。远程 MCP 服务器永远拿不到校园会话，所以它申请 `campus-session` 时扫描器会警告。
+
+远程插件运行在你的服务器上，所以只需声明要由**手机**提供的东西。
 
 ## 云服务数据说明 [#cloud-disclosure]
+
+如果插件使用 PKU Harness Cloud，它的 `cloud` 块必须用通俗的话写清楚哪些数据会离开设备。插件市场和 App 都会在插件页上显示这些说明。
 
 ```json
 "cloud": {
@@ -206,27 +268,27 @@ Use the tools when the user asks how crowded a canteen is.
 }
 ```
 
-规则与注册表里的 `cloudIssues()` 相同：
+扫描器采用与注册表中 `cloudIssues()` 相同的规则：
 
 - `uses` 不能有重复项；
-- `uses` 非空时，至少要有一行 `disclosure.zh`，用大白话说明哪些数据会离开设备；
+- `uses` 非空时，至少要有一行 `disclosure.zh`，用通俗的话说明哪些数据会离开设备；
 - 不能有空行；
-- 如果写了 `disclosure.en`，必须逐行翻译 `zh`；
-- 外部 `backend.url` 必须是 `https`。
+- 如果写了 `disclosure.en`，它必须逐行翻译 `zh`；
+- 外部 `backend.url` 必须使用 `https`。
 
 ## 扫描器检查什么 [#what-the-scanner-checks]
 
-有错误的插件不会上架。警告会显示在插件页的**检查结果**里。
+有错误的插件不会上架。警告不影响上架，会显示在插件页的**检查结果**里。提示只是建议。
 
 | 检查项 | 级别 |
 |---|---|
-| 没有 frontmatter、YAML 或 JSON 不合法、违反 schema（`spec`、semver 格式的 `version` 等） | 错误 |
+| 没有 frontmatter、YAML 或 JSON 不合法，或违反 schema（`spec`、semver 格式的 `version` 等） | 错误 |
 | 仓库内 `id` 重复、占用官方 id，或 id 已被另一个已上架仓库使用 | 错误 |
 | 点名的文件是绝对路径、含 `..` 或不存在；总大小超过 512 KB | 错误 |
-| 工具文件缺少 `title`、`description` 或合法的 `effect` | 错误 |
-| `dataSources` 指向未声明的工具，`settings` 指向未声明的页面 | 错误 |
+| 工具文件缺少 `title`、`description` 或合法的 `effect`，或 `summary` 超过 80 个字符 | 错误 |
+| `dataSources` 指向未声明的工具，或 `settings` 指向未声明的页面 | 错误 |
 | `network` 里有不是主机名的条目 | 错误 |
-| 端点（`remote.mcp`、`endpoint`）不是 https、是私有或本地主机或 IP、带凭据或查询字符串 | 错误 |
+| 端点（`remote.mcp`、`endpoint`）不是 https，是私有或本地主机、IP，或带凭据、查询字符串 | 错误 |
 | 违反上面的 `cloud` 数据说明规则；有 `server` 但没有 `cloud.disclosure.zh` | 错误 |
 | 未知的 `abilities` | 错误 |
 | `PLUGIN.md` 里有未知的顶层字段（App 严格解析） | 错误 |
@@ -234,11 +296,18 @@ Use the tools when the user asks how crowded a canteen is.
 | 未知的 `campus` 服务 | 警告 |
 | 有 `server`（官方服务器暂不开启）；写了 `abilities: [cloud]` 却没有 `cloud` 或 `server` 块 | 警告 |
 | 远程插件写了 `campus`（JSON 清单写了 `campus-session`） | 警告 |
-| `requires` 里有 `shell`、`filesystem` | 警告 |
+| `requires` 里有 `shell` 或 `filesystem` | 警告 |
 | `requires: cloud` 但没有 `cloud` 块 | 警告 |
 | Markdown 正文为空或太长；没有任何工具、命令或小组件 | 警告 |
 | 远程插件声明了 `tools`（会被忽略） | 警告 |
 | JSON 清单里有未知字段 | 警告 |
-| 没有 `i18n.en`；JSON：没有 `endpoint`（自建）、没有 `license` | 提示 |
+| 没有 `i18n.en`；JSON 清单没有 `endpoint`（自建）或没有 `license` | 提示 |
 
-限制：每个仓库最多 100 个插件、300 个 `package.json`；每个插件最多 40 个工具文件（每个仓库最多 400 个）；每个下载的文件最大 256 KB；每次 GitHub 请求最长 10 秒。仓库太大、GitHub 一次列不完文件树时会给出警告，加一个 `pku-harness.json` 就能解决。
+扫描器还有以下大小限制：
+
+- 每个仓库最多 100 个插件、300 个 `package.json`；
+- 每个插件最多 40 个工具文件，每个仓库最多 400 个；
+- 每个下载的文件最大 256 KB；
+- 每次 GitHub 请求最长 10 秒。
+
+如果仓库太大，GitHub 一次请求列不完文件树，扫描器会给出警告。在仓库里加一个列出插件文件夹的 `pku-harness.json` 就能解决。

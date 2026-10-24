@@ -1,36 +1,47 @@
 ---
 title: notify
-description: NotifyReadiness 与 deliveryBlocker：在界面上检查提醒和定时检查能否准点触发。
+description: NotifyReadiness 类型和 deliveryBlocker 函数，用于在界面上检查提醒和定时检查能否准时送达。
 ---
 
-源码：`packages/sdk/src/notify.ts`。配合 `services.notify.readiness()` 和
-`services.notify.fix(kind)` 使用。
+提醒和定时检查要准时送达，需要用户在系统里打开几项权限。这个模块提供的类型和函数可以帮插件界面查明缺了哪一项，并引导用户去打开。它们配合 `services.notify.readiness()`（读取当前状态）和 `services.notify.fix(kind)`（弹出系统请求或打开对应的系统设置页）使用。
 
-要准点送达，系统（目前优先 Android）需要满足三件事：通知权限；「闹钟和提醒」特殊权限，也就是精确闹钟（Android 14 起默认拒绝）；最好再关掉对本应用的电池优化，这一项只是建议。
+源码：`packages/sdk/src/notify.ts`。
+
+## 准时送达需要的条件 [#requirements]
+
+目前优先支持 Android。在 Android 上，准时送达需要满足以下条件：
+
+- 通知权限。
+- 「闹钟和提醒」特殊权限，也就是精确闹钟。Android 14 起这项权限默认是拒绝的。
+- 关闭系统对本应用的电池优化。这一项只是建议，不打开也不会阻止提醒按时触发。
+
+## 类型与函数 [#types-and-functions]
 
 ```ts
 type NotifyPermission = 'granted' | 'undetermined' | 'denied';
 
 interface NotifyReadiness {
-  /** 'denied' = the system won't ask again; only system settings can turn it on. */
+  /** 'denied' 表示系统不会再弹出请求，只能到系统设置里打开。 */
   notifications: NotifyPermission;
-  /** Exact alarms allowed (always true where the OS has no such permission). */
+  /** 是否允许精确闹钟（系统没有这项权限时恒为 true）。 */
   exactAlarms: boolean;
-  /** The OS may defer the app's background work (battery optimisation on). */
+  /** 系统可能推迟本应用的后台任务（电池优化已开启）。 */
   batteryOptimized: boolean;
 }
 
-/** Something the user can fix: shows the system prompt or opens the matching system screen. */
+/** 用户可以修复的项目：弹出系统请求，或打开对应的系统设置页。 */
 type NotifyFixKind = 'notifications' | 'exactAlarms' | 'battery';
 
 /**
- * The first thing that stops reminders from arriving on the minute, or null when nothing does.
- * Battery optimisation is advisory (exact alarms still fire), so it never blocks.
+ * 返回第一个导致提醒无法准时送达的原因；没有阻碍时返回 null。
+ * 电池优化只是建议（精确闹钟照样会触发），所以它永远不会被当作阻碍。
  */
 function deliveryBlocker(r: NotifyReadiness): 'notifications' | 'exactAlarms' | null;
 ```
 
-只有真的有东西挡住送达时，界面才需要显示修复按钮。`fix` 只能在用户点击时调用：
+## 示例：显示修复按钮 [#example]
+
+只有确实有东西阻碍送达时，界面才需要显示修复按钮。`fix` 只能在用户点击时调用：
 
 ```tsx
 import { deliveryBlocker, type NotifyReadiness, type PluginScreenProps } from '@pku-harness/sdk';
@@ -52,4 +63,4 @@ export function ReminderBanner({ host, services }: PluginScreenProps) {
 }
 ```
 
-系统设置页可能在用户还没改任何东西时就返回了，所以应用回到前台时也要重新读一次 readiness。
+用户可能还没改任何设置就从系统设置页返回了，所以应用回到前台时，也要重新读取一次 readiness。

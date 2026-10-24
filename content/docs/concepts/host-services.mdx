@@ -1,31 +1,46 @@
 ---
 title: 宿主服务
-description: 内置插件凡是要做自身以外的事，都要通过 `HostServices`。框架以 `ctx.services`（工具中）和 `props.services`（页面、小组件中）的形式把它传进来。
+description: 内置插件需要做自身以外的事情时，都要通过 `HostServices`。框架在工具里以 `ctx.services`、在页面和小组件里以 `props.services` 的形式把它传给插件。
 icon: Server
 ---
 
-内置插件（bundled plugin）从不引用 App 的代码，框架会交给它们一个 `HostServices` 对象：工具里是 `ctx.services`，页面和小组件里是 `props.services`。每个插件还有自己的键值存储（`ctx.kv` / `props.kv`），如果声明了云服务，还会拿到一个云客户端（`ctx.cloud`）。
+内置插件从不导入 App 的代码。插件需要的系统功能，例如发送校园请求或创建定时任务，由 App 提供。我们把 App 提供的这些功能叫作**宿主服务**。
 
-## 总览 [#overview]
+框架把宿主服务放在一个 `HostServices` 对象里交给插件。在工具里，它是 `ctx.services`；在页面和小组件里，它是 `props.services`。
 
-| 服务 | 提供什么 | 备注 |
-| --- | --- | --- |
-| `campus` | 已登录的校园 HTTP（`request(service, req)`）、登录状态、当前手机令牌验证码、带登录态跳转到浏览器 | 需要 `campus-session`。见[校园会话](/docs/concepts/campus-sessions)。 |
-| `scheduler` | 创建、更新、删除、列出定时任务；立即运行一次检查 | 精确通知和定时检查。见[定时任务](/docs/concepts/scheduler)。 |
-| `widgets` | 看板小组件：列出、放置、移除、排序、预览、解析、组件目录 | 见[看板](/docs/concepts/dashboard)。 |
-| `todos` | 待办，可附带提醒 | |
-| `timetable` | 课程、学期、上课提醒设置 | |
-| `notify` | 提醒能否准点触发；打开缺失项的修复入口 | 只能在用户点击时调用 `fix` |
-| `sms` | 一键接管短信验证码（`awaitCode()`） | 使用 Android SMS User Consent，不需要短信权限 |
-| `files` | 系统文件选择器（`pick`） | 只能由用户发起，绝不能从助手的工具里调用 |
-| `browser` | 在系统浏览器标签页中打开 URL | 用于收银台、文档，以及框架处理不了的登录 |
-| `crypto` | `sha256(text)` | 插件自己没有加密库 |
-| `registry` | 已安装的插件和工具（只读） | |
-| `remote` | 安装、卸载、检查远程 MCP 插件 | 供 `plugins` 插件使用 |
-| `genui` | 描述生成式界面的组件目录，校验界面描述 | |
-| `ongoing?` | Android 前台服务和常驻通知 | 只在具备 `ongoing` 能力时存在 |
+此外，每个插件还有自己的键值存储（`ctx.kv` / `props.kv`）。如果插件声明了云服务，它还会拿到一个云客户端（`ctx.cloud`）。
 
-完整签名见 [SDK → HostServices](/docs/sdk/host-services)。
+## 服务一览 [#overview]
+
+| 服务 | 提供什么 |
+| --- | --- |
+| `campus` | 已登录的校园 HTTP 请求和登录状态 |
+| `scheduler` | 定时任务的创建、更新、删除和列出 |
+| `widgets` | 看板小组件的管理 |
+| `todos` | 待办，可以附带提醒 |
+| `timetable` | 课程、学期和上课提醒设置 |
+| `notify` | 提醒能否准时触发，以及修复入口 |
+| `sms` | 一键读取短信验证码 |
+| `files` | 系统的文件选择器 |
+| `browser` | 在系统浏览器中打开网址 |
+| `crypto` | `sha256(text)` |
+| `registry` | 已安装的插件和工具（只读） |
+| `remote` | 远程 MCP 插件的安装、卸载和检查 |
+| `genui` | 生成式界面的组件目录和描述校验 |
+| `ongoing?` | Android 前台服务和常驻通知 |
+
+每个服务的完整签名见 [SDK → HostServices](/docs/sdk/host-services)。下面补充一些使用时要注意的地方。
+
+- **`campus`** 的主要方法是 `request(service, req)`。它还能返回当前的手机令牌验证码，并能在保持登录状态的情况下跳转到浏览器。使用它需要 `campus-session` 能力，详见[校园会话](/docs/concepts/campus-sessions)。
+- **`scheduler`** 用于精确的通知和定时检查，也可以立即运行一次检查，详见[定时任务](/docs/concepts/scheduler)。
+- **`widgets`** 可以列出、放置、移除、排序、预览和解析小组件，并提供组件目录，详见[看板](/docs/concepts/dashboard)。
+- **`notify`** 的 `fix` 方法只能在用户点击时调用。
+- **`sms`** 的 `awaitCode()` 使用 Android 的 SMS User Consent 接口，不需要短信权限。
+- **`files`** 的 `pick` 只能由用户发起，绝不能在助手调用的工具里使用。
+- **`browser`** 用于打开收银台和文档，以及框架无法代为完成的登录。
+- **`crypto`** 存在的原因是插件自己没有加密库。
+- **`remote`** 供 `plugins` 插件使用。
+- **`ongoing`** 只在手机具备 `ongoing` 能力时存在，所以它的类型带有问号。
 
 ## 私有存储：`kv` [#private-storage-kv]
 
@@ -37,9 +52,13 @@ interface KV {
 }
 ```
 
-每个插件有独立的命名空间，存在设备上的 SQLite 里，值为 JSON。它不是密钥库，不要往里存用户输入的机密信息，也不要存大块数据。
+每个插件的 `kv` 都有独立的命名空间。数据以 JSON 的形式存在手机上的 SQLite 数据库里。
+
+`kv` 不是密钥库。请不要在里面存放用户输入的机密信息，也不要存放大块数据。
 
 ## 示例：一个用到三项服务的工具 [#example-a-tool-that-uses-three-services]
+
+下面这个工具会创建一个定时检查：每天早上 8 点查一次校园卡余额，余额低于指定金额时提醒你。它用到了 `campus`、`scheduler` 和 `kv`。
 
 ```ts
 import { defineTool } from '@pku-harness/sdk';
@@ -71,7 +90,7 @@ export const remindLowBalance = defineTool({
 
 ## 规则 [#rules]
 
-- **必须**只通过 `services`、`kv`、`cloud` 以及（界面中的）`host` 访问 App。不能从 App 引用代码，也不能在插件之间共享全局单例。
-- **不得**引用其他插件的代码。需要的小工具函数直接复制一份（内置插件的 HTTP 辅助函数就是这么做的）。
-- **必须**只在响应用户点击时调用 `files.pick` 和 `notify.fix`（`files.pick` 绝不能从助手的工具里调用）。
-- **应当**只对公开、无需登录的页面使用普通 `fetch`（`requires: ['network']`），凡是需要用户会话的请求都走 `services.campus.request`。
+- **必须**只通过 `services`、`kv`、`cloud`，以及界面中的 `host` 访问 App。不能导入 App 的代码，也不能在插件之间共享全局单例。
+- **不得**导入其他插件的代码。很小的工具函数可以直接复制一份，内置插件的 HTTP 辅助函数就是这样做的。多个内置插件都需要的代码放在 `plugins/shared/`，例如 `wallet` 和 `card-share` 共用的 `campus-card.ts`。
+- **必须**只在响应用户点击时调用 `files.pick` 和 `notify.fix`。`files.pick` 绝不能在助手调用的工具里使用。
+- **应当**只对公开的、不需要登录的页面使用普通的 `fetch`，并声明 `requires: ['network']`。凡是需要用户会话的请求，都要通过 `services.campus.request` 发出。
