@@ -14,6 +14,48 @@ export interface LandingPlugin {
 
 const REGISTRY_URL = 'https://raw.githubusercontent.com/pkuinfo/pku-harness-plugins/main/registry/registry.json';
 
+/**
+ * English names from each plugin's own i18n (PLUGIN.md `i18n.en.name` or `definePlugin` i18n in
+ * pku-harness-plugins, 2026-10-23). The registry only carries the Chinese name.
+ */
+const EN_NAMES: Record<string, string> = {
+  authenticator: 'Authenticator',
+  calendar: 'Date and academic calendar',
+  'campus-events': 'Campus events',
+  canteen: 'Canteens',
+  'card-share': 'Share payment code',
+  classrooms: 'Free classrooms',
+  'course-catalog': 'Course catalogue',
+  courses: 'Course (教学网)',
+  'course-sync': 'Official timetable',
+  dashboard: 'Dashboard',
+  deepseek: 'DeepSeek',
+  elective: 'Elective (选课网)',
+  finance: 'Finance',
+  grades: 'Grades',
+  library: 'Library',
+  memory: 'AI memory',
+  notices: 'Campus notices',
+  'openai-compatible': 'OpenAI-compatible',
+  plugins: 'Plugins',
+  'room-booking': 'Seminar rooms',
+  schedule: 'Schedule',
+  scheduler: 'Reminders and scheduled tasks',
+  shuttle: 'Shuttle bus',
+  timetable: 'Timetable',
+  todo: 'To-dos',
+  treehole: 'Treehole',
+  ui: 'Generative UI',
+  wallet: 'Campus wallet',
+};
+
+/** Plugin list with names in `lang` (English falls back to the registry name). */
+export async function getLocalizedPlugins(lang: 'zh' | 'en'): Promise<LandingPlugin[]> {
+  const plugins = await getLandingPlugins();
+  if (lang === 'zh') return plugins;
+  return plugins.map((p) => ({ ...p, name: EN_NAMES[p.id] ?? p.name, description: '' }));
+}
+
 export async function getLandingPlugins(): Promise<LandingPlugin[]> {
   try {
     const res = await fetch(REGISTRY_URL, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(5000) });

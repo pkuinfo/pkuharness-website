@@ -1,0 +1,250 @@
+{
+  "captured": "2026-10-23",
+  "device": "Android emulator (Pixel-class, 1080x2400, Android 17), PKU Harness release build",
+  "note": "Real app captures with only public campus data visible (free classrooms, plugin documents). The status bar clock is the real time of capture; no notifications are shown. Files with .zh are the same screens with the app language set to Simplified Chinese.",
+  "items": [
+    {
+      "file": "chat-dark.png",
+      "type": "image",
+      "feature": "chat",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "问一句“明天上午二教哪里有空教室”，AI 调用空闲教室插件，直接给出一张可点的卡片",
+        "en": "Ask for a free classroom tomorrow morning; the assistant calls the classrooms plugin and answers with a card"
+      },
+      "lang": "en"
+    },
+    {
+      "file": "chat-stream.mp4",
+      "type": "video",
+      "feature": "chat",
+      "theme": "dark",
+      "width": 720,
+      "height": 1600,
+      "duration": 15,
+      "caption": {
+        "zh": "一次完整的对话：调用插件、流式生成回答与卡片（2 倍速）",
+        "en": "A full chat turn: plugin call, streamed answer and card (2x speed)"
+      },
+      "lang": "en"
+    },
+    {
+      "file": "plugins-dark.png",
+      "type": "image",
+      "feature": "plugins",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "所有校园服务都是插件，一页网格管理开关与状态",
+        "en": "Every campus service is a plugin, managed from one grid"
+      },
+      "lang": "en"
+    },
+    {
+      "file": "plugins-light.png",
+      "type": "image",
+      "feature": "plugins",
+      "theme": "light",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "插件网格（浅色）",
+        "en": "The plugin grid (light theme)"
+      },
+      "lang": "en"
+    },
+    {
+      "file": "plugin-detail-dark.png",
+      "type": "image",
+      "feature": "plugins",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "插件详情：它能做什么、能访问哪些网站、看板组件和来源链接一目了然",
+        "en": "Plugin details: what it may do, which sites it reaches, its widgets and its source link"
+      },
+      "lang": "en"
+    },
+    {
+      "file": "permissions-dark.png",
+      "type": "image",
+      "feature": "permissions",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "按“读取 / 修改 / 花钱”分别决定：AI 直接做、先问你，还是不许做",
+        "en": "Per effect (read, change, money), choose whether the AI just does it, asks first, or never does"
+      },
+      "lang": "en"
+    },
+    {
+      "file": "install-review-dark.png",
+      "type": "image",
+      "feature": "install",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "粘贴一个链接安装插件，安装前先看清它能访问什么、能做什么",
+        "en": "Install a plugin from a link and review what it can reach and do first"
+      },
+      "lang": "en"
+    },
+    {
+      "file": "install-review-light.png",
+      "type": "image",
+      "feature": "install",
+      "theme": "light",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "从链接安装插件前的检查页（浅色）",
+        "en": "The install review sheet (light theme)"
+      },
+      "lang": "en"
+    },
+    {
+      "file": "install-from-link.mp4",
+      "type": "video",
+      "feature": "install",
+      "theme": "dark",
+      "width": 720,
+      "height": 1600,
+      "duration": 13,
+      "caption": {
+        "zh": "从一个链接打开插件，检查后即可安装",
+        "en": "Open a plugin from a link, check it, install"
+      },
+      "lang": "en"
+    },
+    {
+      "file": "chat-dark.zh.png",
+      "type": "image",
+      "feature": "chat",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "用中文问“明天上午二教有哪些空教室”，AI 调用空闲教室插件，按座位数列成卡片",
+        "en": "Asked in Chinese: the classrooms plugin answers with a card sorted by seats"
+      },
+      "lang": "zh"
+    },
+    {
+      "file": "chat-stream.zh.mp4",
+      "type": "video",
+      "feature": "chat",
+      "theme": "dark",
+      "width": 720,
+      "height": 1600,
+      "duration": 15,
+      "caption": {
+        "zh": "一次完整的中文对话：调用插件、流式生成回答与卡片（2 倍速）",
+        "en": "A full chat turn in Chinese (2x speed)"
+      },
+      "lang": "zh"
+    },
+    {
+      "file": "plugins-dark.zh.png",
+      "type": "image",
+      "feature": "plugins",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "所有校园服务都是插件，一页网格管理开关与状态",
+        "en": "Every campus service is a plugin, managed from one grid"
+      },
+      "lang": "zh"
+    },
+    {
+      "file": "plugins-light.zh.png",
+      "type": "image",
+      "feature": "plugins",
+      "theme": "light",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "插件网格（浅色）",
+        "en": "The plugin grid (light theme)"
+      },
+      "lang": "zh"
+    },
+    {
+      "file": "plugin-detail-dark.zh.png",
+      "type": "image",
+      "feature": "plugins",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "插件详情：它能做什么、能访问哪些网站、看板组件和来源链接一目了然",
+        "en": "Plugin details: what it may do, which sites it reaches, its widgets and its source link"
+      },
+      "lang": "zh"
+    },
+    {
+      "file": "permissions-dark.zh.png",
+      "type": "image",
+      "feature": "permissions",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "按“读取 / 修改 / 花钱”分别决定：AI 直接做、先问你，还是不许做",
+        "en": "Per effect (read, change, money), choose whether the AI just does it, asks first, or never does"
+      },
+      "lang": "zh"
+    },
+    {
+      "file": "install-review-dark.zh.png",
+      "type": "image",
+      "feature": "install",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "粘贴一个链接安装插件，安装前先看清它能访问什么、能做什么",
+        "en": "Install a plugin from a link and review what it can reach and do first"
+      },
+      "lang": "zh"
+    },
+    {
+      "file": "install-review-light.zh.png",
+      "type": "image",
+      "feature": "install",
+      "theme": "light",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "从链接安装插件前的检查页（浅色）",
+        "en": "The install review sheet (light theme)"
+      },
+      "lang": "zh"
+    },
+    {
+      "file": "install-from-link.zh.mp4",
+      "type": "video",
+      "feature": "install",
+      "theme": "dark",
+      "width": 720,
+      "height": 1600,
+      "duration": 13,
+      "caption": {
+        "zh": "从一个链接打开插件，检查后即可安装",
+        "en": "Open a plugin from a link, check it, install"
+      },
+      "lang": "zh"
+    }
+  ],
+  "notCaptured": {
+    "dashboard": "The dashboard header greets the signed-in user by name and the widgets show personal balances; needs a demo profile.",
+    "schedule": "The timetable is the signed-in user's own courses; needs a demo profile.",
+    "settings": "Settings shows the account name and student ID; permissions are shown on the plugin page instead."
+  }
+}

@@ -1,84 +1,84 @@
-import { ArrowDownToLine, BookOpen, KeyRound, Smartphone } from 'lucide-react';
+import { ArrowDownToLine, BookOpen } from 'lucide-react';
 import Link from 'next/link';
+import type { CSSProperties } from 'react';
+import { cn } from '@/lib/cn';
+import { type Lang, localePath } from '@/lib/i18n';
+import { t } from '@/lib/messages';
+import type { Release } from '@/lib/releases';
 import { github, repos } from '@/lib/shared';
-import { GitHubIcon } from './bits';
+import { button, GitHubIcon } from './bits';
 import { HeroBackdrop } from './hero-backdrop';
-import { HeroMark } from './hero-mark';
-import { Reveal } from './reveal';
+import { HeroStage } from './hero-stage';
+import type { MediaPair } from './showcase/device-media';
 
-export function Hero() {
+const delay = (s: number) => ({ '--lp-delay': `${s}s` }) as CSSProperties;
+
+export function Hero({
+  lang,
+  latest,
+  stage,
+}: {
+  lang: Lang;
+  latest?: Release;
+  stage: { center?: MediaPair; left?: MediaPair; right?: MediaPair };
+}) {
+  const m = t(lang);
+  const h = m.home.hero;
   return (
-    <section aria-labelledby="hero-title" className="relative isolate -mt-14 overflow-hidden pt-14">
+    <section aria-labelledby="hero-title" className="relative isolate -mt-14 overflow-hidden pt-14 pb-12 md:pb-16">
       <HeroBackdrop />
-      <div className="mx-auto grid w-full max-w-[1200px] items-center gap-6 px-5 pt-10 pb-20 md:px-8 md:pt-16 lg:min-h-[min(860px,100svh)] lg:grid-cols-[1.15fr_1fr] lg:gap-10 lg:pb-28">
-        <div className="order-2 lg:order-1">
-          <Reveal>
-            <h1
-              id="hero-title"
-              className="font-bold text-[2.75rem] leading-[1.12] tracking-[-0.035em] sm:text-6xl lg:text-[4.6rem]"
-            >
-              登录一次，
-              <br />
-              燕园交给 AI。
-            </h1>
-          </Reveal>
-          <Reveal delay={0.08}>
-            <p className="mt-4 max-w-xl text-pretty font-medium text-fd-foreground/80 text-lg tracking-[-0.01em] md:text-xl">
-              Log in once. An agent on your phone runs campus life through plugins.
-            </p>
-          </Reveal>
-          <Reveal delay={0.16}>
-            <p className="mt-6 max-w-[34rem] text-pretty text-fd-muted-foreground leading-[1.8]">
-              PKU Harness 是北大校园生活的 AI 原生 App。课表、校园卡、网费、树洞、教学网、财务、空间预约……
-              每一项校园服务都是一个插件，跑在你手机上的助手替你查、替你记、替你提醒。开源，免费。
-            </p>
-          </Reveal>
-          <Reveal delay={0.24}>
-            <div className="mt-9 flex flex-wrap items-center gap-3">
-              <Link
-                href="/download"
-                className="inline-flex h-12 items-center gap-2 rounded-[10px] bg-brand px-5 font-semibold text-white shadow-[0_10px_30px_-10px_rgba(139,0,18,0.8),inset_0_1px_0_rgba(255,255,255,0.18)] transition-[transform,background-color] duration-150 hover:bg-[#9e0016] focus-visible:outline-2 focus-visible:outline-fd-ring focus-visible:outline-offset-2 active:scale-[0.97]"
-              >
-                <ArrowDownToLine className="size-[18px]" aria-hidden="true" />
-                下载 Android 版
-              </Link>
-              <Link
-                href="/docs"
-                className="lp-glass inline-flex h-12 items-center gap-2 rounded-[10px] px-5 font-medium transition-transform duration-150 focus-visible:outline-2 focus-visible:outline-fd-ring focus-visible:outline-offset-2 active:scale-[0.97]"
-              >
-                <BookOpen className="size-[18px]" aria-hidden="true" />
-                阅读文档
-              </Link>
+      <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center px-4 pt-12 text-center md:px-8 md:pt-20">
+        <h1
+          id="hero-title"
+          className="lp-display lp-rise font-bold text-[2.6rem] leading-[1.1] sm:text-6xl md:text-7xl lg:text-[5.25rem]"
+        >
+          {h.title[0]}
+          <br />
+          {h.title[1]}
+        </h1>
+        <p
+          className="lp-rise mt-7 max-w-[36rem] text-pretty text-[17px] text-fd-muted-foreground leading-[1.75] md:text-xl md:leading-[1.7]"
+          style={delay(0.08)}
+        >
+          {h.lead}
+        </p>
+        <div className="lp-rise mt-9 flex flex-wrap items-center justify-center gap-3" style={delay(0.16)}>
+          <Link href={localePath(lang, '/download')} className={button.primary}>
+            <ArrowDownToLine className="size-[18px]" aria-hidden="true" />
+            {h.download}
+          </Link>
+          <Link href={localePath(lang, '/docs')} className={button.glass}>
+            <BookOpen className="size-[18px]" aria-hidden="true" />
+            {h.docs}
+          </Link>
+          <a href={github(repos.app)} className={cn(button.ghost, 'max-sm:hidden')}>
+            <GitHubIcon className="size-[18px]" />
+            {h.source}
+          </a>
+        </div>
+        <ul
+          className="lp-rise mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-fd-muted-foreground text-sm"
+          style={delay(0.24)}
+        >
+          {latest && (
+            <li>
               <a
-                href={github(repos.app)}
-                className="inline-flex h-12 items-center gap-2 rounded-[10px] px-3 font-medium text-fd-muted-foreground transition-colors hover:text-fd-foreground focus-visible:outline-2 focus-visible:outline-fd-ring"
+                href={latest.htmlUrl}
+                className="inline-flex items-center gap-2 rounded-full underline-offset-4 hover:text-fd-foreground hover:underline focus-visible:outline-2 focus-visible:outline-fd-ring"
               >
-                <GitHubIcon className="size-[18px]" />
-                源代码
+                <span className="relative flex size-2" aria-hidden="true">
+                  <span className="absolute inset-0 animate-ping rounded-full bg-up opacity-60 [animation-iteration-count:3]" />
+                  <span className="relative size-2 rounded-full bg-up" />
+                </span>
+                {h.released(latest.tag)}
               </a>
-            </div>
-          </Reveal>
-          <Reveal delay={0.32}>
-            <ul className="mt-10 flex flex-wrap gap-x-6 gap-y-2 text-fd-muted-foreground text-sm">
-              <li className="inline-flex items-center gap-2">
-                <KeyRound className="size-4 text-fd-primary" aria-hidden="true" />
-                密码只存在手机里
-              </li>
-              <li className="inline-flex items-center gap-2">
-                <Smartphone className="size-4 text-fd-primary" aria-hidden="true" />
-                Android 优先，iOS 计划中
-              </li>
-              <li className="inline-flex items-center gap-2">
-                <GitHubIcon className="size-4 text-fd-primary" />
-                MIT 开源
-              </li>
-            </ul>
-          </Reveal>
-        </div>
-        <div className="order-1 mx-auto w-[min(78vw,340px)] sm:w-[380px] lg:order-2 lg:w-full">
-          <HeroMark />
-        </div>
+            </li>
+          )}
+          <li>{h.android}</li>
+          <li>{h.license}</li>
+        </ul>
       </div>
+      {stage.center && <HeroStage center={stage.center} left={stage.left} right={stage.right} labels={m.home.media} />}
     </section>
   );
 }

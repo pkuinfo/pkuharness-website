@@ -1,62 +1,72 @@
 import type { Metadata } from 'next';
 import { Section, SectionHeading } from '@/components/landing/bits';
-import { PluginConstellation } from '@/components/landing/constellation';
 import { Developers } from '@/components/landing/developers';
 import { DownloadCta } from '@/components/landing/download-cta';
+import { type Chapter, FeatureTour } from '@/components/landing/feature-tour';
 import { Hero } from '@/components/landing/hero';
-import { HowItWorks } from '@/components/landing/how-it-works';
-import { PluginMarquee } from '@/components/landing/plugin-marquee';
-import { getLandingPlugins } from '@/components/landing/registry';
-import { TabsShowcase } from '@/components/landing/tabs-showcase';
+import { HomeFaq } from '@/components/landing/home-faq';
+import { PluginsSection } from '@/components/landing/plugins-section';
+import { getLocalizedPlugins } from '@/components/landing/registry';
+import { getShowcase, pick } from '@/components/landing/showcase/media';
 import { Trust } from '@/components/landing/trust';
+import { toLang } from '@/lib/i18n';
+import { t } from '@/lib/messages';
+import { getReleases, pickLatest } from '@/lib/releases';
 import '@/components/landing/landing.css';
 
-export const metadata: Metadata = {
-  title: { absolute: 'PKU Harness — 北大校园生活的 AI 原生 App' },
-  description:
-    '登录一次北大账号，课表、校园卡、网费、树洞、教学网……都交给跑在你手机上的 AI 助手。An open-source, AI-native campus app for Peking University.',
+export async function generateMetadata({ params }: PageProps<'/[lang]'>): Promise<Metadata> {
+  const m = t(toLang((await params).lang)).home.meta;
+  return { title: { absolute: m.title }, description: m.description };
+}
+
+/** Which captures (manifest `feature`) illustrate each tab, best first. */
+const TAB_FEATURES: Record<Chapter['id'], string[]> = {
+  chat: ['chat'],
+  dashboard: ['dashboard'],
+  schedule: ['schedule', 'timetable', 'todo'],
+  settings: ['settings', 'permissions'],
 };
 
-export default async function HomePage() {
-  const plugins = await getLandingPlugins();
+export default async function HomePage({ params }: PageProps<'/[lang]'>) {
+  const lang = toLang((await params).lang);
+  const m = t(lang).home;
+  const [plugins, media, { releases }] = await Promise.all([
+    getLocalizedPlugins(lang),
+    getShowcase(lang),
+    getReleases(),
+  ]);
+  const latest = pickLatest(releases);
+
+  const heroCenter = pick(media, lang, ['chat'], { preferVideo: true });
+  const stage = {
+    center: heroCenter,
+    left: pick(media, lang, ['plugins']),
+    right: pick(media, lang, ['install', 'permissions']),
+  };
+  const chapters: Chapter[] = (['chat', 'dashboard', 'schedule', 'settings'] as const).map((id) => ({
+    id,
+    ...m.tour.chapters[id],
+    // the hero already plays the chat recording, so the tour shows the still
+    media: pick(media, lang, TAB_FEATURES[id], { exclude: heroCenter ? [heroCenter.dark.src] : [] }),
+  }));
+  const install = pick(media, lang, ['install'], { preferVideo: true });
+
   return (
-    <div className="flex flex-col">
-      <Hero />
-      <PluginMarquee plugins={plugins} />
+    <div className="lp-home flex flex-col overflow-x-clip">
+      <Hero lang={lang} latest={latest} stage={stage} />
 
-      <Section labelledBy="tabs-title" className="py-24 md:py-32">
-        <SectionHeading id="tabs-title" title="四个标签页，一个助手" en="Four tabs, one agent behind all of them." />
-        <div className="mt-14">
-          <TabsShowcase />
-        </div>
-      </Section>
-
-      <Section labelledBy="how-title" className="py-24 md:py-32">
-        <SectionHeading id="how-title" title="一句话，到学校的每个系统" en="From one sentence to every campus system.">
-          助手不直接碰学校的网站。它只能调用插件声明过的工具，每一次调用都先经过你设定的授权。
+      <Section labelledBy="tour-title" id="tour" className="pt-16 pb-4 md:pt-24">
+        <SectionHeading id="tour-title" title={m.tour.title}>
+          <p>{m.tour.lead}</p>
         </SectionHeading>
-        <div className="mt-16">
-          <HowItWorks />
-        </div>
+        <FeatureTour chapters={chapters} labels={{ ...m.media, examples: m.tour.examplesLabel }} />
       </Section>
 
-      <Section labelledBy="constellation-title" className="py-24 md:py-32">
-        <SectionHeading
-          id="constellation-title"
-          title="一切皆插件"
-          en="Everything is a plugin, and every plugin is equal."
-        >
-          App 本身只是一个
-          harness：智能体循环、设计系统和宿主服务。课表、校园卡、树洞、模型服务，连助手画界面的能力，都是插件。
-        </SectionHeading>
-        <div className="mt-10">
-          <PluginConstellation plugins={plugins} />
-        </div>
-      </Section>
-
-      <Trust />
-      <Developers />
-      <DownloadCta />
+      <PluginsSection lang={lang} plugins={plugins} media={install} />
+      <Trust lang={lang} />
+      <Developers lang={lang} />
+      <HomeFaq lang={lang} />
+      <DownloadCta lang={lang} />
     </div>
   );
 }

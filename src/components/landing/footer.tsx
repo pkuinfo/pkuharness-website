@@ -36,17 +36,25 @@ function columns(lang: Lang): { title: string; links: { label: string; href: str
   ];
 }
 
+/**
+ * Site footer. The oversized wordmark along the bottom edge follows 21st.dev:
+ * arihantcodes/large-name-footer; here it is set in the page's own type, cut off by the page edge
+ * and kept faint so it reads as a sign-off, not a headline.
+ */
 export function SiteFooter({ lang }: { lang: Lang }) {
   const m = t(lang).footer;
   return (
-    <footer className="mt-auto border-fd-border border-t">
-      <div className="mx-auto grid w-full max-w-[1200px] gap-10 px-5 py-14 md:grid-cols-[1.4fr_repeat(3,1fr)] md:px-8">
-        <div>
-          <Link href={localePath(lang, '/')} className="inline-flex items-center gap-2.5 font-semibold">
+    <footer className="relative mt-auto overflow-hidden border-fd-border border-t">
+      <div className="mx-auto grid w-full max-w-[1200px] grid-cols-2 gap-x-6 gap-y-10 px-4 pt-16 pb-12 sm:grid-cols-3 md:grid-cols-[1.5fr_repeat(3,1fr)] md:px-8">
+        <div className="col-span-2 sm:col-span-3 md:col-span-1">
+          <Link
+            href={localePath(lang, '/')}
+            className="inline-flex items-center gap-2.5 rounded-[8px] font-semibold focus-visible:outline-2 focus-visible:outline-fd-ring"
+          >
             <Logo size={28} />
             PKU Harness
           </Link>
-          <p className="mt-4 max-w-xs text-fd-muted-foreground text-sm leading-relaxed">{m.tagline}</p>
+          <p className="mt-4 max-w-xs text-pretty text-fd-muted-foreground text-sm leading-relaxed">{m.tagline}</p>
         </div>
         {columns(lang).map((col) => (
           <nav key={col.title} aria-label={col.title}>
@@ -55,11 +63,17 @@ export function SiteFooter({ lang }: { lang: Lang }) {
               {col.links.map((l) => (
                 <li key={l.href}>
                   {l.href.startsWith('/') ? (
-                    <Link href={l.href} className="transition-colors hover:text-fd-foreground">
+                    <Link
+                      href={l.href}
+                      className="rounded-[4px] transition-colors hover:text-fd-foreground focus-visible:outline-2 focus-visible:outline-fd-ring"
+                    >
                       {l.label}
                     </Link>
                   ) : (
-                    <a href={l.href} className="transition-colors hover:text-fd-foreground">
+                    <a
+                      href={l.href}
+                      className="rounded-[4px] transition-colors hover:text-fd-foreground focus-visible:outline-2 focus-visible:outline-fd-ring"
+                    >
                       {l.label}
                     </a>
                   )}
@@ -69,10 +83,16 @@ export function SiteFooter({ lang }: { lang: Lang }) {
           </nav>
         ))}
       </div>
-      <div className="mx-auto flex w-full max-w-[1200px] flex-wrap justify-between gap-2 border-fd-border border-t px-5 py-6 text-fd-muted-foreground text-xs md:px-8">
+      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-2 px-4 text-fd-muted-foreground text-xs leading-relaxed md:flex-row md:justify-between md:gap-8 md:px-8">
         <span>{m.license}</span>
-        <span>{m.disclaimer}</span>
+        <span className="md:text-end">{m.disclaimer}</span>
       </div>
+      <p
+        aria-hidden="true"
+        className="pointer-events-none mt-6 -mb-[0.24em] select-none whitespace-nowrap text-center font-bold text-[15.5vw] text-fd-foreground/[0.06] leading-[0.9] tracking-[-0.04em] min-[1440px]:text-[14rem]"
+      >
+        PKU Harness
+      </p>
     </footer>
   );
 }

@@ -9,34 +9,60 @@ export function GitHubIcon({ className }: { className?: string }) {
   );
 }
 
-/** Section heading: Chinese title, concise English subline, optional lead paragraph. */
+const focus = 'focus-visible:outline-2 focus-visible:outline-fd-ring focus-visible:outline-offset-2';
+
+/** Button looks shared by the landing sections (links styled as buttons). */
+export const button = {
+  primary: cn(
+    'inline-flex h-12 items-center justify-center gap-2 rounded-[10px] bg-brand px-5 font-semibold text-white shadow-[0_10px_30px_-10px_rgba(139,0,18,0.8),inset_0_1px_0_rgba(255,255,255,0.18)] transition-[transform,background-color] duration-150 ease-out hover:bg-brand-bright/90 active:scale-[0.97] dark:hover:bg-[#9e0016]',
+    focus,
+  ),
+  glass: cn(
+    'lp-glass inline-flex h-12 items-center justify-center gap-2 rounded-[10px] px-5 font-medium transition-transform duration-150 ease-out active:scale-[0.97]',
+    focus,
+  ),
+  ghost: cn(
+    'inline-flex h-12 items-center justify-center gap-2 rounded-[10px] px-3 font-medium text-fd-muted-foreground transition-colors hover:text-fd-foreground',
+    focus,
+  ),
+};
+
+/** A string with `\n` as lines (deliberate breaks in short headings). */
+export function lines(text: string): ReactNode {
+  const parts = text.split('\n');
+  return parts.map((p, i) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: static text lines
+    <span key={i}>
+      {p}
+      {i < parts.length - 1 && <br />}
+    </span>
+  ));
+}
+
+/** Section heading: one title (`\n` = line break) and an optional lead paragraph. */
 export function SectionHeading({
   id,
   title,
-  en,
   children,
   align = 'left',
   className,
 }: {
   id?: string;
   title: ReactNode;
-  en: ReactNode;
   children?: ReactNode;
   align?: 'left' | 'center';
   className?: string;
 }) {
   return (
     <div className={cn('max-w-2xl', align === 'center' && 'mx-auto text-center', className)}>
-      <h2
-        id={id}
-        className="font-semibold text-3xl leading-[1.2] [word-break:keep-all] tracking-[-0.02em] md:text-[2.6rem]"
-      >
-        {title}
+      <h2 id={id} className="lp-display text-balance font-semibold text-[2rem] leading-[1.18] md:text-[2.75rem]">
+        {typeof title === 'string' ? lines(title) : title}
       </h2>
-      <p className="mt-2 text-balance font-medium text-fd-muted-foreground text-lg tracking-[-0.01em] md:text-xl">
-        {en}
-      </p>
-      {children && <div className="mt-5 text-pretty text-fd-muted-foreground leading-[1.75]">{children}</div>}
+      {children && (
+        <div className="mt-5 max-w-[36rem] text-pretty text-fd-muted-foreground text-lg leading-[1.75] [.text-center_&]:mx-auto">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -45,15 +71,18 @@ export function Section({
   children,
   className,
   labelledBy,
+  id,
 }: {
   children: ReactNode;
   className?: string;
   labelledBy?: string;
+  id?: string;
 }) {
   return (
     <section
+      id={id}
       aria-labelledby={labelledBy}
-      className={cn('relative mx-auto w-full max-w-[1200px] px-5 md:px-8', className)}
+      className={cn('relative mx-auto w-full max-w-[1200px] px-4 md:px-8', className)}
     >
       {children}
     </section>

@@ -5,7 +5,18 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { cn } from '@/lib/cn';
 
-export function CopyButton({ text, label = '复制', className }: { text: string; label?: string; className?: string }) {
+/** Icon button that copies `text`; labels come from the page's messages. */
+export function CopyButton({
+  text,
+  label,
+  copiedLabel,
+  className,
+}: {
+  text: string;
+  label: string;
+  copiedLabel: string;
+  className?: string;
+}) {
   const [done, setDone] = useState(false);
   return (
     <button
@@ -19,9 +30,10 @@ export function CopyButton({ text, label = '复制', className }: { text: string
           // clipboard unavailable (insecure context): leave the text selectable
         }
       }}
-      aria-label={done ? '已复制' : label}
+      aria-label={done ? copiedLabel : label}
+      title={label}
       className={cn(
-        'relative grid size-8 shrink-0 place-items-center rounded-[8px] text-fd-muted-foreground transition-colors hover:bg-fd-foreground/[0.06] hover:text-fd-foreground focus-visible:outline-2 focus-visible:outline-fd-ring',
+        'relative grid size-8 shrink-0 place-items-center rounded-lg text-fd-muted-foreground transition-colors hover:bg-fd-foreground/[0.06] hover:text-fd-foreground focus-visible:outline-2 focus-visible:outline-fd-ring',
         className,
       )}
     >
@@ -34,12 +46,15 @@ export function CopyButton({ text, label = '复制', className }: { text: string
           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
         >
           {done ? (
-            <Check className="size-4 text-(--color-up)" aria-hidden="true" />
+            <Check className="size-4 text-up" aria-hidden="true" />
           ) : (
             <Copy className="size-4" aria-hidden="true" />
           )}
         </motion.span>
       </AnimatePresence>
+      <span className="sr-only" aria-live="polite">
+        {done ? copiedLabel : ''}
+      </span>
     </button>
   );
 }
