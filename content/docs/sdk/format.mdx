@@ -1,0 +1,45 @@
+---
+title: format
+description: 按语言格式化日期和时间（Hermes 的 Intl 不认 locale），以及用 defineStrings 定义带类型检查的多语言字符串表。
+---
+
+源码：`packages/sdk/src/format.ts`。指南：[多语言](/docs/build/i18n)。`AppLocale` 的取值是
+`'zh-Hans' | 'en'`。
+
+Hermes 的 `Intl` 会忽略 locale，所以这些函数是手写格式化的，输出和应用自身的日期格式一致，插件界面看起来就和应用其他地方一样。它们都是纯函数，测试时传入 `now` 即可。
+
+## 字符串表 [#string-tables]
+
+```ts
+/** Per-locale string table; `en` must have exactly the keys (and value types) of `zh-Hans`. */
+type Localized<T> = { 'zh-Hans': T; en: T };
+
+/** Define a plugin's string table with `en` type-checked against `zh-Hans`. */
+const defineStrings: <T>(table: { 'zh-Hans': T; en: NoInfer<T> }) => Localized<T>;
+```
+
+## 日期和时间 [#dates-and-times]
+
+| 函数 | 签名 | zh-Hans | en |
+| --- | --- | --- | --- |
+| `formatClock` | `(d: Date \| number, seconds?: boolean) => string` | `21:04` / `21:04:37` | 同左 |
+| `formatWeekday` | `(d: Date \| number, locale) => string` | `周一` | `Mon` |
+| `weekdayName` | `(weekday: number, locale) => string`（1 = 周一 … 7 = 周日，0 也表示周日） | `周一` | `Mon` |
+| `formatLocalDate` | `(d, locale, now?) => string`（不是今年时带上年份） | `10月18日`、`2025年10月18日` | `Oct 18`、`Oct 18, 2025` |
+| `formatLocalDateTime` | `(d, locale, now?) => string` | `10月18日 21:04` | `Oct 18, 21:04` |
+| `formatRelative` | `(ms: number, locale, now?) => string`（过去的时间戳） | `刚刚`、`3 分钟前`、`21:04`、`昨天 21:04`，再往前是日期加时间 | `Just now`、`3 min ago`、`21:04`、`Yesterday 21:04` …… |
+| `formatDay` | `(d, locale, now?) => string` | `今天`、`明天`、`昨天`、`周三`（未来一周内）、日期 | `Today`、`Tomorrow`、`Yesterday`、`Wed`、日期 |
+| `formatCountdown` | `(ms: number, locale) => string`（剩余时间） | `3天5小时`、`2小时10分`、`8分钟`、`不到1分钟`、`已到` | `3d 5h`、`2h 10m`、`8 min`、`<1 min`、`Now` |
+| `dayDiff` | `(d, now?) => number` | 距今天的自然日数（0 今天，1 明天，−1 昨天），不受夏令时影响 | |
+| `plural` | `(n: number, one: string, many?: string) => string` | — | `plural(3, 'book')` → `3 books` |
+
+```ts
+import { formatCountdown, formatRelative } from '@pku-harness/sdk';
+
+const locale = host.useLocale();
+formatRelative(data.updatedAt ?? Date.now(), locale);      // "3 分钟前" / "3 min ago"
+formatCountdown(deadline - Date.now(), locale);            // "2小时10分" / "2h 10m"
+```
+
+给模型看的时间戳是另一回事：宿主会在每一轮对话里附上当前时间，定时相关的工具使用
+[scheduler](/docs/sdk/scheduler) 里的 `formatLocal`（`"2026-10-20 08:00 周二"`）。

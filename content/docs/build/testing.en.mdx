@@ -1,16 +1,16 @@
 ---
 title: Testing
-description: Unit-test pure logic and parsers with bun test, run the agent loop end to end against the scripted mock model, and exercise MCP with the demo-canteen example.
+description: Unit-test parsers and pure logic with bun test, drive the agent loop end to end with the scripted mock model, and try remote plugins against the demo-canteen example.
 icon: FlaskConical
 ---
 
-Most campus plugins are three layers: an HTTP call, a parser, and a tool that shapes the result.
-Test the parser and the shaping with `bun test`, then try the whole thing in the app.
+Most campus plugins have three layers: an HTTP call, a parser, and a tool that shapes the result.
+Cover the parser and the shaping with `bun test`, then try the whole thing in the app.
 
 ## Plugin documents (PLUGIN.md)
 
-A `PLUGIN.md` plugin is tested with the author CLI in the plugins repository, against recorded
-responses in its `tests/*.yaml`:
+You test a `PLUGIN.md` plugin with the author CLI in the plugins repository. It replays the
+recorded responses in the plugin's `tests/*.yaml`:
 
 ```bash
 bun run plugin validate plugins/classrooms   # the checks the app runs
@@ -19,13 +19,13 @@ bun run plugin run plugins/classrooms overview '{}'   # live, public hosts only
 ```
 
 `bun test` includes `plugins/documents.test.ts`, which loads every `plugins/<id>/PLUGIN.md` and
-replays all of its recorded tests, so CI fails when a document or its fixtures break. The test
-format is in the [quickstart](/docs/build/quickstart#record-a-test). The rest of this page is
-about TypeScript plugins.
+replays all its recorded tests, so CI fails as soon as a document or its fixtures break. The test
+format is described in the [quickstart](/en/docs/build/quickstart#record-a-test). The rest of this
+page covers TypeScript plugins.
 
 ## Unit tests (bun test)
 
-Run in the plugins repository:
+Run these in the plugins repository:
 
 ```bash
 bun test                      # every *.test.ts in the workspace
@@ -33,14 +33,17 @@ bun test plugins/focus        # one plugin
 bunx tsc --noEmit -p .        # typecheck SDK + plugins
 ```
 
-- Colocate tests: `src/parse.test.ts` next to `src/parse.ts`.
+(`focus` is the example plugin from [Bundled plugin](/en/docs/build/bundled-plugin); use your own
+plugin's folder.)
+
+- Put tests next to the code: `src/parse.test.ts` beside `src/parse.ts`.
 - **Parsers**: save real responses as fixtures (`src/fixtures/*.html|json`) with personal data
-  replaced, and assert on the parsed result. Campus pages change; a fixture shows exactly what
+  replaced, and assert on the parsed result. Campus pages change, and a fixture shows exactly what
   broke.
-- **Time**: pass `now` explicitly instead of reading `Date.now()` inside logic (the SDK's
-  recurrence, timetable and format helpers all take `now`).
-- **React Native**: modules that import `react-native` can't load under bun unless you mock it.
-  Keep logic in plain modules, or mock it as `plugins/i18n.test.ts` does:
+- **Time**: pass `now` in explicitly instead of reading `Date.now()` inside logic. The SDK's
+  recurrence, timetable and format helpers all take `now`.
+- **React Native**: modules that import `react-native` won't load under bun unless you mock it.
+  Keep logic in plain modules, or mock it the way `plugins/i18n.test.ts` does:
 
 ```ts
 import { mock } from 'bun:test';
@@ -79,21 +82,21 @@ test('start, then today shows the running session', async () => {
 });
 ```
 
-`execute` doesn't validate input; the host does. Test validation separately with
-`tool.input.safeParse(...)` if it matters.
+`execute` doesn't validate its input; the host does that. If validation matters, test it separately
+with `tool.input.safeParse(...)`.
 
 ## Mock model
 
-`examples/mock-llm` is a scripted OpenAI-compatible Chat Completions server for exercising the
-agent loop without a key:
+`examples/mock-llm` is a scripted OpenAI-compatible Chat Completions server. It lets you exercise
+the agent loop without an API key:
 
 ```bash
 bun examples/mock-llm/server.ts     # http://localhost:8788/v1, model "mock-agent"
 ```
 
-In the app: Settings → AI service → OpenAI-compatible, base URL `http://10.0.2.2:8788/v1`
-(emulator) and model `mock-agent`. It picks a tool from keywords in your message, then summarises
-the tool result:
+In the app, go to Settings → AI service → OpenAI-compatible and set the base URL to
+`http://10.0.2.2:8788/v1` (from the emulator) and the model to `mock-agent`. It picks a tool based
+on keywords in your message, then summarises the tool result:
 
 | Message contains | It calls |
 | --- | --- |
@@ -105,7 +108,7 @@ the tool result:
 | `食堂` / `canteen` | `mcp-demo-canteen__reserveSeat` (needs the demo plugin installed) |
 | `who` | Echoes the injected `<context>` block |
 
-Extend its `plan()` function locally to call your own tools by model name.
+To call your own tools, extend its `plan()` function locally with their model names.
 
 ## Demo remote plugin
 
@@ -113,15 +116,15 @@ Extend its `plan()` function locally to call your own tools by model name.
 bun examples/demo-canteen/server.ts   # :8787/mcp, bearer token demo-token
 ```
 
-Add `http://10.0.2.2:8787/mcp` with token `demo-token` in Settings → Plugins → Add remote plugin.
-It has one read tool (`menu`) and one write tool (`reserveSeat`), so you can see the approval
+In Settings → Plugins → Add remote plugin, add `http://10.0.2.2:8787/mcp` with token `demo-token`.
+It has one read tool (`menu`) and one write tool (`reserveSeat`), so you get to see the approval
 prompt for remote writes.
 
 ## On a device
 
 - Dev-only deep links run a tool or a chat turn:
-  `pkuharness://dev?tool=<plugin>.<tool>&input=<json>` and `pkuharness://dev?chat=<text>`;
-  add `&actor=agent` to exercise the ask-first prompts.
-- Check both themes (dark and light) and both languages for screens and widgets.
-- Real campus data needs a real account: test read tools on your own account before asking
-  others to; never commit responses with personal data.
+  `pkuharness://dev?tool=<plugin>.<tool>&input=<json>` and `pkuharness://dev?chat=<text>`.
+  Add `&actor=agent` to trigger the ask-first prompts.
+- Check screens and widgets in both themes (dark and light) and both languages.
+- Real campus data needs a real account. Test read tools on your own account before asking anyone
+  else to, and never commit responses that contain personal data.

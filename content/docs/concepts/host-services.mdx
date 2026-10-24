@@ -1,0 +1,77 @@
+---
+title: 宿主服务
+description: 内置插件凡是要做自身以外的事，都要通过 `HostServices`。框架以 `ctx.services`（工具中）和 `props.services`（页面、小组件中）的形式把它传进来。
+icon: Server
+---
+
+内置插件（bundled plugin）从不引用 App 的代码，框架会交给它们一个 `HostServices` 对象：工具里是 `ctx.services`，页面和小组件里是 `props.services`。每个插件还有自己的键值存储（`ctx.kv` / `props.kv`），如果声明了云服务，还会拿到一个云客户端（`ctx.cloud`）。
+
+## 总览 [#overview]
+
+| 服务 | 提供什么 | 备注 |
+| --- | --- | --- |
+| `campus` | 已登录的校园 HTTP（`request(service, req)`）、登录状态、当前手机令牌验证码、带登录态跳转到浏览器 | 需要 `campus-session`。见[校园会话](/docs/concepts/campus-sessions)。 |
+| `scheduler` | 创建、更新、删除、列出定时任务；立即运行一次检查 | 精确通知和定时检查。见[定时任务](/docs/concepts/scheduler)。 |
+| `widgets` | 看板小组件：列出、放置、移除、排序、预览、解析、组件目录 | 见[看板](/docs/concepts/dashboard)。 |
+| `todos` | 待办，可附带提醒 | |
+| `timetable` | 课程、学期、上课提醒设置 | |
+| `notify` | 提醒能否准点触发；打开缺失项的修复入口 | 只能在用户点击时调用 `fix` |
+| `sms` | 一键接管短信验证码（`awaitCode()`） | 使用 Android SMS User Consent，不需要短信权限 |
+| `files` | 系统文件选择器（`pick`） | 只能由用户发起，绝不能从助手的工具里调用 |
+| `browser` | 在系统浏览器标签页中打开 URL | 用于收银台、文档，以及框架处理不了的登录 |
+| `crypto` | `sha256(text)` | 插件自己没有加密库 |
+| `registry` | 已安装的插件和工具（只读） | |
+| `remote` | 安装、卸载、检查远程 MCP 插件 | 供 `plugins` 插件使用 |
+| `genui` | 描述生成式界面的组件目录，校验界面描述 | |
+| `ongoing?` | Android 前台服务和常驻通知 | 只在具备 `ongoing` 能力时存在 |
+
+完整签名见 [SDK → HostServices](/docs/sdk/host-services)。
+
+## 私有存储：`kv` [#private-storage-kv]
+
+```ts
+interface KV {
+  get<T>(key: string): Promise<T | undefined>;
+  set<T>(key: string, value: T): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+```
+
+每个插件有独立的命名空间，存在设备上的 SQLite 里，值为 JSON。它不是密钥库，不要往里存用户输入的机密信息，也不要存大块数据。
+
+## 示例：一个用到三项服务的工具 [#example-a-tool-that-uses-three-services]
+
+```ts
+import { defineTool } from '@pku-harness/sdk';
+import { z } from 'zod';
+
+export const remindLowBalance = defineTool({
+  title: '余额提醒',
+  description: 'Every morning at 08:00, notify when the campus card balance is below `below` yuan.',
+  input: z.object({ below: z.number().positive() }),
+  effect: 'write',
+  execute: async ({ below }, ctx) => {
+    if (!ctx.services.campus.status().signedIn) throw new Error('请先在设置里登录校园账号');
+    const job = await ctx.services.scheduler.create({
+      title: '校园卡余额提醒',
+      source: ctx.actor === 'agent' ? 'agent' : 'user',
+      trigger: { type: 'every', unit: 'day', interval: 1, times: ['08:00'], startAt: Date.now() },
+      action: {
+        type: 'check',
+        tool: 'wallet.cardBalance',
+        condition: { path: 'balance', op: '<', value: below },
+        title: '校园卡余额只剩 ¥{value}',
+      },
+    });
+    await ctx.kv.set('lowBalanceJob', job.id);
+    return { jobId: job.id, nextRunAt: job.nextRunAt };
+  },
+});
+```
+
+## 规则 [#rules]
+
+- **必须**只通过 `services`、`kv`、`cloud` 以及（界面中的）`host` 访问 App。不能从 App 引用代码，也不能在插件之间共享全局单例。
+- **不得**引用其他插件的代码。需要的小工具函数直接复制一份（内置插件的 HTTP 辅助函数就是这么做的）。
+- **必须**只在响应用户点击时调用 `files.pick` 和 `notify.fix`（`files.pick` 绝不能从助手的工具里调用）。
+- **应当**只对公开、无需登录的页面使用普通 `fetch`（`requires: ['network']`），凡是需要用户会话的请求都走 `services.campus.request`。

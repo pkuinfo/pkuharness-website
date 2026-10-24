@@ -1,20 +1,20 @@
 ---
 title: Host services
-description: Everything a bundled plugin does outside itself goes through `HostServices`, provided by the harness as `ctx.services` (tools) and `props.services` (screens, widgets).
+description: Everything a bundled plugin does outside itself goes through `HostServices`, which the harness passes in as `ctx.services` (tools) and `props.services` (screens, widgets).
 icon: Server
 ---
 
-Bundled plugins never import app code. The harness hands them a `HostServices` object instead:
+Bundled plugins never import app code. Instead, the harness hands them a `HostServices` object:
 `ctx.services` inside tools, `props.services` in screens and widgets. Each plugin also gets its own
-key-value store (`ctx.kv` / `props.kv`) and, when it declares one, a cloud client (`ctx.cloud`).
+key-value store (`ctx.kv` / `props.kv`) and, if it declares one, a cloud client (`ctx.cloud`).
 
 ## Overview
 
 | Service | What it gives you | Notes |
 | --- | --- | --- |
-| `campus` | Signed-in campus HTTP (`request(service, req)`), sign-in status, current 手机令牌 code, signed-in hand-off to the browser | Requires `campus-session`. See [Campus sessions](/docs/concepts/campus-sessions). |
-| `scheduler` | Create, update, remove, list jobs; run a check now | Exact notifications and scheduled checks. See [Scheduler](/docs/concepts/scheduler). |
-| `widgets` | Dashboard widgets: list, put, remove, reorder, preview, resolve, catalog | See [Dashboard](/docs/concepts/dashboard). |
+| `campus` | Signed-in campus HTTP (`request(service, req)`), sign-in status, current 手机令牌 code, signed-in hand-off to the browser | Requires `campus-session`. See [Campus sessions](/en/docs/concepts/campus-sessions). |
+| `scheduler` | Create, update, remove, list jobs; run a check now | Exact notifications and scheduled checks. See [Scheduler](/en/docs/concepts/scheduler). |
+| `widgets` | Dashboard widgets: list, put, remove, reorder, preview, resolve, catalog | See [Dashboard](/en/docs/concepts/dashboard). |
 | `todos` | To-dos with optional reminders | |
 | `timetable` | Courses, semester, class reminder setting | |
 | `notify` | Whether reminders can fire on the minute; open the fix for what's missing | Call `fix` only from a tap |
@@ -27,7 +27,7 @@ key-value store (`ctx.kv` / `props.kv`) and, when it declares one, a cloud clien
 | `genui` | Describe the generative-UI catalog, validate a spec | |
 | `ongoing?` | Android foreground service with an ongoing notification | Present only with the `ongoing` capability |
 
-The exact signatures are in [SDK → HostServices](/docs/sdk/host-services).
+Exact signatures are in [SDK → HostServices](/en/docs/sdk/host-services).
 
 ## Private storage: `kv`
 
@@ -39,8 +39,8 @@ interface KV {
 }
 ```
 
-Namespaced per plugin, stored in SQLite on the device, JSON values. Don't store secrets the user
-typed in it (it is not the keystore) and don't store large blobs.
+Each plugin gets its own namespace, stored in SQLite on the device, with JSON values. It is not the
+keystore, so don't put secrets the user typed in it, and don't put large blobs in it either.
 
 ## Example: a tool that uses three services
 
@@ -76,7 +76,7 @@ export const remindLowBalance = defineTool({
 
 - **MUST** reach the app only through `services`, `kv`, `cloud` and (in UI) `host`. No imports
   from the app, no global singletons shared between plugins.
-- **MUST NOT** import another plugin's code. Copy a small helper instead (bundled plugins do this
+- **MUST NOT** import another plugin's code. Copy the small helper instead (bundled plugins do this
   for their HTTP helpers).
 - **MUST** call `files.pick` and `notify.fix` only in response to a user's tap (`files.pick` never
   from an agent tool).

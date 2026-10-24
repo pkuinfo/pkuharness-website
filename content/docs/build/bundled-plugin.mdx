@@ -1,0 +1,418 @@
+---
+title: 内置插件
+description: 用 definePlugin 编写随 App 一起发布的插件，通过一个完整示例走一遍工具、数据源、页面、设置项、小组件、快捷指令、英文文案和测试。
+icon: Package
+---
+
+内置插件（bundled plugin）是 `pku-harness-plugins/plugins/<id>` 下的一个 TypeScript 模块，只依赖 `@pku-harness/sdk`。它在手机上运行，只通过宿主服务（host services）和 App 打交道，可以添加原生界面。内置插件跟随 App 版本一起发布，所以**请先开一个 issue**：说明插件做什么，以及为什么不能写成插件文档或远程插件。
+
+<Callout title="大多数校园服务已经改用插件文档">
+  TypeScript 只用于框架自身的功能（界面、看板、定时任务、待办、日程、课表、记忆、插件管理、模型服务商、身份验证器、付款码页面），以及插件语言暂时表达不了的集成。官方的校园服务集成 classrooms、campus-events、grades、canteen、shuttle 和 notices 都是随 App 内置的[插件文档](/docs/build/declarative-plugins)，其余的正在迁移。如果你的插件只是请求校内或公开接口再提取数据，请改写 `PLUGIN.md`。如果它需要插件语言还没有的功能，请提议新增一个宿主能力（ability）。
+</Callout>
+
+本页从头写一个完整的插件 `focus`：记录专注时段，显示今天一共专注了多久。它不依赖任何外部服务，可以直接运行。如果要对接校园服务，把其中的存储调用换成 `ctx.services.campus.request(...)` 即可（见 [校园会话](/docs/concepts/campus-sessions)）。
+
+## 目录结构 [#layout]
+
+<Files>
+  <Folder name="pku-harness-plugins" defaultOpen>
+    <Folder name="plugins" defaultOpen>
+      <Folder name="focus" defaultOpen>
+        <File name="package.json" />
+        <Folder name="src" defaultOpen>
+          <File name="index.ts" />
+          <File name="store.ts" />
+          <File name="store.test.ts" />
+          <File name="strings.ts" />
+          <File name="screen.tsx" />
+          <File name="widget.tsx" />
+        </Folder>
+      </Folder>
+      <File name="index.ts" />
+    </Folder>
+    <Folder name="registry">
+      <File name="registry.json" />
+    </Folder>
+  </Folder>
+</Files>
+
+## 1. package.json [#1-package]
+
+```json title="plugins/focus/package.json"
+{
+  "name": "@pku-harness/plugin-focus",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Focus sessions and today's total, on the device",
+  "type": "module",
+  "main": "src/index.ts",
+  "license": "MIT",
+  "pkuHarness": { "builtin": true },
+  "peerDependencies": {
+    "@pku-harness/sdk": "*",
+    "zod": "^4.0.0",
+    "react": "*",
+    "react-native": "*"
+  }
+}
+```
+
+插件工作区会把 `@pku-harness/sdk` 解析到 `packages/sdk/src`。所有包都是私有的，不会发布到 npm。添加其他运行时依赖之前请先和我们商量，因为所有代码都会打进 App 的安装包。
+
+## 2. 先写纯逻辑 [#2-pure-logic-first]
+
+不依赖 React Native 的逻辑放在普通模块里，这样 `bun test` 就能覆盖到。
+
+```ts title="plugins/focus/src/store.ts"
+import type { KV } from '@pku-harness/sdk';
+
+export type Session = { id: string; label: string; startedAt: number; endedAt: number | null };
+
+const KEY = 'sessions';
+
+export async function loadSessions(kv: KV): Promise<Session[]> {
+  return (await kv.get<Session[]>(KEY)) ?? [];
+}
+
+export async function saveSessions(kv: KV, list: Session[]): Promise<void> {
+  await kv.set(KEY, list.slice(-500));
+}
+
+/** Minutes of focus on the local day of `now`, counting a running session up to `now`. Pure. */
+export function minutesOn(list: Session[], now: number): number {
+  const d = new Date(now);
+  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
+  let ms = 0;
+  for (const s of list) {
+    const a = Math.max(s.startedAt, start);
+    const b = Math.min(s.endedAt ?? now, end);
+    if (b > a) ms += b - a;
+  }
+  return Math.round(ms / 60_000);
+}
+
+export const running = (list: Session[]) => list.find((s) => s.endedAt == null) ?? null;
+```
+
+## 3. 插件本体 [#3-the-plugin]
+
+```ts title="plugins/focus/src/index.ts"
+import { definePlugin, defineTool } from '@pku-harness/sdk';
+import { z } from 'zod';
+
+import { FocusScreen } from './screen';
+import { loadSessions, minutesOn, running, saveSessions } from './store';
+import { FocusWidget } from './widget';
+
+/** 专注: start/stop focus sessions and see today's total. Everything stays on the device. */
+export const focusPlugin = definePlugin({
+  id: 'focus',
+  name: '专注',
+  description: '记录专注时段，查看今天专注了多久。',
+  version: '0.1.0',
+  icon: 'clock',
+  requires: [],
+  scopes: [],
+  i18n: {
+    en: {
+      name: 'Focus',
+      description: 'Track focus sessions and see how long you focused today.',
+      tools: { start: { title: 'Start focusing' }, stop: { title: 'Stop focusing' }, today: { title: 'Focus today' } },
+      widgets: { today: { title: 'Focus today', description: 'Minutes focused today and the running session, if any.' } },
+      screens: { main: { title: 'Focus' } },
+      settings: { main: { title: 'Focus', subtitle: 'Focus sessions' } },
+      commands: { focus: { description: 'Open focus sessions', aliases: ['pomodoro'] } },
+      dataSources: { today: { title: 'Focus today' } },
+    },
+  },
+  instructions: `专注记录：用户说"开始学习/专注""我学完了"时用 focus__start / focus__stop；问"今天学了多久"时用 focus__today。`,
+  dataSources: {
+    today: { title: '今日专注', tool: 'today', ttlMs: 60_000 },
+  },
+  contributes: {
+    screens: { main: { title: '专注', component: FocusScreen } },
+    settings: [{ screen: 'main', title: '专注', subtitle: '专注时段', icon: 'clock' }],
+    widgets: {
+      today: {
+        title: '今日专注',
+        description: '今天专注的分钟数，以及正在进行的专注。',
+        sizes: ['sm', 'md', 'lg'],
+        defaultSize: 'sm',
+        component: FocusWidget,
+      },
+    },
+    commands: {
+      focus: { description: '打开专注', aliases: ['专注', '番茄钟'], run: (_input, { navigate }) => navigate('/p/focus/main') },
+    },
+  },
+  tools: {
+    start: defineTool({
+      title: '开始专注',
+      description: 'Start a focus session now. Fails if one is already running (stop it first).',
+      input: z.object({ label: z.string().trim().max(40).optional().describe('what the user focuses on, e.g. "高数作业"') }),
+      effect: 'write',
+      execute: async ({ label }, ctx) => {
+        const list = await loadSessions(ctx.kv);
+        if (running(list)) throw new Error('已经有一个正在进行的专注，请先结束它');
+        const session = { id: Date.now().toString(36), label: label ?? '', startedAt: Date.now(), endedAt: null };
+        await saveSessions(ctx.kv, [...list, session]);
+        return { started: true, label: session.label };
+      },
+    }),
+    stop: defineTool({
+      title: '结束专注',
+      description: 'Stop the running focus session. Returns its length in minutes.',
+      input: z.object({}),
+      effect: 'write',
+      execute: async (_input, ctx) => {
+        const list = await loadSessions(ctx.kv);
+        const current = running(list);
+        if (!current) return { stopped: false, reason: 'nothing running' };
+        const now = Date.now();
+        await saveSessions(ctx.kv, list.map((s) => (s.id === current.id ? { ...s, endedAt: now } : s)));
+        return { stopped: true, minutes: Math.round((now - current.startedAt) / 60_000) };
+      },
+    }),
+    today: defineTool({
+      title: '今日专注',
+      description: 'Minutes focused today (device-local day), including the running session, and the running session if any.',
+      input: z.object({}),
+      effect: 'read',
+      execute: async (_input, ctx) => {
+        const list = await loadSessions(ctx.kv);
+        const current = running(list);
+        return { minutes: minutesOn(list, Date.now()), running: current ? { label: current.label, startedAt: current.startedAt } : null };
+      },
+    }),
+  },
+});
+```
+
+各部分的作用：
+
+| 字段 | 作用 |
+| --- | --- |
+| `id` | 注册表 id，格式为 `^[a-z0-9][a-z0-9-]{1,40}$`。工具 id 会是 `focus.start`，模型看到的名字是 `focus__start`。 |
+| `name`、`description`、工具的 `title` | 中文，展示给用户。英文写在 `i18n.en` 里。 |
+| `instructions` | 追加到 Agent 的系统提示词（system prompt）里。每次请求都会带上，所以要短。提到工具时用模型名。 |
+| `dataSources` | 适合给小组件和定时检查用的读取工具，带缓存时长。 |
+| `contributes.screens` | 挂载在 `/p/focus/main`（`presentation: 'modal'` 时为 `/m/focus/<screen>`）。 |
+| `contributes.settings` | 设置页里的一行，点开进入某个页面。 |
+| `contributes.widgets` | 一个原生的看板小组件（widget），Agent 会读它的 `description`。 |
+| `contributes.commands` | 聊天输入框里的 `/focus` 快捷指令（这里是一个本地操作）。 |
+| `tools` | 插件的 API：每个工具一种效果（effect），用 zod 定义输入，返回数据。 |
+
+## 4. 界面 [#4-ui]
+
+页面和小组件通过 `host` 拿到框架的组件，从不直接从 App 导入：
+
+```tsx title="plugins/focus/src/screen.tsx"
+import type { PluginScreenProps } from '@pku-harness/sdk';
+
+import { strings } from './strings';
+
+type Today = { minutes: number; running: { label: string; startedAt: number } | null };
+
+/** Start and stop focus sessions. Calls the plugin's own tools, as the user. */
+export function FocusScreen({ host, invoke }: PluginScreenProps) {
+  const { Screen, Stat, Button, Column, Text } = host.components;
+  const s = strings[host.useLocale()];
+  const data = host.useToolData<Today>('focus.today', {}, { ttlMinutes: 1 });
+  const active = data.value?.running ?? null;
+
+  const toggle = async () => {
+    host.haptics.tap();
+    await invoke(active ? 'focus.stop' : 'focus.start', {});
+    await data.refresh();
+  };
+
+  return (
+    <Screen title={s.today}>
+      <Column gap="lg">
+        <Stat label={s.today} value={data.value?.minutes ?? null} suffix={host.useLocale() === 'en' ? ' min' : ' 分钟'} icon="clock" />
+        <Text tone="muted">{active ? s.running(active.label) : s.idle}</Text>
+        <Button title={active ? s.stop : s.start} variant={active ? 'secondary' : 'primary'} loading={data.fetching} onPress={() => void toggle()} />
+      </Column>
+    </Screen>
+  );
+}
+```
+
+```tsx title="plugins/focus/src/widget.tsx"
+import type { PluginWidgetProps } from '@pku-harness/sdk';
+import { View } from 'react-native';
+
+import { strings } from './strings';
+
+type Today = { minutes: number; running: { label: string; startedAt: number } | null };
+
+/** Today's focus minutes; refreshed by the host (never poll from a widget). */
+export function FocusWidget({ host, size }: PluginWidgetProps) {
+  const { Text, Skeleton } = host.components;
+  const t = host.useTheme();
+  const s = strings[host.useLocale()];
+  const data = host.useToolData<Today>('focus.today', {}, { ttlMinutes: 1 });
+  if (data.status === 'loading') return <Skeleton width="50%" height={28} />;
+  if (!data.value) return <Text tone="muted">{data.error ?? ''}</Text>;
+  return (
+    <View style={{ gap: t.spacing.xs }}>
+      {size === 'sm' ? (
+        <Text variant="micro" tone="faint">
+          {s.today}
+        </Text>
+      ) : null}
+      <Text variant={size === 'lg' ? 'numberXL' : 'numberL'}>{s.minutes(data.value.minutes)}</Text>
+      <Text variant="caption" tone={data.value.running ? 'accent' : 'muted'} numberOfLines={1}>
+        {data.value.running ? s.running(data.value.running.label) : s.idle}
+      </Text>
+    </View>
+  );
+}
+```
+
+```ts title="plugins/focus/src/strings.ts"
+import { defineStrings } from '@pku-harness/sdk';
+
+type Strings = {
+  today: string;
+  minutes: (n: number) => string;
+  start: string;
+  stop: string;
+  running: (label: string) => string;
+  idle: string;
+};
+
+export const strings = defineStrings<Strings>({
+  'zh-Hans': {
+    today: '今日专注',
+    minutes: (n) => `${n} 分钟`,
+    start: '开始专注',
+    stop: '结束',
+    running: (label) => (label ? `正在专注：${label}` : '正在专注'),
+    idle: '还没有开始',
+  },
+  en: {
+    today: 'Focus today',
+    minutes: (n) => (n === 1 ? '1 min' : `${n} min`),
+    start: 'Start focusing',
+    stop: 'Stop',
+    running: (label) => (label ? `Focusing on ${label}` : 'Focusing'),
+    idle: 'Not started yet',
+  },
+});
+```
+
+`invoke` 以**用户身份**（`actor: 'user'`）运行工具：校验和权限照常，但不弹授权确认。做完修改操作后，记得刷新页面上正在显示的实时查询。
+
+## 5. 测试 [#5-tests]
+
+```ts title="plugins/focus/src/store.test.ts"
+import { describe, expect, test } from 'bun:test';
+
+import { minutesOn, type Session } from './store';
+
+const at = (h: number, m = 0) => new Date(2026, 9, 21, h, m).getTime();
+
+describe('minutesOn', () => {
+  test('sums finished and running sessions of the day', () => {
+    const list: Session[] = [
+      { id: 'a', label: '高数', startedAt: at(8), endedAt: at(8, 50) },
+      { id: 'b', label: '英语', startedAt: at(10), endedAt: null },
+    ];
+    expect(minutesOn(list, at(10, 30))).toBe(80);
+  });
+
+  test('cuts a session that started yesterday at midnight', () => {
+    const list: Session[] = [{ id: 'c', label: '', startedAt: at(0) - 30 * 60_000, endedAt: at(0, 20) }];
+    expect(minutesOn(list, at(12))).toBe(20);
+  });
+});
+```
+
+## 6. 注册插件 [#6-register-the-plugin]
+
+把它加进内置插件列表。这里的顺序就是它在设置页和系统提示词里的顺序：
+
+```ts title="plugins/index.ts"
+import { focusPlugin } from './focus/src';
+
+export const builtinPlugins: PluginDef[] = [
+  // …
+  focusPlugin,
+];
+```
+
+再在 `registry/registry.json` 里加一条，图标不能和其他条目重复：
+
+```json
+{
+  "id": "focus",
+  "name": "专注",
+  "description": "记录专注时段，查看今天专注了多久。",
+  "author": "your-github-name",
+  "source": "https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/focus",
+  "kind": "builtin",
+  "icon": "clock",
+  "requires": [],
+  "scopes": [],
+  "tags": []
+}
+```
+
+最后全部检查一遍：
+
+```bash
+bun test                          # your tests + the i18n coverage test (plugins/i18n.test.ts)
+bunx tsc --noEmit -p .            # typecheck SDK + plugins
+bun scripts/validate-registry.ts  # schema, unique ids and icons, built-ins exist
+```
+
+## 在 App 里运行 [#run-it-in-the-app]
+
+App 以 git 子模块 `plugins/` 的形式引入 `pku-harness-plugins`，`@pku-harness/sdk` 和内置插件都从这里解析，所以开发直接在子模块里进行。
+
+<Steps>
+<Step>
+
+### 连同子模块克隆 App [#clone-the-app-with-its-submodule]
+
+```bash
+git clone --recurse-submodules https://github.com/pkuinfo/pku-harness.git
+cd pku-harness
+bun install
+```
+
+</Step>
+<Step>
+
+### 在 `plugins/` 里开发 [#work-in-plugins]
+
+创建 `plugins/plugins/focus/`（子模块里的 `plugins/` 目录），在 `plugins/plugins/index.ts` 里注册，然后运行 App：
+
+```bash
+bun run android           # dev build on an emulator or device
+# or, with a dev build installed:
+bunx expo start --dev-client
+```
+
+保存后 Metro 会自动重新加载。要推送分支，把子模块的远程仓库指向你的 fork（`git -C plugins remote add …`）。pull request 提交到 `pku-harness-plugins`，之后再由 App 仓库提交子模块的版本更新。
+
+</Step>
+<Step>
+
+### 试一试 [#try-it]
+
+打开 设置 → 专注，在看板的小组件库里添加小组件，输入 `/focus`，或者对助手说“开始专注高数作业”。
+
+</Step>
+</Steps>
+
+没有模型 key？用 [模拟模型](/docs/build/testing#mock-model)。在设备上，仅开发版可用的深层链接可以直接运行某个工具：`pkuharness://dev?tool=focus.today&input={}`。
+
+## 规则 [#rules]
+
+- **必须**只从 `@pku-harness/sdk`、`zod`、`react` 和 `react-native` 导入，外加你自己的文件和 `plugins/shared/`（内置插件之间共享的代码，比如 `campus-card.ts`）。不能导入 App 的代码，也不能导入其他插件目录里的文件。
+- **必须**遵守 [工具规则](/docs/build/tools)、[国际化规则](/docs/build/i18n) 和 [能力需求规则](/docs/concepts/capabilities)。
+- **必须**用 `host.useToolData` 加载小组件和页面的数据，不要轮询。
+- **应当**让 `instructions` 和 `context` 尽量短，因为每次请求都要为它们消耗 token。

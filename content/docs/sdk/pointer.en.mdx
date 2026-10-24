@@ -1,6 +1,6 @@
 ---
 title: pointer
-description: setPointer, the minimal JSON-pointer write used to place binding results into widget state.
+description: setPointer, the minimal JSON-pointer write that puts binding results into widget state.
 ---
 
 Source: `packages/sdk/src/pointer.ts`.
@@ -10,9 +10,9 @@ Source: `packages/sdk/src/pointer.ts`.
 function setPointer(target: Record<string, unknown>, pointer: string, value: unknown): Record<string, unknown>;
 ```
 
-- Returns a new object; `target` is not mutated (objects along the path are copied).
-- Missing or non-object intermediate values become `{}`.
-- `~1` decodes to `/` and `~0` to `~` in keys.
+- It returns a new object and leaves `target` alone: every object along the path is copied.
+- A missing or non-object value on the way becomes `{}`.
+- In keys, `~1` decodes to `/` and `~0` to `~`.
 - An empty pointer (`""`) returns `target` unchanged.
 
 ```ts

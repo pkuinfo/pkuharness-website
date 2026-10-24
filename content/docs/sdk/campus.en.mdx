@@ -1,10 +1,15 @@
 ---
 title: campus
-description: Types for authenticated campus HTTP through the harness (CampusService, CampusRequest, CampusResponse, multipart uploads, picked files) and for sign-in status and the 手机令牌 code.
+description: Types for signed-in campus HTTP through the host (CampusService, CampusRequest, CampusResponse, multipart uploads, picked files), sign-in status and the 手机令牌 code.
 ---
 
-Source: `packages/sdk/src/campus.ts`. Concepts: [Campus sessions](/docs/concepts/campus-sessions).
+Source: `packages/sdk/src/campus.ts`. Concepts: [Campus sessions](/en/docs/concepts/campus-sessions).
 Requires the `campus-session` capability.
+
+The host keeps the campus credentials in the device keystore, signs in to each service itself
+(IAAA, portal SSO, ITS) and hands back responses. Your plugin never sees the password or the raw
+session tokens. For multipart uploads the host streams each file from its local URI, so the bytes
+don't pass through your plugin either.
 
 ```ts
 /**

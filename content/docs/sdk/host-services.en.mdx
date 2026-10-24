@@ -1,9 +1,9 @@
 ---
 title: HostServices
-description: Exact signatures of every host service a bundled plugin receives as ctx.services or props.services, with the job, widget catalog and ongoing-notification types.
+description: Exact signatures of every host service a bundled plugin gets as ctx.services or props.services, plus the job, widget catalog and ongoing-notification types.
 ---
 
-Source: `packages/sdk/src/plugin.ts`. Concepts: [Host services](/docs/concepts/host-services).
+Source: `packages/sdk/src/plugin.ts`. Concepts: [Host services](/en/docs/concepts/host-services).
 
 ```ts
 interface HostServices {
@@ -19,6 +19,10 @@ interface HostServices {
   registry: {
     plugins(): PluginInfo[];
     tool(id: string): ToolInfo | undefined;
+  };
+  docs?: {
+    review(input: { link?: string; files?: Record<string, string> }): Promise<{ opened: true }>;
+    source(id: string): { link: string | null; version: string; files: Record<string, string> } | null;
   };
   remote: {
     install(input: { url: string; name?: string; token?: string }): Promise<{ id: string; name: string; tools: { name: string; effect: ToolEffect }[] }>;
@@ -91,24 +95,25 @@ interface HostServices {
 
 | Member | Notes |
 | --- | --- |
-| `browser.open` | Opens the system browser tab (Custom Tabs / SFSafariViewController). App links on that page (`weixin://`, `alipays://`) open those apps. Resolves once the page is open; it can't tell whether a payment went through, so re-read the result (a balance) when the user is back. |
-| `files.pick` | User-initiated only: call it from a screen in response to a tap, never from an agent tool. `types` are MIME types with wildcards (`['application/pdf', 'image/*']`). Resolves `[]` on cancel. Files are copied into the app cache; you get references (URIs valid for this app session), not bytes. |
-| `crypto.sha256` | SHA-256 of the UTF-8 text, lowercase hex. For request signatures. |
-| `registry` | Read-only introspection. `tool(id)` resolves legacy ids. |
-| `remote` | Remote MCP plugin management, used by the `plugins` plugin. |
-| `genui` | `describeCatalog()` returns the catalog as text for a tool description; `checkSpec(spec)` validates a spec. |
-| `notify.readiness` / `fix` | Whether reminders fire on the minute (notification permission, exact alarms, battery optimisation). Call `fix` only from a tap; re-read readiness when the app returns to the foreground. |
-| `sms.awaitCode` | Resolves with the code of the next incoming SMS once the user allows reading that one message (Android SMS User Consent); `null` when unavailable, denied, unclear or after 5 minutes. Call it right after asking the service to send the SMS. |
-| `scheduler` | See [scheduler](/docs/sdk/scheduler) for `Trigger`, `Action`, `Job`. `runCheck` runs a check job now. |
-| `widgets.preview` / `resolve` | Resolve a widget's bindings now / through the TTL cache (`force` refetches); return the state the spec will see. |
+| `browser.open` | Opens the page in the system browser tab (Custom Tabs / SFSafariViewController). App links on that page (`weixin://`, `alipays://`) open those apps, so a checkout can end in WeChat Pay or Alipay. Resolves as soon as the page is open and can't tell whether a payment went through: re-read the result (a balance, say) when the user comes back. |
+| `files.pick` | Only the user picks files. Call it from a screen in response to a tap, never from an agent tool. `types` are MIME types and may use wildcards (`['application/pdf', 'image/*']`). Resolves `[]` on cancel. The files are copied into the app cache and you get references (URIs valid for this app session), not bytes. |
+| `crypto.sha256` | SHA-256 of the UTF-8 text as lowercase hex. Meant for request signatures, since plugins have no crypto of their own. |
+| `registry` | Read-only view of installed plugins and tools. `tool(id)` also resolves legacy ids. |
+| `docs` | Document (`PLUGIN.md`) plugins, used by the `plugins` plugin. `review` opens the app's permission sheet for a link or a set of files and resolves once the sheet is shown; the user decides there. `source(id)` returns an installed document plugin's files (to read or fork it), or `null` for any other plugin. Optional: check before use. |
+| `remote` | Installs and removes remote MCP plugins. Used by the `plugins` plugin. |
+| `genui` | `describeCatalog()` returns the component catalog as text you can put in a tool description. `checkSpec(spec)` validates a spec against it. |
+| `notify.readiness` / `fix` | Tells you whether reminders can fire on the minute (notification permission, exact alarms, battery optimisation). Call `fix` only from a tap. System screens may return before the user changes anything, so read readiness again when the app comes back to the foreground. |
+| `sms.awaitCode` | Resolves with the code from the next incoming SMS once the user allows reading that one message (Android SMS User Consent). Gives `null` when unavailable, denied, unclear or after 5 minutes. Call it right after you ask the service to send the SMS. |
+| `scheduler` | `Trigger`, `Action` and `Job` are on the [scheduler](/en/docs/sdk/scheduler) page. `runCheck` runs a check job immediately. |
+| `widgets.preview` / `resolve` | Fill in a widget's bindings and return the state its spec will see. `preview` always fetches; `resolve` goes through the TTL cache unless `force` is set. |
 | `widgets.catalog` | Native widgets contributed by enabled plugins. |
 | `todos` | `source` records who made the change. |
-| `campus.request` | Requires `campus-session`. See [campus](/docs/sdk/campus). |
-| `campus.otp` | Current 手机令牌 code when the user bound the app's authenticator, else `null`. Never the secret. |
-| `campus.otpStatus`, `otpBindStart`, `otpBindFinish`, `otpUnbindLocal` | Authenticator management, for the bundled authenticator plugin's screens only. |
-| `campus.openSignedIn` | Opens the service in the system browser already signed in (the service's own hand-off). Rejects when the service has none. |
-| `ongoing` | Present only with the `ongoing` capability (Android). Start it from a user action, stop it when done. |
-| `timetable.reloadSemester` | Re-read the semester after the calendar plugin saved it. |
+| `campus.request` | Needs the `campus-session` capability. See [campus](/en/docs/sdk/campus). |
+| `campus.otp` | The current 手机令牌 code if the user bound the app's authenticator, otherwise `null`. You never get the secret. |
+| `campus.otpStatus`, `otpBindStart`, `otpBindFinish`, `otpUnbindLocal` | Authenticator management. Only the bundled authenticator plugin's screens should call these. |
+| `campus.openSignedIn` | Opens the service in the system browser, already signed in through the service's own hand-off. The host builds the URL, so the plugin never sees the session token. Rejects if the service has no hand-off. |
+| `ongoing` | Exists only with the `ongoing` capability (Android). Start it from a user action and stop it when you're done. |
+| `timetable.reloadSemester` | Re-reads the semester after the calendar plugin has saved it. |
 
 ## Types used above
 
@@ -177,7 +182,7 @@ export async function pickAndSubmit(services: HostServices, hiddenFields: [strin
 }
 ```
 
-Abridged from the `courses` plugin: the real flow (`plugins/courses/src/api.ts` `submitAssignment`,
-ported from pkucli `crates/course`) first reads the submission form for its hidden fields and a
-fresh nonce, then posts, then re-reads the assignment to confirm the attempt. File bytes never pass
-through the plugin: the host streams them from the picked URI.
+This is a shortened version of what the `courses` plugin does. The real flow (`submitAssignment` in
+`plugins/courses/src/api.ts`, ported from pkucli `crates/course`) first reads the submission form to
+get its hidden fields and a fresh nonce, then posts, then reads the assignment again to confirm the
+attempt. The file bytes never pass through the plugin: the host streams them from the picked URI.

@@ -1,0 +1,90 @@
+---
+title: 生成式界面
+description: 助手用 JSON spec 描述界面，App 用原生组件渲染出来，可以出现在对话里（`ui.render`），也可以出现在看板上。表单提交的内容会作为用户的下一条消息发回去。
+icon: Wand
+---
+
+有时候文字不是最好的回答。助手需要你填一个金额、从列表里选一项，或者手上的数据更适合做成卡片时，它会直接回复一段界面。它写出一份 JSON **spec**，App 用一套固定的**组件目录**（catalog）里的原生组件把它画出来（基于 [json-render](https://github.com/vercel-labs/json-render)）。属性都是语义化的，比如色调（tone）和尺寸（size），不允许直接写颜色，所以助手搭出来的界面和 App 其他部分风格一致。助手搭建的看板小组件（widget）用的也是这套目录，它只需要学一种界面语言。
+
+## Spec 结构 [#the-spec]
+
+```ts
+// specSchema in @pku-harness/sdk (genui.ts)
+type UISpec = {
+  root: string;                                  // 根元素的 id
+  elements: Record<string, {
+    type: string;                                // 目录中的组件名
+    props: Record<string, unknown>;              // 列出的属性都要给出，不用时为 null
+    children?: string[];                         // 子元素 id
+    on?: Record<string, unknown>;                // 事件，例如 { press: { action, params } }
+    visible?: unknown;
+  }>;
+  state?: Record<string, unknown>;               // 初始状态，例如 { form: { amount: "50" } }
+};
+```
+
+属性可以绑定到状态：
+
+| 绑定 | 含义 |
+| --- | --- |
+| `{ "$state": "/card/balance" }` | 从状态中读取一个值（JSON pointer） |
+| `{ "$bindState": "/form/amount" }` | 把输入控件和状态双向绑定 |
+| `{ "$template": "今天共 ${/today/count} 节课" }` | 插入状态值的字符串 |
+
+## 组件目录 [#catalog]
+
+| 组件 | 属性 | 说明 |
+| --- | --- | --- |
+| `Column` | `gap` | 纵向排列，可以有子元素 |
+| `Row` | `gap`, `align`, `wrap` | 横向排列，可以有子元素 |
+| `Card` | `title`, `subtitle` | 分组面板，可以有子元素。不要嵌套卡片。 |
+| `Heading` | `text`, `size` | |
+| `Text` | `text`, `tone`, `size` | |
+| `Stat` | `label`, `value`, `prefix`, `suffix`, `decimals`, `delta`, `deltaTone`, `caption`, `icon`, `size` | 关键数字，数值变化时有动画 |
+| `Badge` | `label`, `tone` | |
+| `ListItem` | `title`, `subtitle`, `value`, `icon` | 事件 `press` |
+| `Divider` | — | |
+| `Progress` | `label`, `value`（0–1）, `tone` | |
+| `TextField` | `label`, `placeholder`, `value`, `keyboard` | 绑定 `value` |
+| `Toggle` | `label`, `value` | 绑定 `value` |
+| `Choice` | `label`, `options`, `value` | 最多 12 个选项；绑定 `value` |
+| `Sparkline` | `values`, `tone` | |
+| `Ring` | `value`（0–1）, `label`, `caption`, `tone`, `size` | |
+| `DateTime` | `label`, `value`, `mode` | 原生选择器；值为本地时间 `"YYYY-MM-DD HH:mm"` |
+| `Button` | `label`, `variant` | 事件 `press` |
+
+`on.press` 支持两种动作：
+
+| 动作 | 参数 | 效果 |
+| --- | --- | --- |
+| `submit` | `{ label }` | 把 `/form` 下的全部内容作为用户的下一条消息发回给助手 |
+| `callTool` | `{ tool, input }` | 直接调用某个插件工具（权限检查和助手调用时相同） |
+
+这页文档可能过时，运行时的目录不会。`ui.render` 工具的描述里嵌入了 `services.genui.describeCatalog()` 的输出，`services.genui.checkSpec(spec)` 用来校验 spec。
+
+## 示例：充值表单 [#example-a-top-up-form]
+
+```json
+{
+  "root": "card",
+  "elements": {
+    "card": { "type": "Card", "props": { "title": "充值校园卡", "subtitle": "选择金额" }, "children": ["amount", "ok"] },
+    "amount": {
+      "type": "Choice",
+      "props": {
+        "label": null,
+        "options": [{ "label": "¥50", "value": "50", "hint": null }, { "label": "¥100", "value": "100", "hint": "常用" }],
+        "value": { "$bindState": "/form/amount" }
+      }
+    },
+    "ok": { "type": "Button", "props": { "label": "确认", "variant": "primary" }, "on": { "press": { "action": "submit", "params": { "label": "充值" } } } }
+  },
+  "state": { "form": { "amount": "100" } }
+}
+```
+
+## 写给插件作者 [#for-plugin-authors]
+
+远程插件（remote plugin）不能自己渲染界面，它们返回数据，由助手来渲染。内置插件（bundled plugin）的页面可以用 `host.components.GenUI` 渲染 spec：`<GenUI spec={spec} onSubmit={(form, label) => …} />`。
+
+生成式界面适合一次性的、对话里的场景。用户会经常打开的东西，请做成原生页面或小组件（`contributes.screens` / `widgets`）。

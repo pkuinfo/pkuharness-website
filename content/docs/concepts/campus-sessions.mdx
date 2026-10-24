@@ -1,0 +1,66 @@
+---
+title: 校园会话与 IAAA
+description: 校园账号由框架保管，框架自己登录各个北大服务，再通过 `services.campus.request` 把响应交给插件。插件永远拿不到密码或会话令牌。
+icon: GraduationCap
+---
+
+北大的各项服务都挂在 IAAA（统一身份认证）后面，而每个服务保存会话的方式又各不相同：有的用 cookie，有的要经过门户 SSO 跳转，有的用 JWT。这些逻辑由框架在 App 里统一实现一次，协议参考的是 [`pkucli`](https://github.com/pkuinfo/pkucli)。内置插件只需按**服务名**发起一个需要登录的请求，就能拿到响应。
+
+```ts
+const res = await ctx.services.campus.request('card', {
+  url: '/berserker-app/ykt/tsm/queryCard?synAccessSource=h5',
+});
+// res: { status, url, headers, body }
+```
+
+## 框架负责登录的服务 [#services-the-harness-signs-in-to]
+
+| 服务 | 域名 | 框架附加的会话 |
+| --- | --- | --- |
+| `card` | bdcard.pku.edu.cn | IAAA → 门户 ssoLogin → redirectToCard → synjones JWT（遇到 401 时刷新） |
+| `its` | its.pku.edu.cn | ITS 网页登录（网络账号） |
+| `treehole` | treehole.pku.edu.cn `/chapi/…` | IAAA “PKU Helper” → JWT + 设备 uuid（遇到 401 时重新登录） |
+| `blackboard` | course.pku.edu.cn（教学网） | IAAA → campusLogin cookie 会话；自动跟随重定向 |
+| `bdkj`, `cwfw`, `cwpay`, `elective`, `library`, `library-space` | 空间预约、财务、财务缴费、选课、图书馆、图书馆座位 | 由 App 中的适配器注册（`src/core/campus/adapters/`） |
+
+`CampusService` 的类型是 `'card' | 'its' | 'treehole' | 'blackboard' | (string & {})`。请求未注册的服务会直接被拒绝。请在插件的 `scopes` 里声明你用到的服务，让用户看得到。
+
+## 请求 [#requests]
+
+```ts
+type CampusRequest = {
+  url: string;                       // 绝对地址，或服务域名下的路径
+  method?: 'GET' | 'POST';
+  headers?: Record<string, string>;
+  body?: string;
+  contentType?: string;
+  responseType?: 'text' | 'base64';
+  form?: Record<string, string>;     // url-encoded 表单，代替 body
+  authIn?: 'headers' | 'form';       // 把会话凭据也放进表单（校园卡下单接口）
+  sign?: (fields) => fields | Promise<fields>;  // 对最终的表单字段追加签名
+  followRedirects?: boolean;         // false = 自己读取 `location`
+  multipart?: CampusMultipart;       // 文件上传；文件字节不经过插件
+  timeoutMs?: number;                // 默认 20 秒，multipart 为 120 秒
+};
+```
+
+请求由 App 原生的校园 HTTP 模块发出。它为每个会话维护独立的 cookie jar，允许手动控制重定向，使用 HTTP/1.1，内置部分校园站点需要的额外信任根证书，并且**不走代理**：只能在校内访问的站点会被直接请求。完整类型见 [SDK → campus](/docs/sdk/campus)。
+
+## 二次验证 [#second-factors]
+
+**IAAA** 的二次验证（短信、邮箱、手机令牌）由框架处理。任何一次登录都可能弹出验证提示，后台刷新也一样，请求会一直等到用户完成验证。
+
+**服务自身**的验证则交给插件处理，因为只有插件了解那个接口。树洞会返回 `40002`（短信验证：`/chapi/api/jwt_send_msg`、`/chapi/api/jwt_msg_verify`）和 `40077`（课程数据令牌）。插件把它们转换成类似 `{ status: 'verification_required', methods: ['sms'], message }` 的结果，由用户完成验证，或者由助手拿着用户提供的验证码完成。在 Android 上，`services.sms.awaitCode()` 支持一键读取验证码。
+
+如果用户在 App 里绑定了身份验证器，`services.campus.otp()` 会返回当前的手机令牌验证码（不会返回密钥）。树洞课程令牌这类二次验证可以用它。
+
+## 把用户带到校园网页 [#handing-the-user-to-a-campus-page]
+
+`services.campus.openSignedIn(service)` 会利用服务自己的跳转机制，在系统浏览器里打开一个已登录的服务页面。典型用法是为插件创建的订单付款。URL 由框架生成，插件看不到令牌。`services.browser.open(url)` 可以打开任意 URL，比如支付收银台，其中 `weixin://`、`alipays://` 这类链接会唤起对应的 App。
+
+## 规则 [#rules]
+
+- **必须**声明 `requires: ['campus-session']`；访问只能在校内访问的站点时，还要加上 `'campus-network'`。
+- **不得**向用户索要校园账号密码，无论是在页面里、工具输入里还是远程插件里。远程插件目前没有校园会话；按范围授予会话的功能已列入路线图。
+- `pkucli` 已实现的接口和特殊处理**必须**照着移植，并在注释里注明来源文件。详见[从 pkucli 移植](/docs/build/porting-from-pkucli)。
+- **应当**检查 `services.campus.status().signedIn`，未登录时返回清楚的提示（“请先在设置里登录校园账号”），而不是原始错误。

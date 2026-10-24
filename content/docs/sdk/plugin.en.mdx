@@ -1,6 +1,6 @@
 ---
 title: plugin
-description: The plugin contract. definePlugin, defineTool, PluginDef, ToolDef, ToolContext, effects, actors, capabilities, KV, turn info, data sources, model providers, translations and legacy ids.
+description: 'The plugin contract: definePlugin, defineTool, PluginDef, ToolDef, ToolContext, effects, actors, capabilities, KV, turn info, data sources, model providers, translations and legacy ids.'
 ---
 
 Source: `packages/sdk/src/plugin.ts`.
@@ -12,8 +12,8 @@ function definePlugin(def: PluginDef): PluginDef;
 function defineTool<I extends z.ZodType, O>(def: ToolDef<I, O>): ToolDef;
 ```
 
-Both are identity functions that give you type checking and inference: `defineTool` infers the
-`execute` input type from the zod `input` schema.
+Both return their argument unchanged. They exist for type checking: `defineTool` infers the type of
+`execute`'s input from the zod `input` schema.
 
 ## PluginDef
 
@@ -43,7 +43,7 @@ interface PluginDef {
 
 <TypeTable
   type={{
-    id: { type: 'string', required: true, description: 'Registry id, `^[a-z0-9][a-z0-9-]{1,40}$`. Prefix of every tool id.' },
+    id: { type: 'string', required: true, description: 'Registry id: lowercase letters, digits and dashes (`PLUGIN.md` plugins must match `^[a-z0-9][a-z0-9-]{1,40}$`). Prefix of every tool id.' },
     name: { type: 'string', required: true, description: 'Display name, Chinese (English in `i18n.en.name`).' },
     description: { type: 'string', required: true, description: 'One sentence, Chinese.' },
     version: { type: 'string', required: true, description: 'Semver of the plugin.' },
@@ -141,7 +141,7 @@ type Capability =
   | 'ongoing';         // persistent ongoing notification / foreground service (Android only)
 ```
 
-See [Tools and effects](/docs/concepts/tools-and-effects) and [Capabilities](/docs/concepts/capabilities).
+See [Tools and effects](/en/docs/concepts/tools-and-effects) and [Capabilities](/en/docs/concepts/capabilities).
 
 ## Dynamic values
 
@@ -176,8 +176,8 @@ interface ContextInput {
 const CONTEXT_MARK = { deleted: '[已删除]', corrected: '[更正]', arrow: ' → ' } as const;
 ```
 
-`- [已删除] old` and `- [更正] old → new` lines are appended by the host only to chats whose
-history still shows `old`, once. Fact texts must not contain the arrow.
+The host appends `- [已删除] old` and `- [更正] old → new` lines once, and only to chats whose
+history still shows `old`. Fact texts must not contain the arrow.
 
 ## PluginTranslation
 
@@ -211,9 +211,10 @@ interface PluginLegacy {
 }
 ```
 
-The host resolves old plugin ids (settings, screens `/p/<old>/…`, widgets) and old tool ids to the
-new plugin, rewrites stored widgets and checks once, and carries settings over (strictest mode per
-effect). Legacy ids never shadow a plugin that is installed.
+Use this after merging or renaming plugins. The host maps old plugin ids (settings, screens
+`/p/<old>/…`, widgets) and old tool ids to the new plugin, rewrites stored widgets and checks once,
+and carries settings over, keeping the strictest mode per effect. A legacy id never shadows a plugin
+that is actually installed.
 
 ## Model providers
 
@@ -273,7 +274,7 @@ interface ProviderBalance { currency: string; total: number; granted?: number; t
 interface ProviderAccount { available: boolean; balances: ProviderBalance[] }
 ```
 
-A provider plugin is a plugin with `providers` (and usually no tools). See
+A provider plugin is an ordinary plugin with `providers` set, usually with no tools. The real ones are
 `plugins/deepseek/src/index.ts` and `plugins/openai-compatible/src/index.ts` in the plugins repo.
 
 ```ts

@@ -1,0 +1,122 @@
+---
+title: 工具与 schema
+description: 如何设计模型好用的工具：用 zod（内置插件）或 JSON Schema（MCP）定义输入，如实声明效果，只返回数据，并处理可恢复的状态。
+icon: Wrench
+---
+
+工具（tool）是插件的 API，模型用它，你自己的页面也用它。好的工具很小，只做一件事，写清楚什么时候该用，返回模型拿来就能用的数据。概念部分见 [工具与效果](/docs/concepts/tools-and-effects)，本页讲具体怎么写。
+
+## 命名 [#naming]
+
+| 对象 | 规则 | 示例 |
+| --- | --- | --- |
+| 工具名 | ASCII 小驼峰的动词或名词，插件内唯一 | `cardBalance`、`search`、`reserveSeat` |
+| 工具 id | `<plugin>.<name>`（自动生成） | `wallet.cardBalance` |
+| 模型名 | `<plugin>__<name>`（自动生成） | `wallet__cardBalance` |
+| `title` | 给用户看的简短中文名称 | `校园卡余额` |
+
+每个启用的工具都会随每次请求发送，所以相关的读取操作应该合并成一个带筛选参数的工具，而不是写十个差不多的工具。
+
+## 描述 [#descriptions]
+
+`description` 是写给模型看的，中英文都可以。要写清楚：
+
+- **什么时候**用，用同学们自己会说的话（“Use when the user asks which canteen is least crowded”）。
+- **返回什么**：有哪些字段、单位（元、分钟、北京时间）、数据有多新。
+- **限制**和**后续步骤**：分页大小、必须遵守的调用顺序（“call `treehole__sendCode` first”）、遇到 `verification_required` 时该怎么办。
+
+不要在描述里重复输入 schema，字段说明用 `.describe()` 写。
+
+如果描述文字取决于设备，`description` 可以写成一个接收宿主服务的函数：
+
+```ts
+description: (services) => `Show a native UI in the chat… Components:\n${services.genui.describeCatalog()}`,
+```
+
+## 输入 [#inputs]
+
+内置插件使用 zod 4。模型看到的是由它生成的 JSON Schema。无论调用来自 Agent、页面还是定时任务，宿主都会在 `execute` 运行前校验输入。
+
+```ts
+input: z.object({
+  from: z.string().trim().max(20).optional().describe('boarding place, e.g. 燕园 / 新燕园'),
+  at: z.string().optional().describe('Beijing time "YYYY-MM-DD HH:mm", default now'),
+  count: z.number().int().min(1).max(10).optional().describe('departures per direction, default 3'),
+}),
+```
+
+- 每个数字和字符串都要设上下限（`.min`、`.max`），默认值写在描述里。
+- 取值固定的集合用枚举（`z.enum(['weekday', 'holiday'])`）。
+- 需要模型填写的时间，用本地时间字符串 `"YYYY-MM-DD HH:mm"`。SDK 的 `scheduleInputSchema` 和 `parseLocal` 在处理日程时已经这样做了。
+- 远程插件：设备会用 `z.fromJSONSchema` 把 MCP 的 `inputSchema`（JSON Schema）转换成 zod，所以只用 JSON Schema 的基础特性。
+
+## 效果 [#effects]
+
+每个工具只能有一种效果（effect）：`read`、`write`、`money` 或 `public`，即读取、修改、花钱、公开（见 [权限](/docs/concepts/permissions)）。
+
+```ts
+effect: 'read',      // a balance, a list, a search
+effect: 'write',     // add a to-do, follow a post, book a room
+effect: 'money',     // create a payment order, top up, switch the card to digital mode
+effect: 'public',    // post or reply on Treehole
+```
+
+返回第三方文本的工具要标记 `untrusted: true`（不可信）；不允许 Agent 自己打开的关卡要标记 `userOnly: true`。
+
+## 返回结果 [#results]
+
+```ts
+execute: async ({ name, sort = 'least' }, ctx) => {
+  const { time, canteens } = await fetchCrowd(ctx.signal);
+  return { time, canteens: canteens.filter((c) => !name || c.name.includes(name)), source: CROWD_SOURCE };
+},
+```
+
+- 返回 JSON 对象，字段名和单位要一看就懂。
+- 需要时注明数据来源和时效（`source`、`time`）。
+- 返回模型能传给下一个工具的 id。
+- 网络请求要响应 `ctx.signal`（中止信号）。
+- 失败时抛出 `Error`，附上用户能看懂的简短中文信息（`throw new Error('校园卡登录已失效')`），Agent 会转告用户。
+- 对于需要用户介入的预期状态，返回一个状态对象，而不是抛异常：
+
+```ts
+export type VerificationRequired = { status: 'verification_required'; kind: 'login'; methods: ['sms']; message: string };
+
+// in execute:
+if (needsSms) {
+  return {
+    status: 'verification_required',
+    kind: 'login',
+    methods: ['sms'],
+    message: '树洞需要短信验证。先调用 treehole__sendCode 发送验证码，再带上 code 重试。',
+  } satisfies VerificationRequired;
+}
+```
+
+## 上下文与说明 [#context-and-instructions]
+
+| 字段 | 何时发送 | 用途 |
+| --- | --- | --- |
+| `instructions` | 写在系统提示词里，每次请求都带 | 简短的规则：什么问题用哪个工具，注意事项（“以预约系统为准”） |
+| `context({ query, kv, services })` | 每轮对话之前，标记为数据（时间预算 800 ms） | 和这条消息相关的事实，比如记忆快照。没有相关内容时返回 `undefined`。 |
+
+两者每次请求都消耗 token，也都会改变提示词前缀，影响模型的缓存命中。所以要短，而且要稳定。不要写入日期和时间：框架每轮都会自动加上。
+
+## 在界面里调用工具 [#calling-your-tools-from-ui]
+
+```ts
+// in a screen or widget (actor: 'user', no approval prompt)
+await invoke('focus.start', { label: '高数' });
+
+// live read with the host's shared cache
+const data = host.useToolData<{ minutes: number }>('focus.today', {}, { ttlMinutes: 1 });
+```
+
+## 检查清单 [#checklist]
+
+- [ ] 每个工具只负责一件事，读取和修改分开。
+- [ ] 有中文 `title`，`i18n.en.tools` 里有英文标题，有写给模型的 `description`。
+- [ ] 每个输入字段都有范围限制和说明。
+- [ ] `effect` 如实声明；该加 `untrusted` / `userOnly` 的地方都加了。
+- [ ] 返回的是数据，体积小，带单位；不含密钥，不含指令。
+- [ ] 错误信息简短、用户能看懂；可恢复的状态用状态对象表示。

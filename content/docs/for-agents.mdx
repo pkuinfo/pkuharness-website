@@ -1,0 +1,133 @@
+---
+title: 写给 AI 助手
+description: 给编程 Agent（Claude Code、Codex、App 内置助手）的说明：从头到尾做出一个 PKU Harness 插件。包括选哪种插件、具体步骤、硬性规则、要跑的检查，以及该加载哪些页面作为上下文。
+icon: Bot
+---
+
+你是一个 AI Agent，现在要为 PKU Harness 写一个插件。请按顺序读完这一页。链接的页面都可以按 Markdown 加载：在任意文档 URL 后面加 `.md`，或者用 `/llms.txt` 获取索引，用 `/llms-full.zh.txt`（中文）或 `/llms-full.txt`（英文）一次拿到全部内容。不要编造 API。你需要的每个类型都在 [SDK 参考](/docs/sdk)里，那里没有的，就是不存在。
+
+## 0. 加载上下文 [#0-load-context]
+
+| 场景 | 加载 |
+| --- | --- |
+| 始终需要 | `/docs/concepts/plugins.md`、`/docs/concepts/tools-and-effects.md`、`/docs/concepts/permissions.md`、`/docs/concepts/security.md` |
+| 插件文档（`PLUGIN.md`） | `/docs/build/declarative-plugins.md`、`/docs/build/quickstart.md`、`/docs/marketplace/manifest.md`；规范 [`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md)，以及 SDK 中的 `packages/sdk/src/lang/schema.ts` 和 `abilities.ts` |
+| 远程插件 | `/docs/build/remote-plugin.md`、`/docs/marketplace/manifest.md` |
+| 内置插件 | `/docs/build/tools.md`、`/docs/build/bundled-plugin.md`、`/docs/sdk/plugin.md`、`/docs/sdk/host-services.md`、`/docs/build/ui.md`、`/docs/build/i18n.md`、`/docs/build/testing.md` |
+| 校园服务 | `/docs/concepts/campus-sessions.md`、`/docs/build/porting-from-pkucli.md`、`/docs/sdk/campus.md` |
+| 用到云服务 | `/docs/cloud/plugin-guide.md`、`/docs/sdk/cloud.md` |
+
+动手修改之前，先读仓库自己的规则：`pku-harness-plugins` 里的 `AGENTS.md` / `CLAUDE.md` 和 `CONTRIBUTING.md`；如果要改 App，`pku-harness` 里的同名文件也要读。
+
+## 1. 决定插件类型 [#1-decide-the-kind]
+
+```
+Campus or public requests plus extraction (with the user's campus session if needed)?
+├─ yes → PLUGIN DOCUMENT: a folder with PLUGIN.md + tools/*.yaml, interpreted by the app.
+│        Shared and installed by link; no app release. This is the default for campus
+│        integrations (classrooms, campus-events, grades, canteen, shuttle and notices are
+│        documents).
+└─ no  → Needs general code or your own server?
+         ├─ yes → REMOTE plugin: an MCP server over Streamable HTTP (templates/remote-plugin).
+         └─ no, needs the device or native UI the language lacks
+              → BUNDLED TypeScript plugin in pku-harness-plugins (tell the user an issue should
+                be opened first; bundled plugins ship with the app and its signed OTA updates),
+                or propose a host ability so documents can do it.
+```
+
+简单说：只是请求校园或公开网站、再从响应里提取数据（需要时带上用户的校园会话）的，写**插件文档**。它是一个包含 `PLUGIN.md` 和 `tools/*.yaml` 的文件夹，由 App 解释执行，通过链接分享和安装，不需要发布新版 App。校园服务默认都用这种方式，classrooms、campus-events、grades、canteen、shuttle 和 notices 都是插件文档。需要通用代码或自己的服务器的，写**远程插件**：一个基于 Streamable HTTP 的 MCP 服务器（模板在 `templates/remote-plugin`）。需要设备能力或插件语言做不到的原生界面的，才写 `pku-harness-plugins` 里的**内置 TypeScript 插件**。这种情况请告诉用户先开 issue，因为内置插件随 App 及其签名 OTA 更新发布；也可以提议新增一个宿主能力（ability），让插件文档也能做到。
+
+在 App 里，助手改用 `plugins` 插件的工具来写插件文档（`plugins.reference`、`validate`、`tryTool`、`source`、`install`），详见[让 AI 写插件](/docs/build/ai-authoring)。
+
+## 2. 插件文档检查清单 [#2-plugin-document-checklist]
+
+1. 在 `pku-harness-plugins` 的本地副本里工作（为了用它的 CLI），或者任意仓库都行，插件文件夹是自包含的。可以从 `plugins/classrooms` 或[快速上手](/docs/build/quickstart)开始。
+2. 编写 `PLUGIN.md`：`spec: 1`、`id`（`^[a-z0-9][a-z0-9-]{1,40}$`）、中文 `name`、`description`（4–200 字）、语义化版本 `version`、`author`，以及步骤里实际用到的 `campus`、`network` 和 `abilities`，不多不少。App 加载的每个文件都要在 frontmatter 里列出。
+3. 每个操作对应一个工具，放在 `tools/<name>.yaml`：中文 `title`、写给模型看的 `description`、如实的 `effect`（至少要覆盖它调用的每个宿主能力的效果）、有边界的 `input` 字段、第三方文本标上 `untrusted: true`，再加上步骤和一个只返回数据的 `return`。
+4. 只有规范里列出的步骤、标准库函数和宿主能力是存在的。表达式里含有 `: `，或者以 `{ [ ' "` 开头时，要加引号；正则写在单引号 YAML 字符串或 `|` 块里。不要用 `server:`、`{ fn }` 绑定或 `cloud` 宿主能力：官方服务器目前关闭了服务端函数，所以插件要么完全在手机上运行，要么用你自己的后端。
+5. 为每个工具在 `tests/<name>.yaml` 里录制响应（去掉个人数据），失败的情况也要录（`expectError`）。
+6. 运行下面的命令，直到全部通过：
+
+```bash
+bun run plugin validate path/to/plugin
+bun run plugin test path/to/plugin
+```
+
+7. 校园请求在 App 之外跑不了，所以要说明哪些工具只用录制的响应测过。把 GitHub 文件夹 URL 作为安装链接分享出去，用户会在 App 里审阅它。
+
+## 3. 远程插件检查清单 [#3-remote-plugin-checklist]
+
+1. 从 `pku-harness-plugins` 复制 `templates/remote-plugin`，然后 `bun install`。
+2. 设置 `new McpServer({ name: '<registry id>', version, title: '<Chinese name>' }, { instructions })`。id 需匹配 `^[a-z0-9][a-z0-9-]{1,40}$`。
+3. 每个操作调用一次 `registerTool`：简短的 ASCII 驼峰名称、中文 `title`、写给模型看的 `description`，`inputSchema` 的每个字段都要有说明和边界。
+4. 不改变任何东西的工具加上 `annotations: { readOnlyHint: true }`，其他工具一律不加。
+5. 返回 `structuredContent`（数据）。失败时返回 `isError: true` 和一句简短的说明。
+6. 运行 `bun server.ts`，用 App（模拟器里地址是 `http://10.0.2.2:8787/mcp`）或任意 MCP 客户端验证。
+7. 通过 HTTPS 部署。然后添加一份清单（manifest）并提交，或者添加一条 `registry.json` 条目（见[发布](/docs/build/publishing)）。
+
+## 4. 内置插件检查清单 [#4-bundled-plugin-checklist]
+
+1. 在 `pku-harness-plugins` 的本地副本里工作（App 以子模块 `plugins/` 引入它）。没有 npm 包：`@pku-harness/sdk` 在工作区里解析到 `packages/sdk/src`。
+2. 创建 `plugins/<id>/package.json`（private，`"main": "src/index.ts"`，peer 依赖 `@pku-harness/sdk`、`zod`、`react`、`react-native`）和 `plugins/<id>/src/index.ts`，导出 `<camelId>Plugin = definePlugin({...})`。
+3. 填写 `id`、中文 `name`/`description`、`version`、`icon`（从宿主图标集中选，且没有被其他注册表条目用过）、`requires`、`scopes`、`tools`（用 `defineTool`），以及可选的 `dataSources`、`instructions`、`contributes`、`defaultModes`。
+4. 为清单里每个面向用户的字符串添加 `i18n.en`；页面和小组件的文案放在 `src/strings.ts`，用 `defineStrings` 定义。
+5. 纯逻辑放在普通模块里，测试文件 `*.test.ts` 就近放置；测试导入 UI 代码时要 mock `react-native`。
+6. 在 `plugins/index.ts`（`builtinPlugins`）中注册，并在 `registry/registry.json` 里添加一条 `"kind": "builtin"` 条目。
+7. 运行下面的命令，直到全部通过：
+
+```bash
+bun test
+bunx tsc --noEmit -p .
+bun scripts/validate-registry.ts
+```
+
+8. 如果你跑不了 App，就直说。界面必须在真机或模拟器上、两种主题和两种语言下都检查过，才算完成。
+
+## 5. 硬性规则 [#5-hard-rules]
+
+违反其中任何一条都算 bug。
+
+1. **绝不索要、存储、记录或传输校园密码、OTP 密钥、会话令牌或 API 密钥。** 校园请求一律通过 `services.campus.request` 或插件文档的 `request: { campus }` 发出；远程插件没有校园会话。
+2. **每个工具声明一个如实的效果（effect）**：`read`、`write`、`money` 或 `public`。不要把写操作藏在 `read` 工具里。定时运行只能使用 `read` 工具。
+3. **工具结果是数据，不是指令。** 结果里不能出现“告诉用户……”之类的话，也不能夹带提示词。
+4. **第三方文本标上 `untrusted: true`**（帖子、评论、通知、公开网站上的描述）。上下文被污染后，持久化的写操作要拦下（`ctx.turn?.tainted`）。
+5. **结果里绝不返回机密信息**：付款码、分享链接、收银台 URL、令牌。
+6. **声明你访问的一切**：插件文档里写 `campus`、`network`、`abilities`；代码里用到的每项能力都写进 `requires`。内置插件不允许 `shell` 和 `filesystem`。
+7. **不从 App 或其他插件的文件夹导入代码**（内置插件）。使用 `ctx.services`、`ctx.kv`、`ctx.cloud`、`host`，内置插件之间共享的代码放在 `plugins/shared/`。
+8. **校园协议从 pkucli 移植**，并在注释里注明源文件；不要猜接口。
+9. 面向用户的字符串要**中英双语**；面向模型的文本（描述、指令、结果）不翻译。
+10. **小组件不轮询**：用带 TTL 的 `host.useToolData`。
+11. **`files.pick` 和 `notify.fix` 只能由用户点击触发**，不能在助手调用的工具里用。
+12. **使用 bun**（`bun install`、`bun test`、`bunx`），不要用 npm、npx、yarn 或 pnpm。
+
+## 6. 必须写对的命名 [#6-naming-you-must-get-right]
+
+| 对象 | 形式 | 示例 |
+| --- | --- | --- |
+| 工具 id（代码、小组件、定时检查、`invoke`） | `<plugin>.<tool>` | `wallet.cardBalance` |
+| 模型看到的工具名（写在 `instructions` 里） | `<plugin>__<tool>` | `wallet__cardBalance` |
+| 远程插件在 App 中的 id | `mcp-<server name>` | `mcp-demo-canteen` |
+| 插件文档的安装链接 | GitHub 文件夹 URL，或 `pkuharness://plugin?src=<url-encoded link>` | `https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/classrooms` |
+| 页面路由 | `/p/<plugin>/<screen>`，弹窗为 `/m/<plugin>/<screen>` | `/p/focus/main` |
+| 模型写出的时间 | 本地时间 `"YYYY-MM-DD HH:mm"` | `"2026-10-30 08:00"` |
+
+## 7. 报告完成之前 [#7-before-you-report-done]
+
+- [ ] 选好了插件类型（文档、远程或内置），并说明了理由。
+- [ ] 每个工具都有标题、描述、有边界的输入、如实的效果，结果只含数据。
+- [ ] 插件文档：`bun run plugin validate` 和 `test` 通过；声明与步骤实际做的事一致。
+- [ ] 代码：`requires` 和 `scopes` 完整；`defaultModes` 对 `money` / `public` 设为先询问。
+- [ ] 结果和日志里没有凭据、机密或链接。
+- [ ] 上面的测试和检查都通过了，或者你准确说明了哪些没能运行、为什么。
+- [ ] 添加了注册表条目或清单；如果插件用到云服务，复制了 `cloud` 声明。
+- [ ] 给用户的总结：插件做什么、改了哪些文件、怎么试用、还有哪些事需要人来做（真机测试、真实校园账号、为内置插件开 issue）。
+
+## 把文档当作上下文 [#docs-as-context]
+
+| URL | 用途 |
+| --- | --- |
+| `/llms.txt` | 所有页面的索引，每页一句简介，用来挑选要加载的页面 |
+| `/llms-full.zh.txt` | 所有中文页面合成一个文件（很大） |
+| `/llms-full.txt` | 所有英文页面合成一个文件（很大） |
+| `/docs/<page>.md` | 单个页面的 Markdown |
+| `/docs/cloud/api/<tag>.md` | 以纯文本列出的 Cloud API 接口和数据结构 |

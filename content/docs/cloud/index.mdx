@@ -1,0 +1,98 @@
+---
+title: PKU Harness Cloud
+description: 一套可选的开放插件后端标准（存储、通道、推送、文件和服务端函数），任何符合标准的服务商都能提供，官方、自建或自定义均可。默认端到端加密，云端不保存任何校园身份。
+icon: Cloud
+---
+
+有些插件功能离不开服务器：比如把东西实时分享给没装 App 的朋友，或者在几台设备之间同步一小份状态。**PKU Harness Cloud（云服务）**就是为此定的标准。它的设计目标是：即使用了服务器，用户也不必信任它。
+
+- **服务器默认是「瞎」的。** 数据在手机上加密，服务器只负责转发和存储密文。
+- **云端没有校园身份。** 设备只用一对密钥来标识。服务器不知道你的学号和姓名，也拿不到校园凭据或校园会话。
+- **一份协议，多家服务商。** 官方实例、自建的参考服务器，或者用户自己填的任意 URL 都行，插件分辨不出用的是哪一家。
+- **宿主负责隔离插件。** 每个插件拿到的客户端只绑定它自己，token、命名空间和用户授权都是独立的。
+- **助手只看得到工具。** 云端凭据、token 和分享链接它一概看不到。
+
+<Callout title="进度（2026-10-23）">
+  已完成：协议 v1（`@pku-harness/cloud-protocol`）、SDK 类型、参考服务器（`packages/cloud-server`）、宿主客户端（设备身份、按插件绑定和授权、端到端加密的存储与通道、带连接测试的「设置 → 云服务」），以及第一个插件 `card-share`（实时分享校园卡付款码，全程端到端加密）。尚未完成：官方托管实例（在此之前请在设置里填自建服务器的 URL），以及 `push`（参考服务器目前返回 `501 unsupported`）。
+
+  官方实例还在筹备中，上线后也会刻意保持精简：只有实时分享用的盲中继（通道和信箱）、小容量的端到端加密存储，以及静态查看页。插件的[服务端函数](#server-functions)在参考服务器里已经实现，但**官方服务器暂不开启**。
+</Callout>
+
+## 三个组成部分 [#three-parts]
+
+| 部分 | 内容 | 位置 |
+| --- | --- | --- |
+| **服务定义** | SDK 类型（`CloudManifest`、`PluginCloud`）和带版本号的 HTTP 协议（`/v1`） | `@pku-harness/sdk`（`cloud.ts`）、`@pku-harness/cloud-protocol`、[API 参考](/docs/cloud/api/meta) |
+| **服务商** | 官方实例、开源参考服务器（自建）、任何符合标准的 URL | [服务商与自建](/docs/cloud/providers) |
+| **使用方** | 插件，通过 `ctx.cloud` / `props.cloud` 访问 | [插件指南](/docs/cloud/plugin-guide) |
+
+## 服务 [#services]
+
+| 服务 | 用途 | 加密 |
+| --- | --- | --- |
+| `store` | 按 `(device, plugin)` 隔离的键值存储，支持版本号（`If-Match`）和过期时间 | 插件声明了 `e2e` 时，值会先加密再上传 |
+| `channels` | 实时分享用的中继通道：设备开一个通道，查看者凭分享链接加入，服务器转发帧 | 始终端到端加密，每个对端的密钥都由链接里的密钥派生 |
+| `push` | 推送 token 和定时推送（计划中，官方实例不提供） | 内容加密，服务器只知道发送时间 |
+| `files` | 文件存储（计划中） | |
+| `functions` | `PLUGIN.md` 在 `server:` 里声明的服务端函数（[见下文](#server-functions)），官方服务器暂不开启 | 需要声明并经用户同意，是唯一可能处理明文的地方 |
+
+App 通过 `GET /v1/meta` 得知服务商提供哪些服务。如果插件 `uses` 里的某项服务对方不提供，App 会把插件标为不可用，并说明原因。
+
+## 一次请求的流程 [#how-a-request-flows]
+
+```
+plugin ──ctx.cloud.store.put(key, value)──► host (bound client for this plugin)
+          │ checks consent, manifest `uses`, `e2e`
+          │ seals value (XChaCha20-Poly1305) when e2e
+          │ mints/refreshes a 10-min token (Ed25519-signed challenge)
+          ▼
+        provider  PUT /v1/store/<key>   Authorization: Bearer <token>
+          │ namespace = (deviceId, plugin) from the token
+          ▼
+        stores ciphertext
+```
+
+## 服务端代码在哪里运行 [#where-server-code-runs]
+
+1. **标准服务**（store、channels、mailbox、push、files）：每个符合标准的服务器都会实现，上面不跑任何插件代码。能用这一层就用这一层。
+2. **插件服务端函数**：写在 `PLUGIN.md` 的 `server:` 段里，服务器用和 App 相同的解释器执行。官方服务器暂不开启。
+3. **外部后端**：任何实现了该协议的 URL，在清单里声明（`backend: { kind: 'external', url }`）并经用户同意。
+
+## 服务端函数 [#server-functions]
+
+<Callout type="warn" title="官方服务器暂不开启">
+  请让插件在手机端完成工作，或者使用你自己的后端。设计文档 [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md) 已暂停推进：现有功能保留，但集合、定时、推送、群组和 webhook 都不再开发。
+</Callout>
+
+插件文档可以用和工具相同的步骤与表达式来声明服务端函数：
+
+```yaml title="PLUGIN.md (frontmatter excerpt)"
+cloud:
+  disclosure: { zh: ['你输入的名字会发到云端服务器。'], en: ['The name you enter is sent to the cloud server.'] }
+server:
+  network: [api.example.org]        # 服务端步骤可以访问的主机（HTTPS）
+  secrets: [API_KEY]                # 由运营者保管，只能在请求模板里使用
+  functions:
+    stats:
+      effect: read
+      access: public                # 目前支持 user（默认）和 public；peer、group、webhook 尚不支持
+      cache: 30s
+      steps:
+        - let: c
+          request: { url: 'https://api.example.org/v1/count', headers: { authorization: 'Bearer ${secrets.API_KEY}' } }
+          as: json
+      return: "{ count: c.count }"
+```
+
+- 有 `server:` 段就意味着 `cloud.uses: [functions]`，并且必须写 `cloud.disclosure`。
+- 服务端步骤有自己的一套宿主能力：按用户隔离的服务端 KV（`kv.get/set/delete`），以及 `crypto.sha256`、`crypto.hmacSha256`（按名字引用密钥）和 `crypto.randomId`。它们访问不了校园服务。`caller.id` 是设备在该插件下的假名。
+- 手机端通过 `cloud.call { fn, input }` 能力调用函数，小组件也可以绑定 `{ fn }` 而不是 `{ tool }`。
+- token 里带着用户同意时的文档版本（链接加内容哈希），服务器只运行这个版本，前提是运营者的策略允许（`CLOUD_FN_POLICY`：`verified`、`allowlist` 或 `open`）。相关环境变量见参考服务器的 README。
+
+## 继续阅读 [#next]
+
+- [插件指南](/docs/cloud/plugin-guide)：声明 `cloud`、获取授权、使用 `store` 和 `channels`。
+- [安全](/docs/cloud/security)：设备密钥、工作量证明、token、信封、分享链接。
+- [服务商与自建](/docs/cloud/providers)。
+- [`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package)：服务器和查看页共用的 schema 与加密实现。
+- [API 参考](/docs/cloud/api/meta)：全部接口，由 OpenAPI 3.1 规范生成。

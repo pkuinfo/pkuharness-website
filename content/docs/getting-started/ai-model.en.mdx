@@ -1,14 +1,14 @@
 ---
 title: Connect a model
-description: Bring your own model key. DeepSeek is the default provider; any OpenAI-compatible endpoint, including a local server, also works.
+description: Bring your own model key. DeepSeek is the default provider, and any OpenAI-compatible endpoint works too, including a local server.
 icon: Sparkles
 ---
 
-The agent needs a language model. PKU Harness does not run a model service: you bring your own
-key, it is stored in the device keystore, and requests go straight from your phone to the provider
-you chose. A hosted model option may come later.
+The agent needs a language model, and PKU Harness doesn't run one for you. You bring your own key.
+It's stored in the device keystore, and requests go straight from your phone to the provider you
+picked. A hosted model option may come later.
 
-Model access is itself a plugin (a *provider plugin*), so community plugins can add more providers.
+Model access is a plugin too (a *provider plugin*), so community plugins can add more providers.
 Two ship with the app:
 
 | Provider | Default base URL | Models | Key |
@@ -23,15 +23,15 @@ Two ship with the app:
 
 ### Open Settings → AI service
 
-Or the "AI service" step of onboarding.
+Or use the "AI service" step of onboarding.
 
 </Step>
 <Step>
 
 ### Pick a provider and paste the key
 
-For OpenAI-compatible providers, also set the base URL (it must end where `/chat/completions`
-lives, usually `…/v1`) and pick a model from the list.
+For an OpenAI-compatible provider, also set the base URL and pick a model from the list. The base
+URL must end where `/chat/completions` lives, which is usually `…/v1`.
 
 </Step>
 <Step>
@@ -44,20 +44,23 @@ balance.
 </Step>
 </Steps>
 
-You can switch the model per chat session from the model pill in the composer (or `/model`).
+You can switch models per chat session with the model pill in the composer, or with `/model`.
 
 ## Cost and context
 
-- The app records token usage per request and shows it in Settings → Usage: cache hit rate,
-  daily tokens, models, tools. With published prices (DeepSeek) it estimates spending.
-- Requests are built to be **prefix-cache friendly** (static system prompt, a fixed tool block,
-  append-only history), because cached input costs a fraction of uncached input.
-- Older turns are compacted automatically above the context budget (Settings → AI service →
-  context budget, default 128k tokens).
+The app records token usage for every request. Settings → Usage shows the cache hit rate, tokens
+per day, models and tools, and for providers with published prices (DeepSeek) it estimates what
+you've spent.
+
+Requests are built to hit the provider's **prefix cache**: a static system prompt, a fixed tool
+block and append-only history. Cached input costs a fraction of uncached input, so this matters.
+
+When a conversation grows past the context budget, older turns are compacted automatically. You
+set the budget in Settings → AI service → context budget. The default is 128k tokens.
 
 ## Testing without a key
 
-Developers can run the scripted mock model from the plugins repository and point the
+If you're developing, run the scripted mock model from the plugins repository and point the
 OpenAI-compatible provider at it:
 
 ```bash
@@ -68,4 +71,4 @@ bun examples/mock-llm/server.ts
 #   Model:    mock-agent
 ```
 
-See [Testing](/docs/build/testing) for what it does.
+[Testing](/en/docs/build/testing) explains what the mock model does.

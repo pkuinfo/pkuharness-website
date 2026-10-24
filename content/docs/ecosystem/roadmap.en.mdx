@@ -1,61 +1,60 @@
 ---
 title: Roadmap
-description: What is done, what is in progress and what is planned for PKU Harness, summarised from the app's PLAN.md and CLOUD.md.
+description: What's done, what's in progress and what's planned for PKU Harness, summarised from the app's PLAN.md and design docs.
 icon: Map
 ---
 
-Summarised from `docs/PLAN.md`, `docs/CLOUD.md`, `docs/PLUGIN-LANGUAGE.md` and `docs/CLOUD-FUNCTIONS.md` in [`pku-harness`](https://github.com/pkuinfo/pku-harness)
-(as of 2026-10-23). The plan file is the source of truth and is updated as work lands.
+This page summarises `docs/PLAN.md`, `docs/CLOUD.md`, `docs/PLUGIN-LANGUAGE.md`, `docs/CLOUD-FUNCTIONS.md`
+and `docs/OTA.md` in [`pku-harness`](https://github.com/pkuinfo/pku-harness), as of 2026-10-23. The
+plan file is the source of truth and gets updated as work lands.
 
 ## Done
 
 | Area | Highlights |
 | --- | --- |
 | Foundation and design system | Expo + bun scaffold, tokens, glass design language, motion primitives, 4-tab shell, first-run onboarding |
-| Core runtime | SQLite + keystore storage, plugin runtime (effects, permissions, approvals), provider plugins (DeepSeek default, OpenAI-compatible), agent loop with streaming tool calls |
-| Agent harness | Multiple sessions with auto titles and background replies, slash commands, composer (attachments, queue, model picker), context management and compaction, prefix-cache-friendly prompts, usage and cost board, memory with taint gate and approvals |
+| Core runtime | SQLite + keystore storage, plugin runtime (effects, permissions, approvals), provider plugins (DeepSeek by default, OpenAI-compatible), agent loop with streaming tool calls |
+| Agent harness | Multiple sessions with auto titles and background replies, slash commands, composer (attachments, queue, model picker), context management and compaction, prefix-cache-friendly prompts, usage and cost board, memory with a taint gate and approvals |
 | Generative UI | json-render catalog, `ui.render`, forms that submit back to the agent |
-| Campus access | Native campus HTTP module, IAAA login with adaptive second factors, 手机令牌 authenticator, one-tap SMS code takeover, adapters for card, ITS, Treehole, Blackboard, bdkj, cwfw, cwpay, elective, library |
-| Campus plugins | Wallet (card, network fee, utilities), course sync, Blackboard courses, grades, Treehole, campus events, elective (read-only), finance, room booking, course catalog, calendar, canteen, shuttle, … |
+| Campus access | Native campus HTTP module, IAAA login with adaptive second factors, 手机令牌 authenticator, one-tap SMS code takeover, multipart uploads with a file picker, signed-in hand-off to the browser, adapters for card, ITS, Treehole, Blackboard, bdkj, cwfw, cwpay, elective and library |
+| Campus plugins | Wallet (card, network fee, utilities), course sync, Blackboard courses, grades, Treehole, campus events, elective (read-only), finance, room booking, course catalog, calendar, canteen, shuttle, notices, … |
 | Dashboard | Widget model, AI-built and plugin widgets, stale-while-revalidate live store, edit mode, widget gallery |
-| Scheduler | Recurrence engine, exact notifications, background and killed-app exact checks on Android, agent-driven scheduled tasks, unattended-run policy, delivery-permission onboarding |
+| Scheduler | Recurrence engine, exact notifications, exact checks on Android in the background and with the app killed, agent-driven scheduled tasks, unattended-run policy, onboarding for delivery permissions |
 | Schedule tab | Timetable with odd/even weeks and class reminders, to-dos, reminders with free-form recurrence |
 | Plugin ecosystem | Plugins repository with SDK, registry and validator, remote MCP plugins with approvals, in-app marketplace, plugin UI contributions (screens, Settings rows, tabs, widgets, commands) |
-| Plugin language (spec 1) | Plugins as shareable `PLUGIN.md` folders interpreted by the app: SDK interpreter, abilities (incl. `verify.treehole`), author CLI (`bun run plugin validate\|test\|run`) with every document's recorded tests in CI; install by link or `pkuharness://plugin` with a review sheet, daily updates (wider access waits), rollback; official documents bundled and updated from their link; [AI authoring](/docs/build/ai-authoring) tools (`plugins.reference / validate / tryTool / source / install`) |
-| Official documents | classrooms, campus-events, grades, canteen and shuttle ported from TypeScript (parity-tested, TS removed) |
-| PKU Harness Cloud | Wire protocol v1 and envelope crypto, SDK cloud types, registry `cloud` field, reference server (Bun + Hono + SQLite), host client (identity, consent, E2E store and channels, Settings → Cloud), Android foreground service (`services.ongoing`), `card-share` with a web viewer and `pkuharness://share` links |
+| Plugin language (spec 1) | Plugins as shareable `PLUGIN.md` folders the app interprets: SDK interpreter, abilities (including `verify.treehole`), author CLI (`bun run plugin validate\|test\|run`) with every document's recorded tests in CI; install by link or `pkuharness://plugin` with a review sheet, daily updates (wider access waits for approval), rollback; official documents bundled and updated from their link; [AI authoring](/en/docs/build/ai-authoring) tools (`plugins.reference / validate / tryTool / source / install`) |
+| Official documents | classrooms, campus-events, grades, canteen, shuttle and notices ported from TypeScript (parity-tested, TypeScript removed) |
+| PKU Harness Cloud | Wire protocol v1 and envelope crypto, SDK cloud types, registry `cloud` field, reference server (Bun + Hono + SQLite), host client (identity, consent, end-to-end encrypted store and channels, Settings → Cloud), Android foreground service (`services.ongoing`), `card-share` with a web viewer and `pkuharness://share` links |
+| Releases and updates | v1.0.0 released: signed APKs built by CI from a version tag and published as GitHub releases. Self-hosted, code-signed over-the-air updates are live (expo-updates, signed in CI from a public commit, served as static files from our server) |
 
 ## In progress
 
-- **Porting integrations to documents**: notices next, then course catalog, elective, library
-  reads and Treehole tools; integrations that need new host abilities after that. See
-  [Declarative plugins](/docs/build/declarative-plugins).
-- **iOS**: launch-safe build, keychain and notification work done; the Swift port of the campus
-  HTTP module is pending.
-- **Plugin batch 2**: utilities and finance depth, Blackboard submission and 智云课堂, library
-  (loans, renewals, seats), campus life (notices, shuttle, canteens, portal apps).
-- **Live verification** of some services that can only be tested at certain times (elective
-  outside the add/drop window).
+- **Porting integrations to documents**: course catalog, elective, library reads and Treehole tools
+  are next, then the integrations that need new host abilities. See
+  [Declarative plugins](/en/docs/build/declarative-plugins).
+- **iOS**: the build launches safely, and the keychain and notification work is done. The Swift
+  port of the campus HTTP module is still pending.
+- **Plugin batch 2**: deeper utilities and finance, Blackboard submission and 智云课堂, library
+  (loans, renewals, seats), campus life (portal apps and more).
+- **Live verification** of services that can only be tested at certain times (elective outside
+  the add/drop window).
 
 ## Planned
 
-- **PKU Harness Cloud**: deployment of the official instance, kept minimal (the relay for live
-  shares, the small end-to-end-encrypted store and viewer pages); multi-device pairing.
-- **Self-hosted, code-signed over-the-air updates** (expo-updates, signed in CI from a public
-  commit, rollback).
-- **Host capabilities requested by plugins**: scoped public HTTP for plugins, more binary/multipart
-  support.
-- **Scoped session grants** so remote plugins can act on a campus service without credentials.
+- **PKU Harness Cloud**: deploy the official instance and keep it minimal (the relay for live
+  shares, the small end-to-end encrypted store and viewer pages); pair multiple devices.
+- **Host capabilities requested by plugins**: scoped public HTTP for plugins.
+- **Scoped session grants**, so a remote plugin can act on a campus service without ever seeing
+  credentials.
 - A hosted model option.
 
 ## On hold
 
-- **Plugin server functions** (`server:` in `PLUGIN.md`, `docs/CLOUD-FUNCTIONS.md`): what exists
-  stays in the reference server, but they are off on the official server for now, and
-  collections, schedules, push, groups and webhooks are not being built. Keep plugins phone-side
+- **Plugin server functions** (`server:` in `PLUGIN.md`, see `docs/CLOUD-FUNCTIONS.md`). What
+  exists stays in the reference server, but functions are off on the official server, and
+  collections, schedules, push, groups and webhooks are not being built. Keep plugins on the phone
   or use your own backend.
 
-## Non-goals for now
+## Not planned for now
 
-A web version of the app, payments inside the app (payments hand off to the official cashier),
-and a project-run model service as the only option.
+A web version of the app, and payments inside the app (payments hand off to the official cashier).

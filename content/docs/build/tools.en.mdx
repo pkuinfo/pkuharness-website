@@ -1,12 +1,12 @@
 ---
 title: Tools and schemas
-description: How to design tools the model uses well, with zod (bundled) or JSON Schema (MCP) inputs, honest effects, data-only results and recoverable states.
+description: Design tools the model uses well, with zod (bundled) or JSON Schema (MCP) inputs, honest effects, data-only results and recoverable states.
 icon: Wrench
 ---
 
-Tools are the API of a plugin, for the model and for your own screens. A good tool is small, does
-one thing, says exactly when to use it, and returns data the model can act on. The concepts are in
-[Tools and effects](/docs/concepts/tools-and-effects); this page is the practical guide.
+Tools are a plugin's API, both for the model and for your own screens. A good tool is small, does
+one thing, says exactly when to use it, and returns data the model can act on. The concepts live in
+[Tools and effects](/en/docs/concepts/tools-and-effects); this page covers the practice.
 
 ## Naming
 
@@ -17,21 +17,22 @@ one thing, says exactly when to use it, and returns data the model can act on. T
 | Model name | `<plugin>__<name>` (automatic) | `wallet__cardBalance` |
 | `title` | Short Chinese label for users | `校园卡余额` |
 
-Group related reads into one tool with a filter argument rather than ten near-identical tools:
-every enabled tool is sent with every request.
+Every enabled tool is sent with every request, so fold related reads into one tool with a filter
+argument instead of writing ten near-identical ones.
 
 ## Descriptions
 
-Write `description` for the model, in English or Chinese:
+`description` is for the model. Write it in English or Chinese, and cover:
 
 - **When** to use it, in the words a student would use ("Use when the user asks which canteen is
   least crowded").
 - **What** comes back: fields, units (yuan, minutes, Beijing time), how fresh the data is.
 - **Limits** and **follow-ups**: page sizes, required order ("call `treehole__sendCode` first"),
   what to do on `verification_required`.
-- Don't repeat the input schema; describe fields with `.describe()` instead.
 
-A description may be a function of host services, for text that depends on the device:
+Don't repeat the input schema there. Describe the fields with `.describe()` instead.
+
+When the text depends on the device, `description` can be a function of host services:
 
 ```ts
 description: (services) => `Show a native UI in the chat… Components:\n${services.genui.describeCatalog()}`,
@@ -39,8 +40,8 @@ description: (services) => `Show a native UI in the chat… Components:\n${servi
 
 ## Inputs
 
-Bundled plugins use zod 4. The model sees the JSON Schema generated from it, and the host
-validates every call (from the agent, a screen or the scheduler) before `execute` runs.
+Bundled plugins use zod 4. The model sees the JSON Schema generated from it, and the host validates
+every call (from the agent, a screen or the scheduler) before `execute` runs.
 
 ```ts
 input: z.object({
@@ -50,16 +51,17 @@ input: z.object({
 }),
 ```
 
-- Bound every number and string (`.min`, `.max`), and give defaults in the description.
-- Prefer enums for closed sets (`z.enum(['weekday', 'holiday'])`).
-- Use local `"YYYY-MM-DD HH:mm"` strings for times the model writes (the SDK's
-  `scheduleInputSchema` and `parseLocal` do this for schedules).
-- Remote plugins: the MCP `inputSchema` (JSON Schema) is converted to zod on the device with
-  `z.fromJSONSchema`; keep it to plain JSON Schema features.
+- Bound every number and string (`.min`, `.max`), and state defaults in the description.
+- Use enums for closed sets (`z.enum(['weekday', 'holiday'])`).
+- For times the model writes, use local `"YYYY-MM-DD HH:mm"` strings. The SDK's
+  `scheduleInputSchema` and `parseLocal` already do this for schedules.
+- Remote plugins: the device converts the MCP `inputSchema` (JSON Schema) to zod with
+  `z.fromJSONSchema`, so stick to plain JSON Schema features.
 
 ## Effects
 
-Pick one: `read`, `write`, `money`, `public` (see [Permissions](/docs/concepts/permissions)).
+Each tool has exactly one effect: `read`, `write`, `money` or `public` (see
+[Permissions](/en/docs/concepts/permissions)).
 
 ```ts
 effect: 'read',      // a balance, a list, a search
@@ -68,8 +70,8 @@ effect: 'money',     // create a payment order, top up, switch the card to digit
 effect: 'public',    // post or reply on Treehole
 ```
 
-Mark tools that return third-party text `untrusted: true`, and gates the agent must not open
-`userOnly: true`.
+Set `untrusted: true` on tools that return third-party text, and `userOnly: true` on gates the
+agent must not open itself.
 
 ## Results
 
@@ -80,13 +82,13 @@ execute: async ({ name, sort = 'least' }, ctx) => {
 },
 ```
 
-- Return JSON objects with self-explanatory field names and units.
-- Include where data came from and how fresh it is when it matters (`source`, `time`).
+- Return JSON objects whose field names and units explain themselves.
+- When it matters, say where the data came from and how fresh it is (`source`, `time`).
 - Return ids the model can pass to the next tool.
-- Respect `ctx.signal` (abort) in network calls.
-- Throw `Error` with a short, user-readable Chinese message for failures
-  (`throw new Error('校园卡登录已失效')`); the agent relays it.
-- For an expected state that needs the user, return a status instead of throwing:
+- Pass `ctx.signal` (abort) to network calls.
+- On failure, throw an `Error` with a short Chinese message the user can read
+  (`throw new Error('校园卡登录已失效')`). The agent relays it.
+- When the user has to step in for an expected reason, return a status instead of throwing:
 
 ```ts
 export type VerificationRequired = { status: 'verification_required'; kind: 'login'; methods: ['sms']; message: string };
@@ -109,8 +111,8 @@ if (needsSms) {
 | `instructions` | In the system prompt, every request | Short rules: which tool for which question, caveats ("以预约系统为准") |
 | `context({ query, kv, services })` | Before each turn, marked as data (800 ms budget) | Facts relevant to this message, e.g. the memory snapshot. Return `undefined` when nothing applies. |
 
-Both cost tokens on every request and change the prompt prefix (which hurts the model's cache);
-keep them short and stable. Don't include the time or date: the harness adds it to every turn.
+Both cost tokens on every request, and both change the prompt prefix, which hurts the model's
+cache. Keep them short and stable. Leave out the time and date: the harness adds them to every turn.
 
 ## Calling your tools from UI
 

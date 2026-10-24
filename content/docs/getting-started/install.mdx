@@ -1,0 +1,79 @@
+---
+title: 安装 App
+description: 下载 Android 版 PKU Harness，或从源码构建，然后走一遍首次启动的引导流程。
+icon: Download
+---
+
+PKU Harness 目前支持 **Android**。iOS 版正在准备：App 已经能在 iOS 上启动，但原生的校园 HTTP 模块还需要移植到 Swift，所以现阶段只有 Android 能登录校园账号。
+
+## 下载 [#download]
+
+到[下载页](/download)获取最新的 APK，它指向 [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness/releases) 的最新 Release。系统要求 Android 7.0 及以上、arm64 架构的手机。安装方式和其他 APK 一样，Android 询问时允许浏览器安装应用即可。
+
+每个正式版 APK 都由 GitHub Actions 从打了标签的提交构建，并用同一把密钥签名。Release 说明里列出了 APK 和证书的指纹，你可以核对自己装的是不是官方版本。装好之后，JavaScript 层面的修复会以签名的 OTA 更新（空中更新）推送，下次打开 App 时生效；原生代码的改动仍然需要安装新的 APK。
+
+<Callout type="warn" title="只安装你信任的构建">
+  App 会把你的 IAAA 密码保存在设备的密钥库里。请从官方仓库安装正式版，或者自己从源码构建。
+</Callout>
+
+## 首次启动 [#first-run]
+
+欢迎流程可以中断。中途离开的话，下次 App 会从你停下的地方继续。
+
+<Steps>
+<Step>
+
+### 同意用户协议 [#accept-the-terms]
+
+同意之后，助手可以直接替你使用插件，不必每次都问。之后你可以按插件、按效果设置为需要确认（见[权限](/docs/concepts/permissions)）。
+
+</Step>
+<Step>
+
+### 接入 AI 模型 [#connect-an-ai-model]
+
+默认使用 DeepSeek，任何兼容 OpenAI 的接口也都可以。见[接入模型](/docs/getting-started/ai-model)。
+
+</Step>
+<Step>
+
+### 登录校园账号 [#sign-in-with-your-campus-account]
+
+输入学号和密码，由 IAAA 验证。见[校园账号](/docs/getting-started/campus-account)。
+
+</Step>
+<Step>
+
+### 选择插件 [#pick-plugins]
+
+选择要启用哪些内置插件。之后都可以在“设置 → 插件”里修改。
+
+</Step>
+<Step>
+
+### 允许准时提醒 [#allow-on-time-reminders]
+
+授予通知和精确闹钟权限，也可以顺便关闭电池优化，这样提醒和定时检查才能准点触发。这一步可以跳过，之后“日程”页会提示还缺哪些权限。
+
+</Step>
+</Steps>
+
+## 四个标签页 [#the-four-tabs]
+
+| 标签页 | 功能 |
+| --- | --- |
+| **对话** | 助手所在的地方。流式输出回答，调用插件工具，在对话里直接渲染原生界面（表单、选择器、卡片）。支持多会话、`/` 快捷指令和附件。 |
+| **看板** | 由助手为你搭建和修改的小组件（余额、下一节课、食堂人流……），自动刷新。内容来自 `dashboard` 插件。 |
+| **日程** | 课表、待办和提醒，重复规则可以随便说（“每 3 天一次，共 16 次”）。内容来自 `schedule` 插件。 |
+| **设置** | 校园账号、AI 服务、插件及其权限、插件市场、记忆、通知、外观、数据。 |
+
+## 从源码构建 [#build-from-source]
+
+```bash
+git clone --recurse-submodules https://github.com/pkuinfo/pku-harness.git   # plugins/ 是一个子模块
+cd pku-harness
+bun install
+bun run android        # 在模拟器或真机上运行开发版（需要 JDK 17 和 Android SDK）
+```
+
+完整的工具链见 App 仓库的 `README.md` 和 `AGENTS.md`。想在自己的构建上开发插件，见[内置插件 → 在 App 中运行](/docs/build/bundled-plugin#run-it-in-the-app)。

@@ -1,46 +1,47 @@
 ---
 title: Providers and self-hosting
-description: Choose the official instance, a self-hosted reference server or any conforming URL; what a provider must implement; how to run and configure the reference server.
+description: Pick the official instance, a self-hosted reference server or any conforming URL. What a provider must implement, and how to run and configure the reference server.
 icon: Server
 ---
 
 ## Choosing a provider (users)
 
-Settings → Cloud offers:
+Settings → Cloud offers three options:
 
 | Option | Meaning |
 | --- | --- |
-| **Official** | The instance run by pkuinfo (not deployed yet). Kept minimal: the relay for live shares, the small end-to-end-encrypted store and viewer pages. Off until the user opts in. |
-| **Self-hosted** | A base URL. **Test connection** shows the provider's `/v1/meta`: operator, services, limits. |
-| **Off** | No cloud. Plugins that require `cloud` are unavailable; optional ones keep working locally. |
+| **Official** | The instance run by pkuinfo (not deployed yet). It stays small: the relay for live shares, the small end-to-end-encrypted store and the viewer pages. Off until the user opts in. |
+| **Self-hosted** | A base URL. **Test connection** shows the provider's `/v1/meta`: operator, services and limits. |
+| **Off** | No cloud. Plugins that require `cloud` are unavailable; plugins where it's optional keep working locally. |
 
-URLs must be HTTPS. Development builds also allow `http://10.0.2.2:*` and `http://localhost:*`.
-Switching provider doesn't move data: each provider is a separate identity and store.
+URLs must be HTTPS. Development builds also accept `http://10.0.2.2:*`, `http://localhost:*` and
+`http://127.0.0.1:*`. Switching provider doesn't move any data: each provider has its own
+identity and its own store.
 
 ## What a provider implements
 
-Everything in the [API reference](/docs/cloud/api/meta), validated with the schemas from
-[`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package):
+Everything in the [API reference](/en/docs/cloud/api/meta), validated with the schemas from
+[`@pku-harness/cloud-protocol`](/en/docs/cloud/protocol-package):
 
-- `GET /v1/meta` with `protocol: 1`, the services offered, limits, proof-of-work parameters, viewer
-  pages, functions and the operator (`name`, `contact`, optional `privacyURL`).
-- Device registration with proof of work, signed token minting (`aud` = your own origin, 5-minute
-  skew window, nonce replay protection), 10-minute tokens.
-- The services you list in `services` (a provider may offer a subset; plugins whose `uses` aren't
-  covered are marked unavailable).
-- The error body `{ error: { code, message, retryAfterS? } }`, `Retry-After` and `RateLimit-*`
-  headers.
-- Static viewer pages at `/w/<plugin>/<page>` with a strict CSP, and `GET /s/:id` redirects.
+- `GET /v1/meta` with `protocol: 1`, the services offered, limits, proof-of-work parameters,
+  viewer pages, functions and the operator (`name`, `contact`, optional `privacyURL`).
+- Device registration with proof of work, and signed token minting (`aud` = your own origin, a
+  5-minute clock-skew window, nonce replay protection) of 10-minute tokens.
+- The services you list in `services`. A provider may offer a subset; plugins whose `uses` it
+  doesn't cover are marked unavailable.
+- The error body `{ error: { code, message, retryAfterS? } }`, plus `Retry-After` and
+  `RateLimit-*` headers.
+- Static viewer pages at `/w/<plugin>/<page>` with a strict CSP, and the `GET /s/:id` redirects.
 
 ## Reference server
 
 The open-source reference server is `packages/cloud-server` in
-[`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/packages/cloud-server):
-Bun + Hono + `bun:sqlite` (WAL), every request and response validated with the
-`@pku-harness/cloud-protocol` schemas. It offers `store` and `channels`; `push` answers `501 unsupported`.
-Plugin server functions (`/v1/fn`, `/v1/p`) are implemented but governed by `CLOUD_FN_POLICY`
-(`allowlist` with an empty list by default in production), and are off on the official server
-for now.
+[`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/packages/cloud-server).
+It runs on Bun + Hono + `bun:sqlite` (WAL) and validates every request and response with the
+`@pku-harness/cloud-protocol` schemas. It advertises `store`, `channels` and `functions`; `push`
+answers `501 unsupported`. Plugin server functions (`/v1/fn`, `/v1/p`) are governed by
+`CLOUD_FN_POLICY`, which defaults to `allowlist` with an empty list in production
+(`NODE_ENV=production`), and they are off on the official server for now.
 
 ```bash
 cd pku-harness-plugins/packages/cloud-server
@@ -58,20 +59,20 @@ In the Android emulator, point Settings → Cloud → Self-hosted at `http://10.
 | `CLOUD_DB` | `./data/cloud.db` | SQLite file (`:memory:` for throwaway runs) |
 | `CLOUD_TOKEN_SECRET` | generated, stored in the DB | HMAC key for bearer tokens (≥ 32 chars) |
 | `CLOUD_POW_DIFFICULTY` | `16` | Proof-of-work difficulty |
-| `CLOUD_POW_ROTATE_S` | `21600` | Salt rotation; the previous salt stays valid one period |
-| `CLOUD_OPERATOR_NAME` / `CLOUD_OPERATOR_CONTACT` / `CLOUD_PRIVACY_URL` | self-hosted / empty | Shown by `GET /v1/meta` |
-| `CLOUD_PAGES_DIR` | `<plugins repo>/plugins` | Folder holding `<plugin>/web/dist` viewer pages |
+| `CLOUD_POW_ROTATE_S` | `21600` | Salt rotation; the previous salt stays valid for one more period |
+| `CLOUD_OPERATOR_NAME` / `CLOUD_OPERATOR_CONTACT` / `CLOUD_PRIVACY_URL` | `PKU Harness Cloud (self-hosted)` / empty | Shown by `GET /v1/meta` |
+| `CLOUD_PAGES_DIR` | `<plugins repo>/plugins` | Folder holding the `<plugin>/web/dist` viewer pages |
 | `CLOUD_TRUST_PROXY` | off | `1`: client IP = last `X-Forwarded-For` hop (behind Caddy) |
 
-`deploy/` holds a Dockerfile, a Caddyfile and a Litestream config; see its `README.md`. Server
-function variables (`CLOUD_FN_POLICY`, `CLOUD_FN_ALLOW`, `CLOUD_FN_VERIFIED`, `CLOUD_FN_LOCAL`,
-`CLOUD_SECRET_<PLUGIN>__<NAME>`) are documented in the server's `README.md`.
+`deploy/` holds a Dockerfile, a Caddyfile and a Litestream config; see its `README.md`. The
+server's own `README.md` documents the server-function variables (`CLOUD_FN_POLICY`,
+`CLOUD_FN_ALLOW`, `CLOUD_FN_VERIFIED`, `CLOUD_FN_LOCAL`, `CLOUD_SECRET_<PLUGIN>__<NAME>`).
 
 ## Operating an instance
 
-- Publish who you are (`operator.name`, `contact`) and a privacy statement (`privacyURL`).
-- Keep logs free of payloads and tokens; payloads are ciphertext but IPs and timing are personal
-  data.
-- Hosting in mainland China requires ICP filing; the official instance is planned outside the
-  mainland, with a short dedicated domain for share links (WeChat may interstitial unknown
-  domains, so the app always offers a QR code and copy-link too).
+- Say who you are (`operator.name`, `contact`) and publish a privacy statement (`privacyURL`).
+- Keep payloads and tokens out of your logs. Payloads are ciphertext, but IP addresses and timing
+  are still personal data.
+- Hosting in mainland China requires ICP filing. The official instance is planned outside the
+  mainland, with a short dedicated domain for share links. WeChat may show a warning page for
+  unknown domains, so the app always offers a QR code and a copy-link button as well.

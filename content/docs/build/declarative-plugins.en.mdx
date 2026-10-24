@@ -1,6 +1,6 @@
 ---
 title: Declarative plugins (PLUGIN.md)
-description: A plugin as a shareable folder - a PLUGIN.md manifest with agent instructions, tools written as YAML steps, and generative-UI widgets - interpreted by the app and installed by pasting a link. No code, no build, no app release.
+description: A plugin as a shareable folder. A PLUGIN.md manifest with agent instructions, tools written as YAML steps and generative-UI widgets, interpreted by the app and installed from a link. No code, no build, no app release.
 icon: FileCode
 ---
 
@@ -9,28 +9,28 @@ icon: FileCode
   [`docs/PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md)
   (spec version 1) and implemented in `@pku-harness/sdk` `lang/` (schemas, interpreter, abilities,
   loader). The app installs and updates `PLUGIN.md` plugins by link, and the official campus
-  integrations ship as documents. This page summarises the spec; the SDK's
+  integrations ship as documents. This page summarises the spec. What the app actually enforces is
+  the SDK's
   [`schema.ts`](https://github.com/pkuinfo/pku-harness-plugins/blob/main/packages/sdk/src/lang/schema.ts)
-  and [`abilities.ts`](https://github.com/pkuinfo/pku-harness-plugins/blob/main/packages/sdk/src/lang/abilities.ts)
-  are what the app enforces.
+  and [`abilities.ts`](https://github.com/pkuinfo/pku-harness-plugins/blob/main/packages/sdk/src/lang/abilities.ts).
 </Callout>
 
 A declarative plugin is to PKU Harness what a `SKILL.md` folder is to an agent: **a folder you
-can share as a link**. The app reads it and runs its declared steps with a small, safe
-interpreter. It never downloads or runs plugin code, so a new plugin or an update needs no app
-release and no server.
+can share as a link**. The app reads it and runs its declared steps in a small, safe interpreter.
+It never downloads or runs plugin code, so shipping a new plugin or an update needs neither an app
+release nor a server.
 
-Use one for anything that is a few campus or public requests plus some extraction: free
-classrooms, canteen crowds and hours, shuttle timetables, grades, campus events. Things the
-language can't express safely become **host abilities** in the harness, which any plugin can then
-use. For a server you run yourself, write a [remote plugin](/docs/build/remote-plugin). You can
-also [write one with the AI](/docs/build/ai-authoring) in the app.
+Reach for one whenever the job is a few campus or public requests plus some extraction: free
+classrooms, canteen crowds and hours, shuttle timetables, grades, campus events, notices. Anything
+the language can't express safely becomes a **host ability** in the harness, and then every plugin
+can use it. If you run your own server, write a [remote plugin](/en/docs/build/remote-plugin)
+instead. You can also [write a document with the AI](/en/docs/build/ai-authoring) in the app.
 
 ## Official documents
 
 The official campus integrations in
 [`pku-harness-plugins/plugins`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins)
-are documents, each with recorded tests. Read them as worked examples:
+are documents, each with recorded tests. They make good worked examples:
 
 | Plugin | Shows |
 | --- | --- |
@@ -39,9 +39,10 @@ are documents, each with recorded tests. Read them as worked examples:
 | [`grades`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/grades) | A second factor (SMS or 手机令牌) with `verify.treehole` and `verify.treeholeSendCode` |
 | [`canteen`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/canteen) | A `shared:` file, KV caching with a stale fallback, merged-cell HTML tables |
 | [`shuttle`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/shuttle) | No network at all: static timetables as data, a widget refreshed every minute |
+| [`notices`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/notices) | A wildcard host (`*.pku.edu.cn`) plus WeChat articles, a source table in `shared:`, per-page KV caching with a stale fallback, `untrusted: true` tools for third-party text, a slash command |
 
-`notices` is being ported. The app bundles the official documents and updates them from their
-GitHub link like any other plugin, so fixing a parser needs no app release.
+The app bundles the official documents and updates them from their GitHub link like any other
+plugin, so fixing a parser needs no app release.
 
 ## Layout
 
@@ -59,7 +60,7 @@ classrooms/
 - One plugin per folder; a repo can hold many. The marketplace handle is `owner/repo/path`.
 - The app only loads files **named in the frontmatter** (relative paths, no `..`), so any static
   host works: GitHub, a gist, your own server.
-- UTF-8 text; the files the app loads total at most **512 KB**.
+- Files are UTF-8 text, and the ones the app loads add up to at most **512 KB**.
 
 ## The manifest
 
@@ -87,8 +88,8 @@ Use `free` when the user asks where to study or which rooms are free. Periods ar
 (1 = 08:00). Answer with the building and room, and the free period ranges.
 ```
 
-Required: `spec: 1`, `id`, `name`, `description` (4–200 characters), `version` (semver),
-`author`. The declarations that matter most are the ones students see before installing:
+Required: `spec: 1`, `id`, `name`, `description` (4–200 characters), `version` (semver) and
+`author`. The declarations that matter most are the ones students see before they install:
 
 | Field | Declares |
 |---|---|
@@ -97,23 +98,24 @@ Required: `spec: 1`, `id`, `name`, `description` (4–200 characters), `version`
 | `abilities` | [Host abilities](#host-abilities): `verify`, `otp`, `todos`, `timetable`, `scheduler`, `browser`, `campusPage`, `sms`, `files`, `crypto`, `cloud`. |
 | `tools` | Each tool's `effect`: `read`, `write`, `money` or `public`. |
 
-Also available: `shared` (a YAML file of `constants` and `functions` every tool sees; a tool's
+You can also set `shared` (a YAML file of `constants` and `functions` every tool sees; a tool's
 own definitions win), `dataSources`, `widgets`, `screens`, `settings`, `commands`,
 `defaultModes`, `cloud`, `i18n`, `remote: { mcp, auth }` to describe a remote MCP server with a
 `PLUGIN.md`, and `server` ([below](#server-functions)). `requires` is derived from `campus`,
-`network`, `cloud` and `server`; listing it is optional. The field-by-field reference, and what
-the marketplace checks, is in the [manifest reference](/docs/marketplace/manifest).
+`network`, `cloud` and `server`, so listing it is optional. The [manifest
+reference](/en/docs/marketplace/manifest) goes field by field and lists what the marketplace
+checks.
 
-The **Markdown body** is sent to the model as the plugin's instructions. Keep it short: when to
-use which tool, and what the numbers mean. Tools are named `<id>__<tool>` there (e.g.
+The **Markdown body** is sent to the model as the plugin's instructions. Keep it short: which tool
+to use when, and what the numbers mean. In there, tools are named `<id>__<tool>` (e.g.
 `classrooms__free`).
 
 ## Tools
 
 A tool is data: a `title` for users, a `description` for the model, an honest `effect`, typed
-`input`, optional `constants` and `functions`, then **steps** that make requests and transform
-the responses, and a `return` expression. `untrusted: true` marks results that carry third-party
-text; `userOnly: true` means only a human tap may run the tool.
+`input`, optional `constants` and `functions`, then **steps** that make requests and transform the
+responses, and finally a `return` expression. `untrusted: true` marks results that carry
+third-party text. `userOnly: true` means only a human tap may run the tool.
 
 ```yaml title="tools/free.yaml (abridged)"
 title: 空闲教室
@@ -137,14 +139,13 @@ return: "page.rows.map(r => ({ room: r.room, seats: num(r.cap, 0) }))"
 ```
 
 **Input fields** are `{ type, enum?, default?, optional?, description?, min?, max?, pattern?,
-trim?, items? }` with `type` one of `string`, `number`, `integer`, `boolean`, `array`,
-`object`. `trim: true` trims a string before it is validated. Input is checked before any step
-runs.
+trim?, items? }`, where `type` is one of `string`, `number`, `integer`, `boolean`, `array`,
+`object`. `trim: true` trims a string before validation. Input is checked before any step runs.
 
 ### Steps
 
-Each step does one thing and may bind its result with `let: name`. Later steps and `return` see
-bound names, `input`, `constants`, `functions` and `now`.
+Each step does one thing and may bind its result with `let: name`. Later steps and `return` can
+see bound names, `input`, `constants`, `functions` and `now`.
 
 | Step | Does |
 | --- | --- |
@@ -166,28 +167,28 @@ and no JavaScript.
 ### Expressions
 
 Expression fields (`value`, `each`, `if`, `check`, `return`, `next`, `items`, `from`, `call`
-input, `ability` args, `functions` bodies) hold one expression in a small, safe subset of
+input, `ability` args, `functions` bodies) hold a single expression in a small, safe subset of
 JavaScript: literals, `.` `?.` `[]`, arithmetic, strict `==` / `!=`, `&& || ?? !`, `a ? b : c`,
-and arrow functions as arguments. No assignment, no `new`, no globals; a name that was never bound
-is an error. Every other string is a **template**: `${expr}` is replaced by its value, and a
-template that is exactly one `${expr}` keeps the value's type.
+and arrow functions as arguments. There is no assignment, no `new` and no globals, and using a
+name that was never bound is an error. Every other string is a **template**: `${expr}` is
+replaced by its value, and a template that is exactly one `${expr}` keeps the value's type.
 
 The standard library covers lists (`map`, `filter`, `sortBy`, `groupBy`, `sum`, `reduce`, …),
 objects, strings, numbers, dates in Beijing time, URLs, JSON and HTML (`html`, `select`,
-`first`, `tableRows`, `htmlText`, …). The full list is in the spec §6.2 and in
-`plugins.reference` in the app.
+`first`, `tableRows`, `htmlText`, …). The full list is in spec §6.2 and in `plugins.reference`
+inside the app.
 
-- **Regexes are strings**, compiled once and length-bounded. Start a pattern with inline flags
-  for case-insensitive and similar matching: `'(?i)^yanyuan'` (flags `i`, `m`, `s`, `u`).
+- **Regexes are strings**, compiled once and length-bounded. For case-insensitive and similar
+  matching, start the pattern with inline flags: `'(?i)^yanyuan'` (flags `i`, `m`, `s`, `u`).
 - **String escapes.** `\\`, `\'`, `\"`, `\n`, `\t` and `\r` work as in JavaScript. Any other
-  escape **keeps its backslash**, so `'\d+'` is the regex `\d+`. This differs from JavaScript on
-  purpose, so patterns survive YAML. Still write regexes in single-quoted YAML strings or `|`
-  blocks.
+  escape **keeps its backslash**, so `'\d+'` is the regex `\d+`. This deliberately differs from
+  JavaScript so that patterns survive YAML. Still, write regexes in single-quoted YAML strings or
+  `|` blocks.
 - **Comments**: `// …` and `/* … */` work inside expressions.
 - **Merged table cells**: `tableRows(node, { header: true })` returns row objects keyed by header
   label, with rowspan and colspan expanded. `tableRows(node, { cells: true })` returns grid rows of
-  `{ text, row, col, rowspan, colspan, id }`, where `id` is shared by every slot one merged cell
-  covers.
+  `{ text, row, col, rowspan, colspan, id }`, where every slot covered by the same merged cell
+  shares one `id`.
 
 <Callout type="warn" title="YAML gotcha">
   Quote an expression that contains `: ` or starts with `{`, `[`, `'` or `"`, or write it as a
@@ -197,15 +198,16 @@ objects, strings, numbers, dates in Beijing time, URLs, JSON and HTML (`html`, `
 
 ### Results
 
-Return plain JSON, never instructions. Conventions the harness understands:
+Return plain JSON, never instructions. The harness understands a few conventions:
 `{ status: 'verification_required', kind, methods, message }` (the user must supply a code),
 `{ status: 'needs_input', fields, message }`, and `{ items, hasMore, truncated }` for lists.
 
 ## Host abilities
 
-Abilities are harness features a plugin may use if it lists the group in `abilities`. Each
+Abilities are harness features a plugin may use once it lists the group in `abilities`. Each
 operation has a fixed effect, and the calling tool must declare **at least** that effect. Any
-other name is refused. New abilities are added to the harness (reviewed once), never by plugins.
+other name is refused. New abilities are added to the harness, where they're reviewed once;
+plugins can't add them.
 
 | Ability | Operations (effect) |
 | --- | --- |
@@ -230,40 +232,41 @@ other name is refused. New abilities are added to the harness (reviewed once), n
 ### Second factors (`verify`)
 
 Treehole sometimes demands an SMS check or a course-data token. `verify.treehole` wraps one
-treehole request so plugins don't reimplement that state machine:
+treehole request so plugins don't have to reimplement that state machine:
 
-- With `code`, it redeems the code first (`via` says whether it came by `sms` or is a 手机令牌
-  `otp` code; `kind` says which check, `login` or `course`, when none is pending), then sends the
-  request.
-- When the course token is needed and no code was given, it tries the bound authenticator's OTP
-  automatically.
-- Otherwise it returns `{ status: 'verification_required', kind, methods, message, next }` for the
-  agent to ask the user for a code.
-- A treehole reply without `success: true` is a failure: the tool fails with treehole's message.
+- Given a `code`, it redeems the code first, then sends the request. `via` says whether the code
+  came by `sms` or is a 手机令牌 `otp` code; `kind` says which check (`login` or `course`) it is
+  for when none is pending.
+- When the course token is needed and no code was given, it tries the bound authenticator's OTP on
+  its own.
+- Otherwise it returns `{ status: 'verification_required', kind, methods, message, next }` so the
+  agent can ask the user for a code.
+- A treehole reply without `success: true` is a failure, and the tool fails with treehole's
+  message.
 
-`verify.treeholeSendCode { kind? }` sends the SMS for whichever check is pending (`kind` picks
-one when none is). A message that the last code hasn't expired yet counts as sent.
+`verify.treeholeSendCode { kind? }` sends the SMS for whichever check is pending (`kind` picks one
+when none is). If treehole says the last code hasn't expired yet, that counts as sent.
 
 ## Server functions
 
 <Callout type="warn" title="Off on the official server for now">
   The `server:` key, `{ fn }` bindings and the `cloud.call` ability exist in the SDK, but plugin
   server functions are **off on the official server for now**. Keep plugins phone-side, or use
-  your own backend (a [remote plugin](/docs/build/remote-plugin)).
+  your own backend (a [remote plugin](/en/docs/build/remote-plugin)).
 </Callout>
 
-A `server:` section declares functions written in the same steps and expressions, run by a PKU
-Harness Cloud server with its own ability set (server KV, `crypto.sha256` / `hmacSha256` /
-`randomId`, HTTPS to `server.network` hosts with operator `secrets`) and never with campus
-access. A plugin with `server:` must say what leaves the device in `cloud.disclosure`. Design and
-status:
+A `server:` section declares functions written in the same steps and expressions. A PKU Harness
+Cloud server runs them with its own ability set (server KV, `crypto.sha256` / `hmacSha256` /
+`randomId`, HTTPS to `server.network` hosts with operator `secrets`) and never with campus access.
+A plugin with `server:` must state what leaves the device in `cloud.disclosure`. Design and
+status are in
 [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)
-(on hold); see also [Cloud → For plugin authors](/docs/cloud/plugin-guide#server-functions).
+(on hold); see also [Cloud → For plugin authors](/en/docs/cloud/plugin-guide#server-functions).
 
 ## Install links
 
 Students install a plugin by pasting a link in the app (设置 → 插件 → add), scanning a QR code,
-tapping *Open in app* on the [marketplace](/marketplace), or from the agent
+tapping *Open in app* on the [marketplace](/en/marketplace), or through the agent
 (`plugins.install`). The app accepts:
 
 | Form | Example |
@@ -282,21 +285,22 @@ Before installing, the app fetches and validates everything, then shows the **re
   password), **websites** (`network` hosts) and **app features** (abilities).
 - What it can do: every tool with its effect.
 
-Community plugins start with `write`, `money` and `public` tools on *ask*, and their results reach
-the AI as untrusted data, never as instructions. Nothing is installed until the user taps
-*Install*.
+Community plugins start with their `write`, `money` and `public` tools set to *ask*, and their
+results reach the AI as untrusted data, never as instructions. Nothing is installed until the user
+taps *Install*.
 
 ## Updates
 
-The app re-fetches an installed plugin's link on start (at most daily) and from the plugin page:
+The app re-fetches an installed plugin's link on start (at most once a day) and from the plugin
+page:
 
 - same content hash: nothing happens;
 - new content, same declarations: applied, with an "updated to 1.3.0" note;
 - wider declarations (a new campus service, host, ability or stronger effect): held until the
-  user reviews and accepts.
+  user reviews and accepts them.
 
-Users can turn off automatic updates or roll back to the previous version. So publishing an
-update is just a `git push`.
+Users can turn off automatic updates or roll back to the previous version. Publishing an update
+is therefore just a `git push`.
 
 ## Test
 
@@ -306,15 +310,15 @@ bun run plugin test path/to/my-plugin       # replay tests/*.yaml (recorded resp
 bun run plugin run path/to/my-plugin <tool> '{"k":"v"}'   # live, public hosts only
 ```
 
-Run them from a checkout of `pku-harness-plugins`. Campus requests need the app, so record their
-responses in `tests/*.yaml` (see the [quickstart](/docs/build/quickstart#record-a-test)). In the
-plugins repo, CI replays every document's tests (`plugins/documents.test.ts`).
+Run these from a checkout of `pku-harness-plugins`. Campus requests need the app, so record their
+responses in `tests/*.yaml` (see the [quickstart](/en/docs/build/quickstart#record-a-test)). In
+the plugins repo, CI replays every document's tests (`plugins/documents.test.ts`).
 
 ## Publish
 
 Push the folder to a public GitHub repo, then submit the repo on the
-[marketplace](/marketplace/submit). It finds every `PLUGIN.md`, checks the paths and
+[marketplace](/en/marketplace/submit). It finds every `PLUGIN.md`, checks the paths and
 declarations, and shows exactly what students will see. See
-[Publishing](/docs/marketplace/publishing) and the [review rules](/docs/marketplace/review). To
-make a plugin official, open a pull request adding the folder under `plugins/` in
+[Publishing](/en/docs/marketplace/publishing) and the [review rules](/en/docs/marketplace/review).
+To make a plugin official, open a pull request that adds the folder under `plugins/` in
 `pku-harness-plugins`, with recorded tests.

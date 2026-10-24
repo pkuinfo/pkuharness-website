@@ -1,15 +1,16 @@
 ---
 title: Your first plugin in 5 minutes
-description: Write a PLUGIN.md plugin with one tool, test it against recorded responses, and share it as a link. Worked example - the free-classrooms plugin.
+description: Write a PLUGIN.md plugin with one tool, test it against recorded responses, and share it as a link. The worked example is the free-classrooms plugin.
 icon: Rocket
 ---
 
-This walks through a real plugin, [`plugins/classrooms`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/classrooms)
-in the plugins repo, cut down to its smallest tool: **how many classrooms are free in each
-teaching building right now**. It calls one public campus endpoint, so it needs no login.
+We'll build a cut-down version of a real plugin,
+[`plugins/classrooms`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/classrooms)
+from the plugins repo, keeping only its smallest tool: **how many classrooms are free in each
+teaching building right now**. It calls one public campus endpoint, so no login is involved.
 
-Full language reference: [Declarative plugins](/docs/build/declarative-plugins) and the spec
-[`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md).
+The full language reference is [Declarative plugins](/en/docs/build/declarative-plugins), and the
+spec is [`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md).
 
 <Steps>
 
@@ -17,7 +18,7 @@ Full language reference: [Declarative plugins](/docs/build/declarative-plugins) 
 
 ### Get the author CLI
 
-The CLI lives in the plugins repo (bun required):
+The CLI lives in the plugins repo and needs bun:
 
 ```bash
 git clone https://github.com/pkuinfo/pku-harness-plugins
@@ -33,8 +34,8 @@ Usage: `bun run plugin validate|test|run <plugin-dir> [tool] [json-input]`.
 
 ### Write `PLUGIN.md`
 
-One folder per plugin. The frontmatter is the manifest; the Markdown body is what the agent reads
-about when and how to use your tools.
+Each plugin is one folder. The frontmatter is the manifest, and the Markdown body tells the agent
+when and how to use your tools.
 
 ```md title="my-classrooms/PLUGIN.md"
 ---
@@ -56,9 +57,8 @@ i18n:
 my-classrooms__overview：各楼现在空闲教室数量。用户想找自习的地方时先用它挑楼。
 ```
 
-- `network` lists every public host the plugin may call. Requests to anything else fail.
-- Every file the app loads is named in the frontmatter. The app never lists folders, so any static
-  host works.
+`network` lists every public host the plugin may call; requests anywhere else fail. Every file
+the app loads is named in the frontmatter. The app never lists folders, so any static host works.
 
 </Step>
 
@@ -84,10 +84,10 @@ return: |
   }
 ```
 
-- `title` is shown to users (Chinese first); `description` is for the model.
-- `effect` is `read`, `write`, `money` or `public`. Users choose per effect whether the agent may
-  act on its own, so declare it honestly.
-- Return data, never instructions. The result is shown to the model as data.
+- `title` is what users see (write it in Chinese first); `description` is for the model.
+- `effect` is `read`, `write`, `money` or `public`. Users decide per effect whether the agent may
+  act without asking, so declare it honestly.
+- Return data, never instructions. The model sees the result as data.
 
 <Callout type="warn" title="YAML gotcha">
   Quote any expression or `${…}` template that contains `: ` or starts with `{` or `[`.
@@ -100,8 +100,9 @@ return: |
 
 ### Record a test
 
-Tests replay recorded responses, so they run offline and stay deterministic. Paste a (trimmed)
-real response as the `body`, or save it as a file next to the test and use `file:`:
+Tests replay recorded responses, so they run offline and always give the same result. Paste a
+(trimmed) real response as the `body`, or save it as a file next to the test and point `file:` at
+it:
 
 ```yaml title="my-classrooms/tests/overview.yaml"
 tool: overview
@@ -112,9 +113,10 @@ responses:
 expect: { buildings: [{ building: 一教, free: 16, total: 32 }] }
 ```
 
-A test has `tool`, optional `input` and `now`, the `responses` to serve (`match` a URL substring;
-`body` or `file`; `campus` for campus requests), and either `expect` (compared **exactly** with
-the result) or `expectError` (a pattern the error message must match).
+A test has a `tool`, optional `input` and `now`, and the `responses` to serve. Each response
+`match`es a URL substring and has a `body` or a `file` (add `campus` for campus requests). Then
+comes either `expect`, compared **exactly** with the result, or `expectError`, a pattern the error
+message must match.
 
 </Step>
 
@@ -129,8 +131,8 @@ bun run plugin run path/to/my-classrooms overview '{}'
 ```
 
 `validate` checks the manifest, tool schemas, expressions and file paths, the same checks the app
-and the marketplace run. `run` makes the real requests (public hosts only; campus requests need
-the app, so record those in tests).
+and the marketplace run. `run` makes real requests, but only to public hosts. Campus requests need
+the app, so record those in tests.
 
 </Step>
 
@@ -145,11 +147,11 @@ https://github.com/<you>/<repo>/tree/main/my-classrooms
 ```
 
 Students paste it in the app, scan its QR code, or open
-`pkuharness://plugin?src=<url-encoded link>`. The app shows a review sheet first: community or
-official, the websites it can reach (here `portal.pku.edu.cn`) and each tool with its effect.
-Every `git push` becomes an update. To list it in the marketplace,
-[submit the repo](/marketplace/submit). One repo can hold any number of plugins. See
-[Publishing](/docs/marketplace/publishing).
+`pkuharness://plugin?src=<url-encoded link>`. The app first shows a review sheet: community or
+official, the websites the plugin can reach (here `portal.pku.edu.cn`), and each tool with its
+effect. Every `git push` becomes an update. To list the plugin in the marketplace,
+[submit the repo](/en/marketplace/submit); one repo can hold any number of plugins. See
+[Publishing](/en/docs/marketplace/publishing).
 
 </Step>
 
@@ -157,7 +159,7 @@ Every `git push` becomes an update. To list it in the marketplace,
 
 ## Next
 
-- Inputs, steps, expressions, abilities and errors: [Declarative plugins](/docs/build/declarative-plugins)
-- Let the agent in the app draft, validate and try a plugin with you: [Write a plugin with the AI](/docs/build/ai-authoring)
+- Inputs, steps, expressions, abilities and errors: [Declarative plugins](/en/docs/build/declarative-plugins)
+- Draft, validate and try a plugin together with the agent in the app: [Write a plugin with the AI](/en/docs/build/ai-authoring)
 - Calls that need the student's campus session: declare `campus` (see the spec, §4 and §9)
-- What reviewers check: [Review and safety](/docs/marketplace/review)
+- What reviewers check: [Review and safety](/en/docs/marketplace/review)

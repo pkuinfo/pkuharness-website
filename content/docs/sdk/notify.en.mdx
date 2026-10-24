@@ -3,8 +3,12 @@ title: notify
 description: NotifyReadiness and deliveryBlocker, for screens that check whether reminders and scheduled checks can fire on the minute.
 ---
 
-Source: `packages/sdk/src/notify.ts`. Used with `services.notify.readiness()` and
+Source: `packages/sdk/src/notify.ts`. Use these with `services.notify.readiness()` and
 `services.notify.fix(kind)`.
+
+On-time delivery needs three things from the OS (Android first): the notification permission, the
+"Alarms & reminders" special access for exact alarms (Android 14+ denies it by default), and,
+as a nice-to-have, no battery optimisation for the app.
 
 ```ts
 type NotifyPermission = 'granted' | 'undetermined' | 'denied';
@@ -28,6 +32,9 @@ type NotifyFixKind = 'notifications' | 'exactAlarms' | 'battery';
 function deliveryBlocker(r: NotifyReadiness): 'notifications' | 'exactAlarms' | null;
 ```
 
+A screen can show a fix button only when something actually blocks delivery. Call `fix` only from
+a tap:
+
 ```tsx
 import { deliveryBlocker, type NotifyReadiness, type PluginScreenProps } from '@pku-harness/sdk';
 import { useEffect, useState } from 'react';
@@ -48,5 +55,5 @@ export function ReminderBanner({ host, services }: PluginScreenProps) {
 }
 ```
 
-System screens may return before the user changes anything: re-read readiness when the app is
-back in the foreground too.
+A system screen can return before the user has changed anything, so read readiness again when the
+app comes back to the foreground.

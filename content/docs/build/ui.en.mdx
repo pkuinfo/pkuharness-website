@@ -4,9 +4,9 @@ description: Bundled plugins add screens, Settings rows, tab content, dashboard 
 icon: PanelsTopLeft
 ---
 
-Bundled plugins can add native UI. They never import app code: screens and widgets receive
-`HostUI` (the harness's components, theme tokens, haptics, navigation and data hooks) as props, so
-plugin UI looks native and keeps working as the app evolves.
+Bundled plugins can add native UI without importing any app code. Screens and widgets receive
+`HostUI` as props: the harness's components, theme tokens, haptics, navigation and data hooks. That
+way plugin UI looks native and keeps working as the app changes.
 
 ```ts
 contributes: {
@@ -46,9 +46,9 @@ export function EditScreen({ host, params, invoke }: PluginScreenProps) {
 }
 ```
 
-Navigate with `host.navigate('/p/<plugin>/<screen>')` or `host.navigate('/m/<plugin>/<screen>?id=…')`;
-close a modal with `host.dismiss()`. Use `host.components.Screen` as the root of push screens and
-`SheetScreen` for modal forms.
+Navigate with `host.navigate('/p/<plugin>/<screen>')` or `host.navigate('/m/<plugin>/<screen>?id=…')`,
+and close a modal with `host.dismiss()`. Use `host.components.Screen` as the root of a push screen
+and `SheetScreen` for a modal form.
 
 ## Settings rows
 
@@ -56,8 +56,8 @@ close a modal with `host.dismiss()`. Use `host.components.Screen` as the root of
 interface SettingsContribution { screen: string; title: string; subtitle?: string; icon?: string }
 ```
 
-Each row opens one of your screens. The plugin's page in Settings → Plugins also lists its screens,
-widgets, tools and permissions.
+Each row opens one of your screens. The plugin's page under Settings → Plugins also lists its
+screens, widgets, tools and permissions.
 
 ## Widgets
 
@@ -72,15 +72,16 @@ interface WidgetContribution {
 }
 ```
 
-- The dashboard draws the card chrome (title, background, freshness, long-press menu). Draw only
-  the content, and adapt to `size` (`sm` half-width tile, `md` full width, `lg` hero).
+- The dashboard draws the card chrome (title, background, freshness, long-press menu). You draw only
+  the content, and adapt it to `size`: `sm` is a half-width tile, `md` full width, `lg` a hero.
 - Load data with `host.useToolData(tool, args, { ttlMinutes })` (see
-  [Dashboard](/docs/concepts/dashboard#refresh-owned-by-the-host)). Don't poll.
-- Handle `status: 'loading'` (skeleton), missing value (error text + retry with `data.refresh()`)
-  and signed-out states.
-- `config` is chosen by the agent or the user and validated by `configSchema`. Describe each field
-  with `.describe()`; mention them in `description` ("config.names limits it to certain canteens").
-- Widgets are mounted in an error boundary; a crash shows a notice instead of breaking the
+  [Dashboard](/en/docs/concepts/dashboard#refresh-owned-by-the-host)). Don't poll.
+- Handle `status: 'loading'` (show a skeleton), a missing value (error text plus a retry through
+  `data.refresh()`) and the signed-out state.
+- `config` is picked by the agent or the user and validated against `configSchema`. Describe each
+  field with `.describe()` and mention them in `description` ("config.names limits it to certain
+  canteens").
+- Each widget is mounted in an error boundary, so a crash shows a notice instead of breaking the
   dashboard.
 
 ## Slash commands
@@ -96,9 +97,9 @@ type CommandContribution = {
 );
 ```
 
-Command names are lowercase (`^[a-z][a-z0-9-]*$`); on a collision the harness namespaces them as
-`/plugin:name`. A `prompt` command sends text to the agent; a `run` command runs locally and its
-returned string is shown as a notice in the chat, never sent to the model.
+Command names are lowercase (`^[a-z][a-z0-9-]*$`). If two collide, the harness namespaces them as
+`/plugin:name`. A `prompt` command sends text to the agent. A `run` command runs locally, and the
+string it returns appears as a notice in the chat; it never reaches the model.
 
 ```ts
 commands: {
@@ -109,9 +110,9 @@ commands: {
 
 ## Tabs
 
-The harness has two tab slots, `dashboard` and `schedule`, filled by whichever enabled plugin
-contributes them (today the `dashboard` and `schedule` plugins). Chat and Settings belong to the
-harness. Only contribute a tab if you are replacing one of those plugins.
+The harness has two tab slots, `dashboard` and `schedule`, each filled by whichever enabled plugin
+contributes it (today, the `dashboard` and `schedule` plugins). Chat and Settings belong to the
+harness itself. Contribute a tab only if you are replacing one of those two plugins.
 
 ## HostUI essentials
 
@@ -128,15 +129,15 @@ harness. Only contribute a tab if you are replacing one of those plugins.
 | `host.useStoreVersion()` | Re-render when jobs, to-dos, widgets or the timetable change |
 | `host.clipboard?`, `host.shareLink?` | Optional; check before use |
 
-Full signatures: [SDK → ui](/docs/sdk/ui).
+Full signatures are in [SDK → ui](/en/docs/sdk/ui).
 
 ## Design rules
 
-- **MUST** use `host.components` and theme tokens; no hard-coded colours, font sizes or spacing.
+- **MUST** use `host.components` and theme tokens. No hard-coded colours, font sizes or spacing.
 - **MUST** keep all user-facing text in your `strings.ts` table, picked with `host.useLocale()`.
 - **MUST** use icon names from the host's icon set: `card`, `wifi`, `book`, `bell`, `clock`,
   `location`, `sparkles`, `key`, `person`, `qr`, `warning`, `check`, `calendar`, `bus`, `food`,
   `wallet`, `library`, `room`, `school`, `ticket`, `medal`, `chart`, `search`, `globe`, `lock`, … (the
   full list is `src/components/icon.tsx` in the app).
 - **SHOULD** give tappable custom content an `accessibilityLabel`.
-- Copy: Chinese, short, no exclamation marks; English in sentence case with curly apostrophes (’).
+- Copy: Chinese, short, no exclamation marks. English in sentence case with curly apostrophes (’).

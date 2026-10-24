@@ -1,0 +1,198 @@
+---
+title: scheduler
+description: Trigger、Action、Condition、Job 类型及其 zod schema，纯函数的重复规则引擎，方便模型使用的 ScheduleInput 格式，条件判断，以及无人值守运行的策略常量。
+---
+
+源码：`packages/sdk/src/scheduler/{types,recurrence,schedule-input,check,policy}.ts`。概念：
+[调度器](/docs/concepts/scheduler)。这里的代码都不依赖 React Native，所有时间都是设备本地时间。
+
+## 类型与 schema [#types-and-schemas]
+
+```ts
+/** "HH:MM", 24-hour, local time. */
+const timeOfDay = z.string().regex(/^([01]?\d|2[0-3]):[0-5]\d$/, 'time must be HH:MM (24h)');
+
+const triggerSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('at'), at: z.number() /* epoch ms */ }),
+  z.object({
+    type: z.literal('every'),
+    unit: z.enum(['minute', 'hour', 'day', 'week']),
+    interval: z.number().int().min(1).max(1000),
+    /** day/week units: times of day; default = the time of `startAt`. */
+    times: z.array(timeOfDay).min(1).max(24).optional(),
+    /** week unit: 0 = Sunday … 6 = Saturday; default = weekday of `startAt`. */
+    weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7).optional(),
+    startAt: z.number(), // epoch ms; first possible occurrence
+    /** Total occurrences in the series, then stop. */
+    count: z.number().int().min(1).optional(),
+    /** Last possible occurrence (inclusive), epoch ms. */
+    until: z.number().optional(),
+  }),
+]);
+type Trigger = z.infer<typeof triggerSchema>;
+
+const conditionSchema = z.object({
+  /** Dot path into the data source result, e.g. "balance". Empty = the whole result. */
+  path: z.string().default(''),
+  op: z.enum(['<', '<=', '>', '>=', '==', '!=', 'changed', 'always']),
+  value: z.union([z.number(), z.string(), z.boolean()]).optional(),
+});
+type Condition = z.infer<typeof conditionSchema>;
+
+const actionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('notify'), title: z.string().min(1), body: z.string().optional(), url: z.string().optional() }),
+  z.object({
+    type: z.literal('check'),
+    tool: z.string(),                                      // `<plugin>.<tool>`, read-only
+    args: z.record(z.string(), z.unknown()).optional(),
+    condition: conditionSchema,
+    title: z.string().min(1),                              // `{value}` is replaced by the checked value
+    body: z.string().optional(),
+    url: z.string().optional(),
+  }),
+  z.object({ type: z.literal('agent'), prompt: z.string().min(4).max(1000) }),
+]);
+type Action = z.infer<typeof actionSchema>;
+
+type JobSource = 'user' | 'agent' | 'plugin';
+
+type JobRun = {
+  at: number;
+  /** The occurrence it ran for (null for a manual run). */
+  scheduledAt: number | null;
+  ok: boolean;
+  notified: boolean;
+  value?: unknown;
+  error?: string;
+  ms: number;
+  manual?: boolean;
+  /** `agent` jobs: the reply (empty when it stayed silent). */
+  output?: string;
+  /** Not run: more than MAX_LATE_MS late. */
+  missed?: boolean;
+};
+
+type Job = {
+  id: string;
+  title: string;
+  trigger: Trigger;
+  action: Action;
+  enabled: boolean;
+  source: JobSource;
+  runs: number;
+  lastRunAt: number | null;
+  nextRunAt: number | null;
+  lastValue?: unknown;
+  lastError?: string;
+  history?: JobRun[];
+  failures?: number;
+  alertedAt?: number | null;
+  meta?: Record<string, unknown>;
+  createdAt: number;
+  updatedAt: number;
+};
+
+/** Jobs whose runs execute in JS (a check or an agent run) rather than as a pre-armed notification. */
+const runsInJs: (action: Action) => boolean;
+```
+
+`timeOfDay`、`triggerSchema`、`conditionSchema` 和 `actionSchema` 都有导出。如果 `check` 任务调用的工具不是 `effect: 'read'`，宿主会拒绝运行。
+
+## 重复规则引擎 [#recurrence-engine]
+
+```ts
+type Occurrence = { at: number; index: number };
+
+function nextOccurrence(trigger: Trigger, after: number): Occurrence | null;           // first strictly after `after`
+function occurrencesAfter(trigger: Trigger, after: number, limit: number, before?: number): Occurrence[];
+function lastOccurrence(trigger: Trigger, t: number): Occurrence | null;               // latest at or before t
+function runsBy(trigger: Trigger, t: number): number;                                  // occurrences by t
+function totalOccurrences(trigger: Trigger): number | null;                            // null = open-ended
+function describeTrigger(trigger: Trigger, now?: number, locale?: 'zh-Hans' | 'en'): string;
+function parseTime(t: string): [number, number];                                       // "08:30" → [8, 30]
+const formatTime: (h: number, m: number) => string;                                    // (8, 5) → "08:05"
+```
+
+一个序列由一串周期组成：一个分钟或小时步长、一天，或者从周一开始的一周。每个周期里的时间槽都相同（时刻 × 星期）。早于 `startAt` 的时间槽会跳过，其余的依次编号 0、1、2……，到 `count` 或 `until` 为止。夏令时切换不会让它错位。
+
+```ts
+const every3Days16Times: Trigger = {
+  type: 'every', unit: 'day', interval: 3, times: ['09:00'], count: 16,
+  startAt: new Date(2026, 9, 20).getTime(),
+};
+occurrencesAfter(every3Days16Times, Date.now(), 3);   // 接下来三次
+totalOccurrences(every3Days16Times);                  // 16
+describeTrigger(every3Days16Times, Date.now(), 'en'); // 例如 "Every 3 days at 09:00 · 16 times"
+```
+
+## ScheduleInput（方便模型和表单使用） [#scheduleinput-model--and-form-friendly]
+
+```ts
+const scheduleInputSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('once'), at: localDateTime }),
+  z.object({
+    type: z.literal('repeat'),
+    unit: z.enum(['minute', 'hour', 'day', 'week']),
+    interval: z.number().int().min(1),          // every N units
+    times: z.array(timeOfDay).optional(),       // day/week
+    weekdays: z.array(z.number().int().min(0).max(6)).optional(),  // week: 0 = Sunday
+    start: localDateTime.optional(),            // default now
+    count: z.number().int().min(1).optional(),
+    until: localDateTime.optional(),            // inclusive
+  }),
+]);
+// localDateTime: /^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}(:\d{2})?$/  ("YYYY-MM-DD HH:mm")
+type ScheduleInput = z.infer<typeof scheduleInputSchema>;
+
+function toTrigger(input: ScheduleInput, now?: number): Trigger;
+function toScheduleInput(t: Trigger): ScheduleInput;
+function parseLocal(s: string): number;      // throws on bad or non-existent dates
+function formatLocal(ms: number): string;    // "2026-10-20 08:00 周二"
+function summarize(trigger: Trigger, now?: number, n?: number): {
+  schedule: string;       // describeTrigger
+  next: string[];         // next n occurrences, formatLocal
+  total: number | null;
+  finished: boolean;
+};
+```
+
+把 `scheduleInputSchema` 用作工具的输入，在结果里返回 `summarize` 的输出，模型就能把准确的时间念给用户确认。
+
+## 条件 [#conditions]
+
+```ts
+/** Read a dot path ("data.balance", "items.0.amount") from a tool result. */
+function getPath(value: unknown, path: string): unknown;
+/** Does the checked value satisfy the condition? `previous` is the value from the last run. */
+function evaluate(cond: Condition, value: unknown, previous?: unknown): boolean;
+/** Replace `{value}` in notification text with the checked value (numbers rounded to 2 decimals). */
+function fillTemplate(template: string, value: unknown): string;
+```
+
+只有存在上一次的值、并且和这次不同（按 JSON 比较）时，`changed` 才为真。数值比较会把数字字符串转成数字，不是数字的一律判为假。
+
+## 策略常量 [#policy-constants]
+
+```ts
+const MAX_ACTIVE_JOBS = 50;
+const MIN_CHECK_GAP_MS = 15 * 60_000;
+const MIN_AGENT_GAP_MS = 60 * 60_000;
+const MAX_AGENT_JOBS = 10;
+const AGENT_MAX_STEPS = 8;
+const HISTORY_LIMIT = 20;
+const FAIL_ALERT_AFTER = 2;
+const DISABLE_AFTER = 10;
+const ALERT_COOLDOWN_MS = 6 * 3_600_000;
+const MAX_LATE_MS = 2 * 3_600_000;
+const LATE_MS = 5 * 60_000;
+const NO_REPLY = 'NO_REPLY';
+
+function minGap(trigger: Trigger, now: number): number;                    // Infinity for one-shots
+function checkScheduleProblem(trigger: Trigger, now: number): string | null; // why a check schedule is too frequent
+function recordRun(job: Job, run: JobRun): { patch: Pick<Job, 'history' | 'failures' | 'alertedAt' | 'enabled'>; alert: 'none' | 'failing' | 'disabled' };
+const isLate: (run: Pick<JobRun, 'at' | 'scheduledAt'>) => boolean;
+const isSilentReply: (text: string) => boolean;                            // empty or starts with NO_REPLY
+function agentJobHeader(job: { id: string; title: string; prompt: string }): string;
+```
+
+这些限制由宿主的调度引擎强制执行。插件可以导入它们，提前向用户说明限制，而不是等用户撞上。

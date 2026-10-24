@@ -1,0 +1,241 @@
+---
+title: ui
+description: 'HostUI（组件、主题、导航、触感反馈、实时数据 hook），页面和小组件收到的 props，以及全部扩展类型（页面、设置项、标签页、小组件、命令）。'
+---
+
+源码：`packages/sdk/src/ui.ts`。使用指南：[界面扩展](/docs/build/ui)。
+
+## Props [#props]
+
+```ts
+interface PluginScreenProps {
+  host: HostUI;
+  services: HostServices;
+  /** This plugin's store. */
+  kv: KV;
+  /** Run one of the app's tools as the user (same validation and permissions as the agent). */
+  invoke(toolId: string, input?: Record<string, unknown>): Promise<unknown>;
+  params: Record<string, string | undefined>;
+  /** This plugin's cloud client (plugins that declare `PluginDef.cloud`). */
+  cloud?: PluginCloud;
+}
+
+interface PluginWidgetProps {
+  host: HostUI;
+  services: HostServices;
+  kv: KV;
+  invoke(toolId: string, input?: Record<string, unknown>): Promise<unknown>;
+  size: WidgetSize;
+  /** Agent/user-chosen options, validated by `configSchema`. */
+  config: Record<string, unknown>;
+  cloud?: PluginCloud;
+}
+```
+
+## HostUI [#hostui]
+
+```ts
+type AppLocale = 'zh-Hans' | 'en';
+
+interface HostUI {
+  components: HostComponents;
+  haptics: { tap(): void; select(): void; success(): void; warning(): void };
+  /** Navigate to an app route or another plugin screen (`/p/<plugin>/<screen>`). */
+  navigate(href: string): void;
+  back(): void;
+  /** Re-render when the host's data stores change (jobs, todos, widgets, timetable). */
+  useStoreVersion(): number;
+  useTheme(): HostTheme;
+  /** Current time, refreshed every `intervalMs`. */
+  useNow(intervalMs?: number): Date;
+  /** Close a modal screen (falls back to the given route when opened from a deep link). */
+  dismiss(fallback?: string): void;
+  /** Switch to chat and send a message to the agent. */
+  ask(text: string): void;
+  /** Live result of a read-only tool. `ttlMinutes` defaults to 5. */
+  useToolData<T = unknown>(tool: string, args?: Record<string, unknown>, opts?: { ttlMinutes?: number; path?: string }): LiveData<T>;
+  /** An AI-built widget's spec state with every binding filled in. */
+  useWidgetData(widget: Pick<Widget, 'spec' | 'bindings'>): LiveData<Record<string, unknown>>;
+  /** Live values for several bindings at once. */
+  useBindings(bindings: Binding[]): LiveData<unknown[]>;
+  /** Force-refresh every live query on screen (pull-to-refresh); resolves when all settle. */
+  refreshAll(): Promise<void>;
+  /** "刚刚" / "3 分钟前" / "昨天 08:00" for a past timestamp. */
+  formatAgo(ms: number, now?: number): string;
+  /** While mounted: block screenshots/recording; `brightness` raises it for scanners. */
+  useSecureDisplay(opts?: { brightness?: boolean }): void;
+  /** App language (re-renders on change). */
+  useLocale(): AppLocale;
+  /** Undefined when this build has no clipboard module. */
+  clipboard?: { setString(text: string): Promise<void> };
+  /** System share sheet with a share link; the plugin never sees the URL. Undefined until the host supports cloud channels. */
+  shareLink?(link: SecretLink, opts?: { message?: string }): Promise<void>;
+}
+```
+
+## LiveData [#livedata]
+
+```ts
+interface LiveData<T = unknown> {
+  /** 'loading' only before the first value; afterwards errors keep the last value. */
+  status: 'loading' | 'error' | 'ready';
+  value?: T;
+  /** Last refresh error (also set while a stale value is shown). */
+  error?: string;
+  /** When the shown value was fetched (ms epoch). */
+  updatedAt?: number;
+  /** A request is in flight. */
+  fetching: boolean;
+  /** Refetch now, ignoring the TTL. */
+  refresh(): Promise<void>;
+}
+```
+
+实时数据采用 stale-while-revalidate 策略。上一次的值会跨启动保存，打开时立即显示。以下情况宿主会重新获取：值已超过 TTL、页面获得焦点、App 回到前台、页面可见期间每隔一个 TTL，以及你调用 `refresh()` 时。小组件、页面和定时检查只要请求的是同一个工具和同样的参数，就共用一次请求和一条缓存。
+
+## HostTheme [#hosttheme]
+
+```ts
+type TextVariant = 'display' | 'title' | 'headline' | 'body' | 'bodyStrong' | 'callout' | 'caption' | 'micro' | 'numberXL' | 'numberL' | 'numberM';
+
+interface HostTheme {
+  name: 'light' | 'dark';
+  colors: Record<
+    | 'bg' | 'surface' | 'surface2' | 'surface3' | 'border' | 'text' | 'textMuted' | 'textFaint'
+    | 'accent' | 'accentMuted' | 'onAccent' | 'up' | 'upMuted' | 'down' | 'downMuted'
+    | 'warn' | 'warnMuted' | 'info' | 'infoMuted' | 'elevated' | 'brand' | 'onBrand',
+    string
+  >;
+  spacing: Record<'xxs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'xxxl', number>;
+  radius: Record<'sm' | 'md' | 'lg' | 'xl' | 'full', number>;
+  typography: Record<TextVariant, Record<string, unknown>>;
+  courseColor(index: number): { fill: string; ink: string };
+  glass: { surface: string; rim: string; sheen: string };
+  contentWidth: number;
+}
+```
+
+## HostComponents [#hostcomponents]
+
+这些都是宿主传进来的 React 组件。`Style` 就是普通的 React Native 样式，会原样透传。
+
+```ts
+type Tone = 'default' | 'muted' | 'faint' | 'accent' | 'up' | 'down' | 'warn' | 'info' | 'onAccent';
+type ChipTone = 'neutral' | 'accent' | 'up' | 'down' | 'warn' | 'info';
+
+interface HostComponents {
+  Screen: ComponentType<{ title: string; subtitle?: string; back?: boolean; trailing?: ReactNode; children: ReactNode; refreshControl?: ReactNode }>;
+  Text: ComponentType<{ variant?: TextVariant; tone?: Tone; align?: 'left' | 'center' | 'right'; numberOfLines?: number; selectable?: boolean; style?: Style; children?: ReactNode }>;
+  Button: ComponentType<{ title: string; onPress?: () => void; variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; size?: 'sm' | 'md' | 'lg'; icon?: string; loading?: boolean; disabled?: boolean; style?: Style }>;
+  IconButton: ComponentType<{ icon: string; label: string; onPress?: () => void; variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; size?: number; disabled?: boolean }>;
+  ListGroup: ComponentType<{ title?: string; footer?: string; children: ReactNode }>;
+  ListRow: ComponentType<{ icon?: string; title: string; subtitle?: string; value?: string; accessory?: ReactNode; onPress?: () => void; chevron?: boolean; titleLines?: number }>;
+  Chip: ComponentType<{ label: string; tone?: ChipTone; icon?: string }>;
+  Surface: ComponentType<{ level?: 1 | 2 | 3; padded?: boolean; children?: ReactNode; style?: Style }>;
+  EmptyState: ComponentType<{ icon: string; title: string; message?: string; action?: ReactNode }>;
+  Skeleton: ComponentType<{ width?: number | `${number}%`; height?: number; rounded?: number }>;
+  FadeIn: ComponentType<{ index?: number; children: ReactNode; style?: Style }>;
+  Icon: ComponentType<{ name: string; size?: number; color?: string }>;
+  Stat: ComponentType<{ label: string; value: number | null; prefix?: string; suffix?: string; decimals?: number; caption?: string; icon?: string }>;
+  Switch: ComponentType<{ value: boolean; onValueChange: (v: boolean) => void; label?: string; disabled?: boolean }>;
+  Checkbox: ComponentType<{ value: boolean; onValueChange: (v: boolean) => void; label: string }>;
+  Segmented: ComponentType<{ options: { label: string; value: string }[]; value: string; onChange: (v: string) => void }>;
+  Row: ComponentType<{ gap?: 'xs' | 'sm' | 'md' | 'lg'; align?: 'start' | 'center' | 'end' | 'between'; children: ReactNode }>;
+  Column: ComponentType<{ gap?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'; children: ReactNode }>;
+  Pressable: ComponentType<{ onPress?: () => void; onLongPress?: () => void; delayLongPress?: number; accessibilityLabel?: string; accessibilityRole?: string; accessibilityHint?: string; scaleTo?: number; haptic?: boolean; disabled?: boolean; style?: Style; children?: ReactNode }>;
+  Field: ComponentType<{ label?: string; value: string; onChangeText: (v: string) => void; placeholder?: string; hint?: string; multiline?: boolean; secureTextEntry?: boolean; autoFocus?: boolean; keyboardType?: string; autoCapitalize?: 'none' | 'sentences' }>;
+  DateTimeField: ComponentType<{ label: string; value: Date | null; onChange: (d: Date) => void; mode?: 'date' | 'time' | 'datetime'; placeholder?: string; onClear?: () => void }>;
+  Stepper: ComponentType<{ value: number; onChange: (n: number) => void; min?: number; max?: number; suffix?: string; label: string }>;
+  WeekdayPicker: ComponentType<{ value: number[]; onChange: (v: number[]) => void; multiple?: boolean }>;
+  SheetScreen: ComponentType<{ title: string; children: ReactNode; primary: string; onPrimary: () => void; primaryDisabled?: boolean; loading?: boolean; danger?: string; onDanger?: () => void; secondary?: string; onSecondary?: () => void }>;
+  Sparkline: ComponentType<{ values: number[]; tone?: 'accent' | 'up' | 'down' | 'info'; height?: number }>;
+  Ring: ComponentType<{ value: number; label?: string; caption?: string; tone?: 'accent' | 'up' | 'down' | 'warn'; size?: number }>;
+  Hourglass: ComponentType<{ period?: number; size?: number; tone?: 'accent' | 'up' | 'down' | 'warn' }>;
+  GenUI: ComponentType<{ spec: Record<string, unknown>; onSubmit?: (form: Record<string, unknown>, label?: string) => void }>;
+  SortableList: ComponentType<{ ids: string[]; rowHeight: number; onReorder: (ids: string[]) => void; renderRow: (id: string, handle: ReactNode) => ReactNode }>;
+  PluginWidget: ComponentType<{ source: { plugin: string; widget: string; config?: Record<string, unknown> }; size: WidgetSize }>;
+  Glass: ComponentType<{ children?: ReactNode; style?: Style; radius?: number; tone?: 'regular' | 'strong' | 'brand'; onPress?: () => void; onLongPress?: () => void; accessibilityLabel?: string; accessibilityRole?: 'button' | 'summary' | 'none'; haptic?: boolean }>;
+  GlassEdges: ComponentType<{ radius?: number }>;
+  QRCode: ComponentType<{ value?: string; link?: SecretLink; size?: number; ecl?: 'L' | 'M' | 'Q' | 'H' }>;
+}
+```
+
+| 组件 | 说明 |
+| --- | --- |
+| `Screen` | 推入式页面的根组件：带标题、返回按钮和可选尾部元素的页头，支持下拉刷新。 |
+| `SheetScreen` | 模态页面的表单面板布局：标题和关闭按钮、可滚动的内容区、一个主操作，以及可选的次要 / 危险操作。 |
+| `Pressable` | 可点击的容器，带 App 统一的按压反馈。 |
+| `Hourglass` | 沙漏按 Unix 时间对齐，在 `period` 秒内漏完，到边界时翻转（比如一个 TOTP 周期）。 |
+| `GenUI` | 用宿主的组件目录渲染一份[生成式界面 spec](/docs/sdk/genui)。 |
+| `SortableList` | 纵向列表，用户拖动把手即可排序。每一行由插件自己渲染。 |
+| `PluginWidget` | 挂载某个插件提供的小组件。出错时不会影响外部；对应插件关闭时会显示提示。 |
+| `Glass` / `GlassEdges` | App 的面板材质。卡片和磁贴用 `Glass`；容器自己画 `colors.surface*` 底色时，用 `GlassEdges` 补上边缘和顶部高光。 |
+| `QRCode` | 无论什么主题都是白底黑码。`link` 用来编码插件自己读不到的分享链接，和 `value` 同时设置时以 `link` 为准。 |
+
+## Contributions [#contributions]
+
+```ts
+interface Contributions {
+  /** Screens mounted at `/p/<plugin>/<screen>`. */
+  screens?: Record<string, ScreenContribution>;
+  /** Rows listed in Settings, opening one of the plugin's screens. */
+  settings?: SettingsContribution[];
+  /** Fill one of the harness's tab slots with a screen. */
+  tabs?: TabContribution[];
+  /** Native dashboard widgets, keyed by id. */
+  widgets?: Record<string, WidgetContribution>;
+  /** Slash commands, keyed by name (lowercase, /^[a-z][a-z0-9-]*$/). */
+  commands?: Record<string, CommandContribution>;
+}
+
+interface ScreenContribution {
+  title: string;
+  component: ComponentType<PluginScreenProps>;
+  /** 'modal' screens open at `/m/<plugin>/<screen>` (forms); default 'push' at `/p/…`. */
+  presentation?: 'push' | 'modal';
+}
+
+interface SettingsContribution {
+  /** Key of a screen in `contributes.screens`. */
+  screen: string;
+  title: string;
+  subtitle?: string;
+  icon?: string;
+}
+
+type TabSlot = 'dashboard' | 'schedule';
+
+interface TabContribution {
+  slot: TabSlot;
+  /** Key of a screen in `contributes.screens`. */
+  screen: string;
+}
+
+interface WidgetContribution {
+  title: string;
+  /** What it shows; the agent reads this to pick widgets. */
+  description: string;
+  sizes?: WidgetSize[];
+  defaultSize?: WidgetSize;
+  configSchema?: z.ZodType<Record<string, unknown>>;
+  component: ComponentType<PluginWidgetProps>;
+}
+
+type CommandContribution = {
+  /** One line, shown in the / menu. */
+  description: string;
+  /** Extra names matched by the menu, e.g. Chinese ('余额'). */
+  aliases?: string[];
+  /** Placeholder for the argument. Present = the command takes input. */
+  argHint?: string;
+} & (
+  | { /** Sent as the user message; `{{input}}` is replaced. */ prompt: string }
+  | {
+      /** Runs locally; the returned text is shown as a notice (never sent to the model). */
+      run: (input: string, ctx: { services: HostServices; navigate: (href: string) => void; locale: AppLocale }) => Promise<string | void> | string | void;
+    }
+);
+```
+
+插件小组件由助手（`dashboard.addPluginWidget`）或用户在看板的小组件库里放上去。数据请用
+`host.useToolData` 加载，这样刷新行为和其他小组件一致；卡片外框（标题、背景）由看板负责绘制。只有两个插件用了同一个命令名时，命令才会加上 `/plugin:name` 前缀。

@@ -1,0 +1,115 @@
+---
+title: campus
+description: 通过宿主访问已登录校园服务的类型（CampusService、CampusRequest、CampusResponse、multipart 上传、用户选取的文件），以及登录状态和手机令牌验证码。
+---
+
+源码：`packages/sdk/src/campus.ts`。概念：[校园会话](/docs/concepts/campus-sessions)。需要 `campus-session` 能力。
+
+校园账号密码由宿主保存在设备密钥库里，宿主自己登录各个服务（IAAA、门户 SSO、ITS），再把响应交给插件。插件既拿不到密码，也拿不到原始会话 token。multipart 上传时，宿主直接从本地 URI 读取文件并发送，文件内容同样不经过插件。
+
+```ts
+/**
+ * - `card`: bdcard.pku.edu.cn (synjones JWT added for you)
+ * - `its`: its.pku.edu.cn (网络账号 session)
+ * - `treehole`: treehole.pku.edu.cn `/chapi/…` (Bearer JWT + device uuid added for you). Its own
+ *   second factors stay visible: 40002 = SMS check, 40077 = course-data token.
+ * - `blackboard`: course.pku.edu.cn (教学网, HTML pages; SSO session, redirects followed)
+ * - more registered by the harness's adapters (bdkj, cwfw, cwpay, elective, library, library-space)
+ */
+type CampusService = 'card' | 'its' | 'treehole' | 'blackboard' | (string & {});
+
+type CampusRequest = {
+  /** Absolute URL, or a path on the service's host (e.g. "/berserker-app/…"). */
+  url: string;
+  method?: 'GET' | 'POST';
+  headers?: Record<string, string>;
+  body?: string;
+  contentType?: string;
+  responseType?: 'text' | 'base64';
+  /** Form fields, sent url-encoded (instead of `body`). */
+  form?: Record<string, string>;
+  /**
+   * Where the session credential goes. Default: headers. 'form' puts it into `form` too, for APIs
+   * that read and sign the token from the body (the campus card's order API).
+   */
+  authIn?: 'headers' | 'form';
+  /** Last step before sending a `form`: add a signature. Runs inside the harness; bundled plugins only. */
+  sign?: (fields: Record<string, string>) => Record<string, string> | Promise<Record<string, string>>;
+  /** Follow 3xx redirects (default: the service's own choice). false = read `location` yourself. */
+  followRedirects?: boolean;
+  /** A multipart/form-data body (file uploads), instead of `body` / `form`. Method defaults to POST. */
+  multipart?: CampusMultipart;
+  /** Request timeout in ms (default 20 s; 120 s for multipart). */
+  timeoutMs?: number;
+};
+
+type CampusMultipart = {
+  /** Text fields: an array of [name, value] keeps order and allows repeated names. Written before files. */
+  fields: Record<string, string> | [string, string][];
+  files: CampusFilePart[];
+};
+
+type CampusFilePart = {
+  /** Form field name of the part, e.g. "newFile_LocalFile0". */
+  field: string;
+  /** File name sent to the server. */
+  name: string;
+  /** MIME type, e.g. "application/pdf". */
+  mime: string;
+  /** Local URI from `services.files.pick`. */
+  uri: string;
+};
+
+type PickedFile = {
+  name: string;
+  mime: string;
+  /** Bytes, when the system reports it. */
+  size: number | null;
+  /** Local URI, valid for this app session. */
+  uri: string;
+};
+
+type CampusResponse = { status: number; url: string; headers: Record<string, string>; body: string };
+
+type CampusStatus = {
+  signedIn: boolean;
+  username: string | null;
+  /** Holder's name when known (from the campus card). */
+  name: string | null;
+};
+
+/** The current 手机令牌 (IAAA TOTP) code; the secret never leaves the harness. */
+type OtpCode = { code: string; /** Seconds until the code rolls over (1–30). */ remainingSeconds: number };
+
+/** The harness's 手机令牌 binding (no secret). `pending` = binding SMS sent, awaiting the code. */
+type OtpStatus = { bound: boolean; userId: string | null; userName: string | null; boundAt: number | null; pending: boolean };
+```
+
+## 示例 [#examples]
+
+```ts
+// 用校园卡会话调用 JSON 接口
+const res = await ctx.services.campus.request('card', { url: '/berserker-app/ykt/tsm/queryCard?synAccessSource=h5' });
+if (res.status !== 200) throw new Error(`校园卡服务返回 HTTP ${res.status}`);
+const json = JSON.parse(res.body);
+
+// 树洞 JSON POST
+await ctx.services.campus.request('treehole', {
+  url: '/chapi/api/jwt_send_msg',
+  method: 'POST',
+  body: JSON.stringify({}),
+  contentType: 'application/json',
+});
+
+// 会话 token 放在表单里并签名，自己读取重定向
+// （节选自 plugins/wallet/src/card/recharge.ts，移植自 pkucli campuscard api.rs）
+const order = await ctx.services.campus.request('card', {
+  url: '/charge/order/thirdOrder',
+  method: 'POST',
+  followRedirects: false,
+  authIn: 'form', // 宿主在签名前把校园卡会话加进表单
+  form: { feeitemid: '401', tranamt: '50', synAccessSource: 'h5' /* … */ },
+  sign: (fields) => signFields(fields, ctx.services.crypto.sha256), // 对最终字段签名
+});
+const cashier = order.headers.location; // 用 services.browser.open 打开，不要返回给模型
+```

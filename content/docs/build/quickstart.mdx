@@ -1,0 +1,145 @@
+---
+title: 5 分钟写出第一个插件
+description: 写一个只有一个工具的 PLUGIN.md 插件，用录制的响应测试它，再以链接形式分享。示例是空闲教室插件。
+icon: Rocket
+---
+
+我们以插件仓库里真实存在的 [`plugins/classrooms`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/plugins/classrooms) 为例，只保留它最小的一个工具：**现在各教学楼分别有多少间空闲教室**。它只调用一个公开的校园接口，所以不需要登录。
+
+完整的语言参考见[声明式插件](/docs/build/declarative-plugins)，规范原文见 [`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md)。
+
+<Steps>
+
+<Step>
+
+### 获取作者 CLI [#get-the-author-cli]
+
+CLI 在插件仓库里，需要先装好 bun：
+
+```bash
+git clone https://github.com/pkuinfo/pku-harness-plugins
+cd pku-harness-plugins
+bun install
+```
+
+用法：`bun run plugin validate|test|run <plugin-dir> [tool] [json-input]`。
+
+</Step>
+
+<Step>
+
+### 编写 `PLUGIN.md` [#write-pluginmd]
+
+一个插件（plugin）就是一个文件夹。frontmatter 是清单，Markdown 正文写给助手看，告诉它什么时候、怎样使用你的工具（tool）。
+
+```md title="my-classrooms/PLUGIN.md"
+---
+spec: 1
+id: my-classrooms
+name: 教室概况
+description: 各教学楼现在有多少空闲教室。
+version: 0.1.0
+author: your-github-name
+network: [portal.pku.edu.cn]
+tools:
+  overview: tools/overview.yaml
+i18n:
+  en:
+    name: Classroom overview
+    description: How many classrooms are free in each teaching building right now.
+---
+
+my-classrooms__overview：各楼现在空闲教室数量。用户想找自习的地方时先用它挑楼。
+```
+
+`network` 列出插件可以访问的所有公开域名，访问其他地址的请求都会失败。App 加载的每个文件都要在 frontmatter 里写明。App 从不列目录，所以放在任何静态托管上都能用。
+
+</Step>
+
+<Step>
+
+### 编写工具 [#write-the-tool]
+
+```yaml title="my-classrooms/tools/overview.yaml"
+title: 各楼空闲教室数
+description: 'How many classrooms are free right now in each teaching building: building, free, total.'
+effect: read
+steps:
+  - let: r
+    request:
+      url: https://portal.pku.edu.cn/publicQuery/classroomQuery/retrClassRoomInfos.do
+      headers: { referer: 'https://portal.pku.edu.cn/publicQuery/', accept: 'application/json' }
+    as: json
+  - check: "r.success && isList(r.rows)"
+    error: 教室概况查询未成功
+return: |
+  {
+    buildings: r.rows.map(b => ({ building: b.buildingName, free: b.classroomFree, total: b.classroomSum })),
+  }
+```
+
+- `title` 显示给用户（优先写中文）；`description` 写给模型。
+- `effect`（效果）取 `read`、`write`、`money` 或 `public`。用户会按效果分别决定助手能否不经询问直接执行，所以请如实声明。
+- 返回数据，不要返回指令。模型会把结果当作数据看待。
+
+<Callout type="warn" title="YAML 的坑">
+  如果表达式或 `${…}` 模板里含有 `: `，或者以 `{`、`[` 开头，就要加引号。不加引号的话，YAML 会把它解析成映射或列表。出现这种情况时，`validate` 会给出提示。
+</Callout>
+
+</Step>
+
+<Step>
+
+### 录制测试 [#record-a-test]
+
+测试回放的是录制好的响应，因此可以离线运行，每次结果都一样。把一段（裁剪过的）真实响应贴进 `body`，或者存成测试旁边的文件，再用 `file:` 引用：
+
+```yaml title="my-classrooms/tests/overview.yaml"
+tool: overview
+responses:
+  - match: retrClassRoomInfos.do
+    headers: { content-type: application/json }
+    body: '{"success":true,"rows":[{"buildingName":"一教","classroomFree":16,"classroomSum":32}]}'
+expect: { buildings: [{ building: 一教, free: 16, total: 32 }] }
+```
+
+一个测试包含 `tool`、可选的 `input` 和 `now`，以及要返回的 `responses`。每条响应用 `match` 匹配 URL 子串，内容来自 `body` 或 `file`（校园请求再加上 `campus`）。最后是 `expect`（与结果**严格**比较）或 `expectError`（错误信息必须匹配的模式），二选一。
+
+</Step>
+
+<Step>
+
+### 校验、测试、运行 [#validate-test-run]
+
+```bash
+bun run plugin validate path/to/my-classrooms
+bun run plugin test path/to/my-classrooms
+bun run plugin run path/to/my-classrooms overview '{}'
+```
+
+`validate` 检查清单、工具 schema、表达式和文件路径，和 App 以及插件市场做的检查完全一样。`run` 会发出真实请求，但只限公开域名。校园请求必须在 App 里才能发，所以要把它们录进测试。
+
+</Step>
+
+<Step>
+
+### 分享 [#share-it]
+
+把文件夹推到一个公开的 GitHub 仓库。文件夹的 URL 就是安装链接：
+
+```
+https://github.com/<you>/<repo>/tree/main/my-classrooms
+```
+
+同学们可以在 App 里粘贴链接、扫二维码，或者打开 `pkuharness://plugin?src=<url-encoded link>`。App 会先弹出审核页：标明是社区插件还是官方插件，列出它能访问的网站（这里是 `portal.pku.edu.cn`），以及每个工具和它的效果。之后每次 `git push` 都是一次更新。想上架插件市场，就去[提交仓库](/marketplace/submit)；一个仓库里放多少个插件都行。见[发布](/docs/marketplace/publishing)。
+
+</Step>
+
+</Steps>
+
+## 下一步 [#next]
+
+- 输入、步骤、表达式、宿主能力和错误处理：[声明式插件](/docs/build/declarative-plugins)
+- 在 App 里和助手一起起草、校验、试运行插件：[让 AI 帮你写插件](/docs/build/ai-authoring)
+- 需要用到同学校园会话的请求：声明 `campus`（见规范 §4 和 §9）
+- 审核会看什么：[审核与安全](/docs/marketplace/review)

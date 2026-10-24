@@ -1,12 +1,12 @@
 ---
 title: Scheduler and notifications
-description: One engine for reminders, to-dos, class reminders and scheduled checks. Jobs combine a trigger (once or a bounded series) with an action (notify, check, agent) and fire on the minute.
+description: One engine runs reminders, to-dos, class reminders and scheduled checks. A job pairs a trigger (once, or a bounded series) with an action (notify, check, agent) and fires on the minute.
 icon: AlarmClock
 ---
 
-Every recurring thing in PKU Harness (a reminder, a to-do's reminder, a class reminder, "check my
-card balance every morning") is a **job** in one scheduler. Users create jobs from the Schedule tab
-or by asking the agent; plugins create them with `services.scheduler`.
+Anything time-based in PKU Harness is a **job** in one scheduler: a reminder, a to-do's reminder,
+a class reminder, "check my card balance every morning". Users create jobs in the Schedule tab or by
+asking the agent. Plugins create them with `services.scheduler`.
 
 ## Jobs
 
@@ -37,9 +37,9 @@ All times are **device-local**.
 | `{ type: 'at' }` | `at` (epoch ms) | "in 2 days", "tomorrow 8:00" |
 | `{ type: 'every' }` | `unit` (`minute` `hour` `day` `week`), `interval` (1–1000), `times?` (`"HH:MM"`, day/week), `weekdays?` (0 = Sunday … 6, week), `startAt`, `count?`, `until?` | "every morning at 8", "every 3 days, 16 times, then stop", "Mon/Wed/Fri 07:30 until the end of term" |
 
-A series is a sequence of periods (one minute/hour step, one day, or one Monday-based week), each
-with slots (times × weekdays). Slots before `startAt` are skipped; the rest are numbered 0, 1, 2…
-and cut by `count` and/or `until` (inclusive).
+A series is a sequence of periods: one minute or hour step, one day, or one week starting Monday.
+Each period has slots (times × weekdays). Slots before `startAt` are skipped. The rest are numbered
+0, 1, 2… and cut off by `count`, `until` (inclusive), or both.
 
 The agent and forms use a friendlier input, `ScheduleInput`, with local `"YYYY-MM-DD HH:mm"` strings:
 
@@ -47,9 +47,9 @@ The agent and forms use a friendlier input, `ScheduleInput`, with local `"YYYY-M
 { "type": "repeat", "unit": "day", "interval": 3, "times": ["09:00"], "count": 16 }
 ```
 
-`toTrigger(input)` converts it; `summarize(trigger)` returns `{ schedule, next, total, finished }`
-(e.g. `"每 3 天 09:00 · 共 16 次"` and the next three times) so the agent can confirm times back to
-the user.
+`toTrigger(input)` converts it. `summarize(trigger)` returns `{ schedule, next, total, finished }`,
+for example `"每 3 天 09:00 · 共 16 次"` plus the next three times, so the agent can read the times
+back to the user before saving.
 
 ## Actions
 
@@ -59,7 +59,7 @@ the user.
 | `check` | `tool` (read-only, `<plugin>.<tool>`), `args?`, `condition`, `title`, `body?`, `url?` | Calls the tool, reads `condition.path`, notifies only if the condition holds; `{value}` in the text is replaced by the value |
 | `agent` | `prompt` (4–1000 chars) | A fresh, read-only agent session with no chat history; replies `NO_REPLY` to stay silent, otherwise its short answer becomes the notification |
 
-Conditions: `{ path, op, value? }` with `op` one of `<` `<=` `>` `>=` `==` `!=` `changed` `always`.
+A condition is `{ path, op, value? }`, where `op` is one of `<` `<=` `>` `>=` `==` `!=` `changed` `always`.
 
 ```json
 {
@@ -72,19 +72,22 @@ Conditions: `{ path, op, value? }` with `op` one of `<` `<=` `>` `>=` `==` `!=` 
 
 ## Exact delivery (Android)
 
-- `notify` jobs are armed as exact alarms ahead of time (a 14-day window, at most 64 per job and
-  400 in total) and re-armed on start, on every change, on foreground and from the background task.
-- `check` and `agent` jobs run in JavaScript. In the foreground a timer fires them on the minute;
-  with the app in the background or killed, an exact alarm wakes a headless task that runs what is
-  due, re-arms the next one and removes the placeholder.
-- This needs the notification permission and the "Alarms & reminders" special access (denied by
-  default on Android 14+). Battery optimisation is advisory. `services.notify.readiness()` reports
-  all three; `deliveryBlocker(readiness)` names the first blocker; `services.notify.fix(kind)` opens
-  the system prompt or screen (call it from a tap).
+`notify` jobs are armed as exact alarms ahead of time, within a 14-day window and capped at 64 per
+job and 400 in total. They are re-armed on start, on every change, when the app comes to the
+foreground and from the background task.
+
+`check` and `agent` jobs run in JavaScript. In the foreground a timer fires them on the minute.
+When the app is in the background or killed, an exact alarm wakes a headless task. That task runs
+whatever is due, arms the next alarm and removes the placeholder.
+
+All of this needs the notification permission and the "Alarms & reminders" special access, which
+Android 14+ denies by default. Battery optimisation is advisory. `services.notify.readiness()`
+reports all three, `deliveryBlocker(readiness)` names the first blocker, and
+`services.notify.fix(kind)` opens the matching system prompt or screen. Call `fix` from a tap.
 
 ## Unattended-run policy
 
-A check runs with nobody watching, so it is limited, logged and loud about failures:
+Nobody is watching when a check runs, so it is limited, logged, and loud when it fails:
 
 | Rule | Value |
 | --- | --- |
@@ -98,10 +101,10 @@ A check runs with nobody watching, so it is limited, logged and loud about failu
 
 ## For plugin authors
 
-- Make tools that are good to check: `read`, fast, a stable numeric or boolean field to compare
-  (`balance`, `unread`, `available`).
-- List such tools in `dataSources` so the agent can find them.
-- Create jobs for users with `services.scheduler.create({ …, source: 'plugin' })` only in response
-  to a user action, and keep the job id (`meta` or your `kv`) to update or remove it later.
-- The pure engine (`occurrencesAfter`, `nextOccurrence`, `describeTrigger`, `evaluate`, …) is
-  exported by the SDK; see [SDK → scheduler](/docs/sdk/scheduler).
+- Write tools that are easy to check: `read`, fast, with a stable numeric or boolean field to
+  compare (`balance`, `unread`, `available`). List them in `dataSources` so the agent can find them.
+- Only create jobs with `services.scheduler.create({ …, source: 'plugin' })` in response to
+  something the user did. Keep the job id (in `meta` or your `kv`) so you can update or remove the
+  job later.
+- The SDK exports the pure engine (`occurrencesAfter`, `nextOccurrence`, `describeTrigger`,
+  `evaluate`, …). See [SDK → scheduler](/en/docs/sdk/scheduler).

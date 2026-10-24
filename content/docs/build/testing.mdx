@@ -1,0 +1,115 @@
+---
+title: 测试
+description: 用 bun test 给解析器和纯逻辑写单元测试，用脚本化的模拟模型端到端跑通 Agent 循环，再用 demo-canteen 示例试一试远程插件。
+icon: FlaskConical
+---
+
+大多数校园插件分三层：一次 HTTP 请求、一个解析器，再加一个整理结果的工具（tool）。解析和整理这两层用 `bun test` 覆盖，然后在 App 里把整个流程跑一遍。
+
+## 插件文档（PLUGIN.md） [#plugin-documents-pluginmd]
+
+`PLUGIN.md` 插件用插件仓库里的作者 CLI 测试，它会回放插件 `tests/*.yaml` 里录制的响应：
+
+```bash
+bun run plugin validate plugins/classrooms   # the checks the app runs
+bun run plugin test plugins/classrooms       # replay tests/*.yaml
+bun run plugin run plugins/classrooms overview '{}'   # live, public hosts only
+```
+
+其中 `validate` 执行的就是 App 安装时做的那套检查；`test` 回放 `tests/*.yaml`；`run` 会真的发请求，只能访问公开站点。
+
+`bun test` 里包含 `plugins/documents.test.ts`：它加载每个 `plugins/<id>/PLUGIN.md`，回放其中所有录制好的测试。所以只要某个插件文档或它的 fixture 坏了，CI 就会失败。测试文件的格式见[快速上手](/docs/build/quickstart#record-a-test)。本页其余部分讲的是 TypeScript 插件。
+
+## 单元测试（bun test） [#unit-tests-bun-test]
+
+在插件仓库里运行：
+
+```bash
+bun test                      # every *.test.ts in the workspace
+bun test plugins/focus        # one plugin
+bunx tsc --noEmit -p .        # typecheck SDK + plugins
+```
+
+依次是：运行工作区里所有 `*.test.ts`、只跑一个插件、对 SDK 和插件做类型检查。（`focus` 是[内置插件](/docs/build/bundled-plugin)教程里的示例插件，换成你自己插件的目录即可。）
+
+- 测试和代码放在一起：`src/parse.test.ts` 紧挨着 `src/parse.ts`。
+- **解析器**：把真实响应存成 fixture（`src/fixtures/*.html|json`），替换掉个人信息，然后断言解析结果。校园网页会改版，有了 fixture 就能一眼看出哪里坏了。
+- **时间**：把 `now` 显式传进去，不要在逻辑里直接读 `Date.now()`。SDK 的重复规则、课表和格式化函数都接受 `now` 参数。
+- **React Native**：导入了 `react-native` 的模块，不 mock 的话在 bun 下加载不了。要么把逻辑放在普通模块里，要么像 `plugins/i18n.test.ts` 那样 mock 掉：
+
+```ts
+import { mock } from 'bun:test';
+
+mock.module('react-native', () => ({
+  StyleSheet: { create: (s: unknown) => s },
+  Platform: { OS: 'android', select: (o: Record<string, unknown>) => o.android ?? o.default },
+  View: () => null,
+}));
+```
+
+### 用假的上下文测试工具 [#testing-a-tool-with-a-fake-context]
+
+```ts title="plugins/focus/src/index.test.ts"
+import { expect, mock, test } from 'bun:test';
+import type { KV, ToolContext } from '@pku-harness/sdk';
+
+// index.ts imports the widget, which imports react-native: mock it before loading the plugin.
+mock.module('react-native', () => ({ View: () => null }));
+const { focusPlugin } = await import('./index');
+
+function memoryKV(): KV {
+  const m = new Map<string, unknown>();
+  return {
+    get: async <T,>(k: string) => m.get(k) as T | undefined,
+    set: async (k, v) => void m.set(k, v),
+    delete: async (k) => void m.delete(k),
+  };
+}
+
+test('start, then today shows the running session', async () => {
+  const ctx = { pluginId: 'focus', actor: 'user', kv: memoryKV(), services: {} } as unknown as ToolContext;
+  await focusPlugin.tools.start.execute({ label: '高数' }, ctx);
+  const today = (await focusPlugin.tools.today.execute({}, ctx)) as { running: { label: string } | null };
+  expect(today.running?.label).toBe('高数');
+});
+```
+
+`index.ts` 引入了小组件，小组件又引入了 `react-native`，所以要先 mock 再加载插件。
+
+`execute` 本身不校验输入，校验是宿主做的。如果校验逻辑很重要，就用 `tool.input.safeParse(...)` 单独测。
+
+## 模拟模型 [#mock-model]
+
+`examples/mock-llm` 是一个按脚本应答的 OpenAI 兼容 Chat Completions 服务，不需要 API key 就能跑通 Agent 循环：
+
+```bash
+bun examples/mock-llm/server.ts     # http://localhost:8788/v1, model "mock-agent"
+```
+
+在 App 里打开“设置 → AI 服务 → OpenAI 兼容”，Base URL 填 `http://10.0.2.2:8788/v1`（模拟器里访问本机），模型填 `mock-agent`。它根据你消息里的关键词挑一个工具调用，再把工具结果总结一下：
+
+| 消息里包含 | 调用 |
+| --- | --- |
+| `提醒` / `remind` | `scheduler__create`（每 3 天 09:00，共 16 次） |
+| `马上` / `soon` | `scheduler__create`（一次性，2 分钟后） |
+| `看板` / `dash` | `dashboard__upsertWidget`（一个绑定 `timetable.today` 的小组件） |
+| `表单` / `form` | `ui__render`（一个充值表单） |
+| `remember` | `memory__remember` |
+| `食堂` / `canteen` | `mcp-demo-canteen__reserveSeat`（需要先装好演示插件） |
+| `who` | 原样回显注入的 `<context>` 块 |
+
+想让它调用你自己的工具，在本地改一下它的 `plan()` 函数，按模型看到的工具名调用即可。
+
+## 演示用远程插件 [#demo-remote-plugin]
+
+```bash
+bun examples/demo-canteen/server.ts   # :8787/mcp, bearer token demo-token
+```
+
+服务地址是 `:8787/mcp`，Bearer token 为 `demo-token`。在“设置 → 插件 → 添加远程插件”里填 `http://10.0.2.2:8787/mcp` 和 token `demo-token`。它有一个读取工具（`menu`）和一个修改工具（`reserveSeat`），可以用来看远程插件执行写操作时的确认弹窗。
+
+## 在真机上 [#on-a-device]
+
+- 开发版专用的深链接（deep link）可以直接运行一个工具或发起一轮对话：`pkuharness://dev?tool=<plugin>.<tool>&input=<json>` 和 `pkuharness://dev?chat=<text>`。加上 `&actor=agent` 可以触发“先询问”的确认提示。
+- 页面和小组件要在深色、浅色两种主题和中英两种语言下都检查一遍。
+- 真实的校园数据需要真实账号。读取类工具先在自己的账号上测，再请别人帮忙；含个人信息的响应永远不要提交。

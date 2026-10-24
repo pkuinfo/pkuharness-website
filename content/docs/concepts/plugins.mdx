@@ -1,0 +1,62 @@
+---
+title: 插件
+description: 插件文档（PLUGIN.md）由 App 解释执行，通过链接安装；内置 TypeScript 插件随 App 发布；远程插件是通过 URL 添加的 MCP 服务器。三者共用同一个注册表、同一套权限和同一个 Agent 循环。
+icon: Puzzle
+---
+
+PKU Harness 的每项能力都是插件（plugin），所有插件地位平等。插件可以是 App 解释执行的**文档**、打包进 App 的 **TypeScript** 模块，也可以是**远程**的 MCP 服务器。助手、权限系统和插件市场对这三种一视同仁。
+
+## 三种形式，一套约定 [#three-kinds-one-contract]
+
+| | 文档（`PLUGIN.md`） | 内置 TypeScript | 远程 |
+| --- | --- | --- | --- |
+| 是什么 | 一个文件夹：YAML 清单 + 给助手的说明 + 用 YAML 步骤写的工具，小组件用生成式界面 JSON 描述 | 基于 `@pku-harness/sdk`（`definePlugin`）的 TypeScript 模块 | 走 Streamable HTTP 的 MCP 服务器，任何语言都行 |
+| 在哪运行 | 在手机上，由 App 解释（不运行任何插件代码） | 在手机上，App 内部 | 你自己控制的任意 HTTPS 服务器 |
+| 怎么发布 | 一个链接（GitHub 文件夹或任意 `PLUGIN.md` URL），更新就是 `git push`。官方文档插件也随 App 内置，并从各自的链接更新 | 随 App 发版（或签名的 OTA 更新） | 部署你的服务器，用户添加它的 URL，或从插件市场安装 |
+| 能用什么 | 声明过的校园服务（使用用户的会话）、公开站点和[宿主能力](/docs/build/declarative-plugins#host-abilities)；小组件、页面、设置项、快捷指令 | 宿主服务、原生界面（页面、小组件、设置项、快捷指令、标签页）、PKU Harness Cloud | 只有工具（结果作为数据交给模型） |
+| 能否看到校园账号密码 | 不能：校园请求由框架代为签发 | 不能：只通过 `services.campus.request` 拿到响应 | 不能，任何时候都不能 |
+| 信任级别 | 官方（内置或来自 `pkuinfo/pku-harness-plugins`）或社区；社区插件的工具在 `write` / `money` / `public` 前会先询问，结果视为不可信 | 在插件仓库中经过审核 | 第三方：修改类效果默认先询问；任何结果都会污染（taint）当前轮次 |
+| 工具 id | `<plugin id>.<tool>`，例如 `classrooms.free` | `<plugin id>.<tool>`，例如 `wallet.cardBalance` | `mcp-<server name>.<tool>`，例如 `mcp-demo-canteen.menu` |
+
+应用商店禁止下载可执行代码。文档是数据而不是代码，所以社区插件可以作为文档在手机上运行，也可以通过 MCP 远程运行。官方的校园集成 classrooms、campus-events、grades、canteen、shuttle 和 notices 都是文档插件。TypeScript 只留给框架自己的功能（界面、看板、定时任务、日程、待办、记忆、模型服务商……），以及插件语言暂时还表达不了的集成。
+
+## 怎么选 [#choosing]
+
+```
+Is it campus or public requests plus extraction (with the user's campus session if needed)?
+├─ yes → plugin document (PLUGIN.md). Start from the quickstart, or ask the AI in the app.
+└─ no  → Does it need general code or a server of your own?
+         ├─ yes → remote plugin. Start from templates/remote-plugin.
+         └─ no, it needs the device or native UI the language lacks
+              → bundled TypeScript plugin (open an issue first), or propose a host ability.
+```
+
+简单说：如果只是发校园或公开请求再提取数据（必要时带上用户的校园会话），写插件文档，可以从快速上手开始，或者直接让 App 里的 AI 帮你写。需要通用代码或自己的服务器，就做远程插件，从 `templates/remote-plugin` 开始。如果需要插件语言还不支持的设备能力或原生界面，就做内置 TypeScript 插件（先开 issue），或者提议新增一个宿主能力。
+
+## 插件在 App 中的生命周期 [#lifecycle-in-the-app]
+
+1. **注册**：内置插件和内置文档在启动时注册。通过链接安装的文档，在用户确认审查页后注册，文件和内容哈希保存在设备上。远程插件在用户安装时注册：App 连接服务器，列出工具，缓存清单。
+2. **可用**：设备满足它的 `requires` [能力需求](/docs/concepts/capabilities)。不可用的插件对助手隐藏，设置里会说明原因。
+3. **启用**：默认开启。非核心插件都可以关闭；核心插件（`core: true`，例如生成式界面、记忆）不能关闭。
+4. **调用**：所有调用走同一条路径：校验输入（zod），检查对应效果的授权方式，必要时请求批准，执行工具，返回结果。
+5. **更新**（仅文档插件）：App 每天最多重新拉取一次链接。声明不变的新内容直接生效，声明变宽的要等用户确认。见[声明式插件 → 更新](/docs/build/declarative-plugins#updates)。
+
+## 远程插件细节 [#remote-plugins-in-detail]
+
+- 用户（或经批准的助手）添加一个 MCP Streamable HTTP URL，以及可选的 bearer token。token 存进密钥库。
+- 插件 id 是 `mcp-` 加上 MCP 服务器 `name`（来自 `initialize` 响应）的 slug。服务器名请用你在注册表里的 id，这样插件市场才能把两者对应起来。
+- 每个 MCP 工具都会变成一个注册表工具，输入 schema 从 JSON Schema 转成 zod。`annotations.readOnlyHint: true` 的是 `read` 工具，其余都是 `write`。
+- 远程插件的默认授权方式：`read` 自动执行，`write`/`money`/`public` 先询问。
+- 结果包装成 `{ source, data }`（取 `structuredContent`，或把文本解析成 JSON）。插件在系统提示词里的那一段会告诉模型：这些是数据，不是指令。
+- MCP 工具名会被规整为 `[a-zA-Z0-9_-]`（其他字符变成 `_`），并截断到 40 个字符。请用简短的 ASCII 驼峰命名。
+
+## 合并与重命名插件 [#merging-and-renaming-plugins]
+
+`PluginDef.legacy` 让一个插件接管旧的 id。例如 `wallet` 取代了 `campus-card`、`netfee` 和 `utilities`。之后宿主会把旧的插件 id、工具 id 和小组件 key 映射到新的上面，并把用户的设置迁移一次。见 [SDK → plugin](/docs/sdk/plugin#pluginlegacy)。
+
+## 下一步 [#next]
+
+- [工具与效果](/docs/concepts/tools-and-effects)
+- [第一个插件](/docs/build/quickstart)和[声明式插件](/docs/build/declarative-plugins)
+- [快速上手：远程插件](/docs/build/remote-plugin)
+- [内置插件](/docs/build/bundled-plugin)

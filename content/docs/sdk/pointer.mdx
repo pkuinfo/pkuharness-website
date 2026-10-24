@@ -1,0 +1,21 @@
+---
+title: pointer
+description: setPointer：把绑定结果写进小组件状态的最小 JSON Pointer 写入函数。
+---
+
+源码：`packages/sdk/src/pointer.ts`。
+
+```ts
+/** Minimal JSON-pointer write ("/a/b") used to place binding results into widget state. */
+function setPointer(target: Record<string, unknown>, pointer: string, value: unknown): Record<string, unknown>;
+```
+
+- 返回新对象，不改动 `target`：路径上的每一层对象都会复制一份。
+- 路径中缺失或不是对象的值会变成 `{}`。
+- 键名里的 `~1` 解码为 `/`，`~0` 解码为 `~`。
+- 空指针（`""`）原样返回 `target`。
+
+```ts
+setPointer({ form: { amount: '50' } }, '/card/balance', 12.5);
+// → { form: { amount: '50' }, card: { balance: 12.5 } }
+```

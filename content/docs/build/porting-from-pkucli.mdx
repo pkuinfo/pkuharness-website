@@ -1,0 +1,87 @@
+---
+title: 从 pkucli 移植
+description: pkucli 是北大各项服务的协议参考。把它 Rust crate 里的接口、登录跳转和各种坑移植到插件里，登录交给框架，并注明出处文件。
+icon: Terminal
+---
+
+[`pkuinfo/pkucli`](https://github.com/pkuinfo/pkucli) 是一组访问北大网络服务的命令行工具，用 Rust workspace 组织。最难的部分它已经摸清楚了：有哪些接口、每个服务要经过哪几次登录跳转、非带不可的请求头和参数、HTML 长什么样。直接移植它的做法，不用重新摸索，并在注释里注明出处文件。
+
+## 对应关系 [#where-things-are]
+
+| pkucli crate | 服务 | 在 PKU Harness 中 |
+| --- | --- | --- |
+| `common` | IAAA（统一身份认证）登录（密码、扫码）、TOTP、验证码、会话、凭据 | 框架本身（App 里的 `src/core/campus`）；**不**放在插件里 |
+| `campuscard` | 校园卡（bdcard） | `wallet` 插件，`card` 校园服务 |
+| `treehole` | 树洞 | `treehole` 插件，`treehole` 服务 |
+| `course` | 教学网（Blackboard） | `courses` 插件，`blackboard` 服务 |
+| `elective` | 选课 | `elective` 插件，`elective` 服务 |
+| `cwfw`、`cwpay` | 财务、财务缴费 | `finance` 插件，`cwfw` / `cwpay` 服务 |
+| `bdkj` | 场地预约 | `room-booking` 插件，`bdkj` 服务 |
+| `portal` | 门户 | 框架内部的门户 SSO 跳转 |
+| `claspider` | 课程回放（智云课堂） | 计划中 |
+| `info-spider`、`info-auth` | 微信公众号文章 | `notices` 插件可读取单篇文章（正文清洗移植自 `info-spider`） |
+
+在一个 crate 里，`api.rs`（或 `client.rs`）放接口和响应类型，`login.rs` 放该服务特有的登录跳转，`commands.rs` 放面向用户的操作。
+
+## 代码搬到哪里 [#what-moves-where]
+
+```
+pkucli crate                     PKU Harness
+─────────────────────────────    ──────────────────────────────────────────────
+login.rs  (IAAA → service SSO)   app: a campus service adapter (harness-owned)
+client.rs (headers, base URL)    plugin: the `url`/`headers` of services.campus.request
+api.rs    (endpoints, types)     plugin: src/api.ts + zod/TS types
+commands.rs / display.rs         plugin: tools (data, not formatted text)
+```
+
+- **登录留在框架里。** 插件（plugin）永远不自己实现 IAAA 或某个服务的 SSO 跳转。框架目前能登录的服务有 `card`、`its`、`treehole`、`blackboard`、`bdkj`、`cwfw`、`cwpay`、`elective`、`library`、`library-space`。你要的服务不在其中，就去 `pku-harness` 开 issue：新服务需要在 `src/core/campus/adapters/` 里加一个适配器。
+- **请求走 `services.campus.request(service, req)`。** 路径写相对于服务主机的路径，Cookie 或 token 由框架加上。
+- **公开页面**（不用登录）可以直接用 `fetch`，并声明 `requires: ['network']`。把 pkucli 的请求头一起抄过来（桌面浏览器的 User-Agent、`accept-language: zh-CN`），有些校园服务器不认别的。
+- **解析成数据。** pkucli 的 `display.rs` 是为终端排版的，工具（tool）应该返回结构化的 JSON。
+
+## 示例 [#example]
+
+pkucli（Rust）：
+
+```rust title="crates/campuscard/src/api.rs"
+/// 查询校园卡信息
+pub async fn query_card(&self) -> Result<CardQueryData> {
+    let url = format!("{CARD_BASE}/berserker-app/ykt/tsm/queryCard?synAccessSource=h5");
+    let resp = self.http.get(&url).send().await.context("查询校园卡失败")?;
+    let api_resp: ApiResp<CardQueryData> = parse_response(resp).await?;
+    check_resp(api_resp)
+}
+```
+
+插件（TypeScript）：
+
+```ts title="plugins/shared/campus-card.ts (abridged)"
+/**
+ * Campus card (bdcard.pku.edu.cn) response handling, ported from pkucli
+ * crates/campuscard/src/api.rs. Amounts are in fen; every call carries synAccessSource=h5.
+ */
+import type { HostServices } from '@pku-harness/sdk';
+
+type Services = Pick<HostServices, 'campus'>;
+const get = (services: Services, url: string) => services.campus.request('card', { url });
+
+export async function cardAccount(services: Services) {
+  const data = unwrap<{ card: CardInfo[] }>(await get(services, '/berserker-app/ykt/tsm/queryCard?synAccessSource=h5'));
+  const account = data.card[0]?.account;
+  if (!account) throw new Error('校园卡缺少账户信息');
+  return account;
+}
+```
+
+注释里写明了出处（pkucli 的 `crates/campuscard/src/api.rs`）：金额单位是分，每次请求都带 `synAccessSource=h5`。
+
+## 二次验证 [#second-factors]
+
+pkucli 可以在终端里提示输入，插件不行。服务层面的验证（树洞的短信验证 `40002`、课程 token `40077`）要变成一个工具结果，比如 `{ status: 'verification_required', methods: ['sms'], message }`，再配一个发送或提交验证码的工具。插件的页面可以调用 `services.sms.awaitCode()`。IAAA 层面的二次验证由框架处理。
+
+## 规则 [#rules]
+
+- **必须**在模块顶部的注释里写明移植自 pkucli 的哪个文件。
+- **必须**把登录留在框架里，插件只发请求。
+- **应当**把解析器连同一份真实响应（已脱敏）做成的 fixture 和测试一起移植。
+- **应当**两边一起修 bug：发现 pkucli 没处理的坑，也去 pkucli 开 issue 或提 PR。

@@ -1,64 +1,71 @@
 ---
 title: Install the app
-description: Download PKU Harness for Android, or build it from source, and walk through first-run onboarding.
+description: Download PKU Harness for Android or build it from source, then walk through first-run onboarding.
 icon: Download
 ---
 
-PKU Harness runs on **Android** today. iOS is being prepared (the app launches on iOS, but the
-native campus HTTP module still needs its Swift port), so campus sign-in works only on Android for
-now.
+PKU Harness runs on **Android** today. iOS is being prepared: the app already launches there, but
+the native campus HTTP module still needs its Swift port, so campus sign-in only works on Android
+for now.
 
 ## Download
 
-Get the latest APK from the [download page](/download). It reads the latest release of
-[`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness/releases). Install it like any APK
-(allow installing from your browser when Android asks).
+Get the latest APK from the [download page](/en/download). It points at the latest release of
+[`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness/releases). You need Android 7.0 or
+later on an arm64 phone. Install it like any other APK, and allow installs from your browser when
+Android asks.
+
+Every release APK is built by GitHub Actions from a tagged commit and signed with the same key.
+The release notes list the APK and certificate fingerprints, so you can check what you installed.
+After that, JavaScript fixes arrive as signed over-the-air updates the next time you open the app.
+Changes to native code still need a new APK.
 
 <Callout type="warn" title="Only install builds you trust">
-  The app holds your IAAA password in the device keystore. Install release builds from the official
-  repository or build from source yourself.
+  The app keeps your IAAA password in the device keystore. Install release builds from the official
+  repository, or build from source yourself.
 </Callout>
 
 ## First run
 
-The welcome flow is resumable: if you leave it, the app continues where you stopped.
+The welcome flow is resumable. If you leave halfway, the app picks up where you stopped.
 
 <Steps>
 <Step>
 
 ### Accept the terms
 
-After you accept, the agent may use plugins on your behalf without asking each time. You can
-require a confirmation per plugin and per effect later (see [Permissions](/docs/concepts/permissions)).
+Once you accept, the agent may use plugins on your behalf without asking every time. You can
+require a confirmation per plugin and per effect later (see [Permissions](/en/docs/concepts/permissions)).
 
 </Step>
 <Step>
 
 ### Connect an AI model
 
-DeepSeek is the default; any OpenAI-compatible endpoint works. See [Connect a model](/docs/getting-started/ai-model).
+DeepSeek is the default, and any OpenAI-compatible endpoint works. See [Connect a model](/en/docs/getting-started/ai-model).
 
 </Step>
 <Step>
 
 ### Sign in with your campus account
 
-Student ID and password, checked against IAAA. See [Campus account](/docs/getting-started/campus-account).
+Your student ID and password, checked against IAAA. See [Campus account](/en/docs/getting-started/campus-account).
 
 </Step>
 <Step>
 
 ### Pick plugins
 
-Choose which bundled plugins to enable. Everything can be changed later in Settings → Plugins.
+Choose which bundled plugins to turn on. You can change all of it later in Settings → Plugins.
 
 </Step>
 <Step>
 
 ### Allow on-time reminders
 
-Notifications, exact alarms and (optionally) no battery optimisation, so reminders and scheduled
-checks fire on the minute. You can skip this step; the Schedule tab then shows what is missing.
+Grant notifications, exact alarms and, if you like, an exemption from battery optimisation, so
+reminders and scheduled checks fire on the minute. You can skip this step. The Schedule tab will
+then show what's missing.
 
 </Step>
 </Steps>
@@ -67,7 +74,7 @@ checks fire on the minute. You can skip this step; the Schedule tab then shows w
 
 | Tab | What it does |
 | --- | --- |
-| **Chat** | The agent. Streams answers, calls plugin tools, renders native UI (forms, pickers, cards) inside the conversation. Multiple sessions, `/` commands, attachments. |
+| **Chat** | The agent. Streams answers, calls plugin tools and renders native UI (forms, pickers, cards) inside the conversation. Multiple sessions, `/` commands, attachments. |
 | **Dashboard** | Widgets the agent builds and edits for you (balances, next class, canteen crowds…), refreshed automatically. Filled by the `dashboard` plugin. |
 | **Schedule** | Timetable, to-dos and reminders with free-form recurrence ("every 3 days, 16 times"). Filled by the `schedule` plugin. |
 | **Settings** | Campus account, AI service, plugins and their permissions, marketplace, memory, notifications, appearance, data. |
@@ -81,5 +88,5 @@ bun install
 bun run android        # dev build on an emulator or device (JDK 17 + Android SDK)
 ```
 
-See the app's `README.md` and `AGENTS.md` for the full toolchain. To work on plugins against your
-build, see [Bundled plugin → Run it in the app](/docs/build/bundled-plugin#run-it-in-the-app).
+The app's `README.md` and `AGENTS.md` cover the full toolchain. To work on plugins against your
+own build, see [Bundled plugin → Run it in the app](/en/docs/build/bundled-plugin#run-it-in-the-app).

@@ -1,0 +1,38 @@
+---
+title: 发布
+description: 把插件送到用户手上。远程插件登记到插件市场的注册表；内置插件合并进 pku-harness-plugins，通过签名的 OTA 更新或下一个 App 版本到达用户手机。
+icon: Send
+---
+
+## 远程插件 [#remote-plugins]
+
+1. 用 HTTPS 部署你的 MCP 服务（见[快速上手](/docs/build/remote-plugin#4-deploy)）。
+2. 确认 MCP 服务的 `name` 和你要用的注册表 `id` 一致。
+3. 上架到插件市场（marketplace）。两种方式任选：在仓库里加一份清单，然后在本网站提交（[清单参考](/docs/marketplace/manifest)、[提交流程](/docs/marketplace/publishing)）；或者向 [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) 提 PR，在 `registry/registry.json` 里加一条记录。审核流程和 `verified` 标记见[审核规则](/docs/marketplace/review)。
+4. 用户在“设置 → 插件 → 插件市场”里安装，也可以手动填你的地址添加。
+
+更新是即时的：你部署新版本后，App 下次刷新这个插件时就会拿到新的工具列表。工具名要保持稳定，改名会让引用它的小组件和定时检查失效。
+
+## 内置插件 [#bundled-plugins]
+
+1. 先在 `pku-harness-plugins` 开 issue，说明插件做什么、为什么必须内置。
+2. 提 PR，包含 `plugins/<id>/`、`plugins/index.ts` 里 `builtinPlugins` 的条目，以及一条 `"kind": "builtin"` 的注册表记录。
+3. CI 和审核者会运行：
+
+   ```bash
+   bun test
+   bunx tsc --noEmit -p .
+   bun scripts/validate-registry.ts
+   ```
+
+4. 合并后，App 会把 `plugins/` 子模块更新到新的 commit。纯 JS 的改动通过签名的 OTA 更新（空中更新）推送到手机，下次启动时生效；涉及原生代码的改动要等下一个 App 版本（新的 APK）。
+
+不会往 npm 发布任何东西，SDK 和插件都直接从 GitHub 仓库引用。
+
+## 改名或合并 [#renaming-or-merging]
+
+用户可能已经在小组件、定时检查或设置里存了某些 id，这些 id 不要复用，也不要悄悄改名。用 `PluginDef.legacy` 把旧的插件 id、工具 id 和小组件 key 映射到新的（见 [SDK → plugin](/docs/sdk/plugin#pluginlegacy)）。
+
+## 使用 PKU Harness Cloud [#using-pku-harness-cloud]
+
+如果插件声明了 `PluginDef.cloud`，把其中的 `cloud` 声明（`uses`、`e2e`、`disclosure`，以及可选的 `backend`）原样抄到注册表记录里。插件市场会在安装前展示这些信息，`disclosure.zh` 必须用大白话写清楚哪些数据会离开手机。详见 [Cloud → 插件指南](/docs/cloud/plugin-guide#6-registry-entry)。

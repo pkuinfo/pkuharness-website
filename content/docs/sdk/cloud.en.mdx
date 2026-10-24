@@ -3,20 +3,23 @@ title: cloud
 description: The plugin side of PKU Harness Cloud. CloudManifest, PluginCloud (store, channels, push, functions), Channel and its events, SecretLink, CloudStatus, CloudError and defineCloudFunction.
 ---
 
-Source: `packages/sdk/src/cloud.ts`. Guide: [Cloud → plugin guide](/docs/cloud/plugin-guide). Wire
-protocol: [`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package) and the
-[API reference](/docs/cloud/api/meta).
+Source: `packages/sdk/src/cloud.ts`. Guide: [Cloud → plugin guide](/en/docs/cloud/plugin-guide). Wire
+protocol: [`@pku-harness/cloud-protocol`](/en/docs/cloud/protocol-package) and the
+[API reference](/en/docs/cloud/api/meta).
 
 A plugin declares what it uses in `PluginDef.cloud` and gets a client bound to itself
-(`ctx.cloud`, `props.cloud`). The host holds the device identity, tokens and keys, enforces the
-user's consent and the manifest, and talks to whichever provider the user chose. Plugins never see
-tokens, keys or provider credentials, and the agent never sees share links.
+(`ctx.cloud`, `props.cloud`). The host keeps the device identity, tokens and keys, enforces the
+user's consent and the manifest, and talks to whichever provider the user picked (official,
+self-hosted or any URL). Your plugin never sees tokens, keys or provider credentials, and the agent
+never sees share links.
 
 <Callout title="Host support">
-  The app implements this client. `ctx.cloud` stays typed optional (`PluginCloud | undefined`) for
-  hosts without cloud support, so check `ctx.cloud?.available`. `push` is not offered yet, and
-  server functions are off on the official server for now: keep plugins phone-side or use your own
-  backend.
+  The app implements this client. `ctx.cloud` stays typed as optional (`PluginCloud | undefined`)
+  for hosts without cloud support, so check `ctx.cloud?.available`. `push` isn't offered yet: its
+  calls fail with `not_configured`. Server functions are off on the official server, which only
+  runs the relay and a small encrypted store, and the host refuses `functions.invoke` for an `e2e`
+  plugin because functions read their input in plaintext. Keep the work on the phone, or use your
+  own backend.
 </Callout>
 
 ## CloudManifest
@@ -147,6 +150,8 @@ interface SecretLink {
 }
 ```
 
+The host's `toString` also prints `"[secret link]"`, so a link can't leak into tool results or logs.
+
 ## Errors
 
 ```ts
@@ -165,11 +170,11 @@ function isCloudError(e: unknown, code?: CloudErrorCode): e is CloudError;
 
 | Code | When |
 | --- | --- |
-| `not_configured` | No provider configured |
+| `not_configured` | No provider configured, or the service isn't available (for example `push`) |
 | `consent_required` | The user hasn't allowed this plugin to use the cloud |
-| `offline` | Network unavailable (writes and functions fail fast; there is no silent outbox) |
-| `rate_limited` | 429 from the provider; `retryAfterS` set |
+| `offline` | No network. Writes and functions fail right away; there is no silent outbox |
+| `rate_limited` | The provider answered 429; `retryAfterS` is set |
 | `quota` | Store or channel quota exceeded |
-| `gone` | Channel closed or expired |
-| `protocol` | The provider answered something that doesn't match protocol v1 |
+| `gone` | The channel was closed or has expired |
+| `protocol` | The provider's answer doesn't match protocol v1, or the call breaks the manifest (an undeclared service, plaintext from an `e2e` plugin) |
 | `server` | Any other provider error |

@@ -1,0 +1,85 @@
+---
+title: cloud-protocol 包
+description: '@pku-harness/cloud-protocol：App、服务商和查看页共用的 zod 线上 schema、路径构造函数、信封加密、分享链接工具、工作量证明和 token 挑战。'
+icon: Package
+---
+
+`@pku-harness/cloud-protocol` 是纯 TypeScript 实现，可以在 Hermes、Bun 和浏览器里运行。App、参考服务器和查看页引用的是同一份代码，所以线上格式和加密方式不会各自跑偏。依赖：`@noble/ciphers`、`@noble/curves` 和 `@noble/hashes`（锁定版本），peer 依赖 `zod ^4`。插件一般用不到它，因为云服务的活由宿主替插件干；服务器和查看页才需要引用它。
+
+它位于 [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) 的 `packages/cloud-protocol`，没有发布到 npm。你可以在仓库检出里直接使用（workspace 包 `@pku-harness/cloud-protocol`），也可以把 `src/` 目录复制进你的服务器或页面构建中。
+
+## 模块 [#modules]
+
+| 模块 | 导出 |
+| --- | --- |
+| `schemas.ts` | `PROTOCOL_VERSION`，所有请求、响应和帧的 schema（`metaResponse`、`registerDeviceRequest`、`authTokenRequest`、`storePutRequest`、`createChannelRequest`、`ownerInFrame`、`peerInFrame`……），各类 id 的 schema，`envelopeSchema`、`errorBody`、`wireErrorCode`、`DEFAULT_LIMITS`、`paths` |
+| `crypto.ts` | `generateDeviceIdentity`、`generateSignKeyPair`、`generateBoxKeyPair`、`signPublicKey`、`boxPublicKey`、`sign`、`verify`、`seal` / `open`、`sealBytes` / `openBytes`、`EnvelopeError`、`hkdfSha256`、`sha256`、`generateShareSecret`、`deriveShareKeys`、`joinHash`、`ownerPeerKey`、`viewerPeerKey`、`derivePeerKey`、`KDF_INFO`、`KEY_BYTES`、`NONCE_BYTES`、`SIG_BYTES` |
+| `link.ts` | `buildShareLink`、`buildAppShareLink`、`parseShareLink`、`parseKeyFragment`、`scrubShareLinks`、`SHARE_LINK_SCRUB_RE`、`CHANNEL_ID_RE`、`APP_SCHEME` |
+| `pow.ts` | `solvePow`、`verifyPow`、`powHash`、`powPrefix`、`leadingZeroBits`、`DEFAULT_POW_DIFFICULTY`（16）、`MAX_POW_DIFFICULTY`（28）、`POW_CONTEXT` |
+| `auth.ts` | `signAuthChallenge`、`verifyAuthChallenge`、`authChallengeBytes`、`normaliseAudience`、`AUTH_CONTEXT`、`AUTH_MAX_SKEW_MS`（5 分钟）、`AUTH_NONCE_BYTES`（16）、`TOKEN_TTL_S`（600） |
+| `bytes.ts` | `toB64url`、`fromB64url`、`isB64url`、`utf8`、`fromUtf8`、`concatBytes`、`equalBytes`、`toHex` |
+
+线上约定：二进制数据用不带填充的 base64url；时间默认是 Unix 毫秒，字段名以 `S` 结尾的是秒；解析时会丢弃未知的键。
+
+## 查看页：加入通道并解密 [#viewer-page-join-a-channel-and-decrypt]
+
+```ts
+import {
+  deriveShareKeys,
+  envelopeSchema,
+  fromB64url,
+  generateBoxKeyPair,
+  joinResponse,
+  open,
+  parseKeyFragment,
+  paths,
+  peerInFrame,
+  channelInfoResponse,
+  toB64url,
+  viewerPeerKey,
+} from '@pku-harness/cloud-protocol';
+
+// after GET /s/<id> the page is at /w/<plugin>/<page>?c=<id>#k=<secret>
+const channelId = new URLSearchParams(location.search).get('c')!;
+const k = parseKeyFragment(location.hash);
+if (!k) throw new Error('link has no key');
+const { authKey, encKey } = deriveShareKeys(k);
+
+const info = channelInfoResponse.parse(await (await fetch(paths.publicChannel(channelId))).json());
+const meta = open(encKey, info.meta);          // the owner's sealed meta (validate it!)
+
+const me = generateBoxKeyPair();
+const joined = joinResponse.parse(
+  await (
+    await fetch(paths.join(channelId), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ authKey: toB64url(authKey), peerPub: toB64url(me.publicKey) }),
+    })
+  ).json(),
+);
+
+const key = viewerPeerKey(me.secretKey, me.publicKey, fromB64url(info.chanPub), encKey);
+const ws = new WebSocket(new URL(paths.peerWs(channelId, joined.peerToken), location.href).href.replace(/^http/, 'ws'));
+ws.onmessage = (ev) => {
+  const frame = peerInFrame.parse(JSON.parse(ev.data));
+  if (frame.t === 'msg') console.log(open(key, envelopeSchema.parse(frame.env)));
+};
+```
+
+参考服务器会把 `/s/<id>` 重定向到 `/w/<plugin>/<page>?c=<id>`。浏览器会自动在重定向后保留 `#k=` 片段，服务器全程看不到它。不支持 WebSocket 的内置浏览器改用 `GET /v1/c/{id}/events?t=`（SSE）和 `POST /v1/c/{id}/send`。完整的查看页可以参考 `plugins/card-share/web`（移植自 pkubdcard 的界面）。
+
+## 服务器：校验 token 请求 [#server-verify-a-token-request]
+
+```ts
+import { authTokenRequest, fromB64url, verifyAuthChallenge } from '@pku-harness/cloud-protocol';
+
+const body = authTokenRequest.parse(await req.json());
+const device = await db.device(body.deviceId);           // stored signPub
+const check = verifyAuthChallenge(body, fromB64url(device.signPub), { aud: 'https://cloud.example.org' });
+if (!check.ok) return error(401, 'unauthorized', check.reason);
+if (await nonces.seen(body.nonce)) return error(401, 'unauthorized', 'replay');
+// issue a token with claims { sub: deviceId, plg: plugin, svc: services, iat, exp: iat + 600_000 }
+```
+
+全部接口见 [API 参考](/docs/cloud/api/meta)。

@@ -1,27 +1,27 @@
 ---
 title: For AI agents
-description: Instructions for coding agents (Claude Code, Codex, the in-app agent) building a PKU Harness plugin end to end - which kind to build, the exact steps, hard rules, checks to run and which pages to load as context.
+description: Instructions for coding agents (Claude Code, Codex, the in-app agent) that build a PKU Harness plugin end to end. Which kind to build, the steps, the hard rules, the checks to run and the pages to load as context.
 icon: Bot
 ---
 
-You are an AI agent asked to build a plugin for PKU Harness. Follow this page in order. Load the
-linked pages as Markdown (append `.md` to any docs URL, or fetch `/llms.txt` for the index and
-`/llms-full.txt` for everything). Do not invent APIs: every type you need is in the
-[SDK reference](/docs/sdk); if something isn't there, it doesn't exist.
+You are an AI agent and you've been asked to build a plugin for PKU Harness. Work through this
+page in order. Load the linked pages as Markdown: append `.md` to any docs URL, fetch `/llms.txt`
+for the index, or `/llms-full.txt` for every English page at once. Don't invent APIs. Every type
+you need is in the [SDK reference](/en/docs/sdk), and if something isn't there, it doesn't exist.
 
 ## 0. Load context
 
 | When | Load |
 | --- | --- |
-| Always | `/docs/concepts/plugins.md`, `/docs/concepts/tools-and-effects.md`, `/docs/concepts/permissions.md`, `/docs/concepts/security.md` |
-| Plugin document (`PLUGIN.md`) | `/docs/build/declarative-plugins.md`, `/docs/build/quickstart.md`, `/docs/marketplace/manifest.md`; the spec [`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md) and the SDK's `packages/sdk/src/lang/schema.ts` and `abilities.ts` |
-| Remote plugin | `/docs/build/remote-plugin.md`, `/docs/marketplace/manifest.md` |
-| Bundled plugin | `/docs/build/tools.md`, `/docs/build/bundled-plugin.md`, `/docs/sdk/plugin.md`, `/docs/sdk/host-services.md`, `/docs/build/ui.md`, `/docs/build/i18n.md`, `/docs/build/testing.md` |
-| Campus service | `/docs/concepts/campus-sessions.md`, `/docs/build/porting-from-pkucli.md`, `/docs/sdk/campus.md` |
-| Uses the cloud | `/docs/cloud/plugin-guide.md`, `/docs/sdk/cloud.md` |
+| Always | `/en/docs/concepts/plugins.md`, `/en/docs/concepts/tools-and-effects.md`, `/en/docs/concepts/permissions.md`, `/en/docs/concepts/security.md` |
+| Plugin document (`PLUGIN.md`) | `/en/docs/build/declarative-plugins.md`, `/en/docs/build/quickstart.md`, `/en/docs/marketplace/manifest.md`; the spec [`PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md) and the SDK's `packages/sdk/src/lang/schema.ts` and `abilities.ts` |
+| Remote plugin | `/en/docs/build/remote-plugin.md`, `/en/docs/marketplace/manifest.md` |
+| Bundled plugin | `/en/docs/build/tools.md`, `/en/docs/build/bundled-plugin.md`, `/en/docs/sdk/plugin.md`, `/en/docs/sdk/host-services.md`, `/en/docs/build/ui.md`, `/en/docs/build/i18n.md`, `/en/docs/build/testing.md` |
+| Campus service | `/en/docs/concepts/campus-sessions.md`, `/en/docs/build/porting-from-pkucli.md`, `/en/docs/sdk/campus.md` |
+| Uses the cloud | `/en/docs/cloud/plugin-guide.md`, `/en/docs/sdk/cloud.md` |
 
-Also read the repository's own rules before editing: `AGENTS.md` / `CLAUDE.md` and
-`CONTRIBUTING.md` in `pku-harness-plugins` (and in `pku-harness` if you touch the app).
+Before you edit anything, read the repository's own rules: `AGENTS.md` / `CLAUDE.md` and
+`CONTRIBUTING.md` in `pku-harness-plugins`, and in `pku-harness` too if you touch the app.
 
 ## 1. Decide the kind
 
@@ -29,23 +29,24 @@ Also read the repository's own rules before editing: `AGENTS.md` / `CLAUDE.md` a
 Campus or public requests plus extraction (with the user's campus session if needed)?
 ├─ yes → PLUGIN DOCUMENT: a folder with PLUGIN.md + tools/*.yaml, interpreted by the app.
 │        Shared and installed by link; no app release. This is the default for campus
-│        integrations (classrooms, campus-events, grades, canteen and shuttle are documents).
+│        integrations (classrooms, campus-events, grades, canteen, shuttle and notices are
+│        documents).
 └─ no  → Needs general code or your own server?
          ├─ yes → REMOTE plugin: an MCP server over Streamable HTTP (templates/remote-plugin).
          └─ no, needs the device or native UI the language lacks
               → BUNDLED TypeScript plugin in pku-harness-plugins (tell the user an issue should
-                be opened first; bundled plugins ship with app releases), or propose a host
-                ability so documents can do it.
+                be opened first; bundled plugins ship with the app and its signed OTA updates),
+                or propose a host ability so documents can do it.
 ```
 
 Inside the app, the agent writes documents with the `plugins` tools instead
-(`plugins.reference`, `validate`, `tryTool`, `source`, `install`); see
-[Write a plugin with the AI](/docs/build/ai-authoring).
+(`plugins.reference`, `validate`, `tryTool`, `source`, `install`). See
+[Write a plugin with the AI](/en/docs/build/ai-authoring).
 
 ## 2. Plugin document checklist
 
-1. Work in a checkout of `pku-harness-plugins` (for the CLI) or any repo; the folder is
-   self-contained. Start from `plugins/classrooms` or the [quickstart](/docs/build/quickstart).
+1. Work in a checkout of `pku-harness-plugins` (for the CLI) or in any repo. The folder is
+   self-contained. Start from `plugins/classrooms` or the [quickstart](/en/docs/build/quickstart).
 2. Write `PLUGIN.md`: `spec: 1`, `id` (`^[a-z0-9][a-z0-9-]{1,40}$`), Chinese `name`,
    `description` (4–200), semver `version`, `author`, and exactly the `campus`, `network` and
    `abilities` the steps use. Every file the app loads is named in the frontmatter.
@@ -54,19 +55,19 @@ Inside the app, the agent writes documents with the `plugins` tools instead
    `untrusted: true` for third-party text, steps and a `return` that is data.
 4. Only the steps, stdlib functions and abilities in the spec exist. Quote expressions that
    contain `: ` or start with `{ [ ' "`; write regexes in single-quoted YAML or `|` blocks.
-   Don't use `server:`, `{ fn }` bindings or the `cloud` ability: server functions are off on the
-   official server for now; keep the plugin phone-side or use your own backend.
+   Don't use `server:`, `{ fn }` bindings or the `cloud` ability. Server functions are off on the
+   official server for now, so keep the plugin on the phone or use your own backend.
 5. Record responses in `tests/<name>.yaml` (personal data removed) for every tool, including
    failures (`expectError`).
-6. Run, and make them pass:
+6. Run these and make them pass:
 
 ```bash
 bun run plugin validate path/to/plugin
 bun run plugin test path/to/plugin
 ```
 
-7. Campus requests can't run outside the app. Say which tools were only tested against recorded
-   responses. Share the GitHub folder URL as the install link; the user reviews it in the app.
+7. Campus requests can't run outside the app, so say which tools you only tested against recorded
+   responses. Share the GitHub folder URL as the install link. The user reviews it in the app.
 
 ## 3. Remote plugin checklist
 
@@ -77,15 +78,15 @@ bun run plugin test path/to/plugin
    `description`, every `inputSchema` field described and bounded.
 4. `annotations: { readOnlyHint: true }` on tools that change nothing, and only on those.
 5. Return `structuredContent` (data). On failure return `isError: true` with a short message.
-6. Run `bun server.ts`; verify with the app (`http://10.0.2.2:8787/mcp` in the emulator) or an MCP
-   client.
-7. Deploy over HTTPS; add a manifest and submit it, or a `registry.json` entry
-   ([Publishing](/docs/build/publishing)).
+6. Run `bun server.ts` and check it with the app (`http://10.0.2.2:8787/mcp` in the emulator) or
+   an MCP client.
+7. Deploy over HTTPS. Then add a manifest and submit it, or add a `registry.json` entry
+   ([Publishing](/en/docs/build/publishing)).
 
 ## 4. Bundled plugin checklist
 
 1. Work in a checkout of `pku-harness-plugins` (the app has it as the submodule `plugins/`). There
-   is no npm package; `@pku-harness/sdk` resolves to `packages/sdk/src` in the workspace.
+   is no npm package: `@pku-harness/sdk` resolves to `packages/sdk/src` in the workspace.
 2. Create `plugins/<id>/package.json` (private, `"main": "src/index.ts"`, peer deps `@pku-harness/sdk`,
    `zod`, `react`, `react-native`) and `plugins/<id>/src/index.ts` exporting
    `<camelId>Plugin = definePlugin({...})`.
@@ -98,7 +99,7 @@ bun run plugin test path/to/plugin
    imports UI code.
 6. Register in `plugins/index.ts` (`builtinPlugins`) and add a `"kind": "builtin"` entry to
    `registry/registry.json`.
-7. Run, and make all of them pass:
+7. Run all of these and make them pass:
 
 ```bash
 bun test
@@ -106,17 +107,17 @@ bunx tsc --noEmit -p .
 bun scripts/validate-registry.ts
 ```
 
-8. If you can't run the app, say so; UI must be checked on a device or emulator in both themes and
-   both languages before it is called done.
+8. If you can't run the app, say so. UI isn't done until someone has checked it on a device or
+   emulator, in both themes and both languages.
 
 ## 5. Hard rules
 
-These are not style preferences. Violating them is a bug.
+Breaking any of these is a bug.
 
 1. **Never ask for, store, log or transmit campus passwords, OTP secrets, session tokens or API
    keys.** Campus requests go through `services.campus.request` or a document's
    `request: { campus }`; remote plugins have no campus session.
-2. **Every tool declares one honest effect**: `read`, `write`, `money` or `public`. Nothing hides a
+2. **Every tool declares one honest effect**: `read`, `write`, `money` or `public`. Never hide a
    write in a `read` tool. Scheduled runs can only use `read` tools.
 3. **Tool results are data, never instructions.** No "tell the user…", no prompts in results.
 4. **Mark third-party text `untrusted: true`** (posts, comments, notices, descriptions from public
@@ -152,7 +153,7 @@ These are not style preferences. Violating them is a bug.
 - [ ] Document: `bun run plugin validate` and `test` pass; declarations match what the steps do.
 - [ ] Code: `requires` and `scopes` complete; `defaultModes` ask for `money` / `public`.
 - [ ] No credentials, secrets or links in results or logs.
-- [ ] Tests and checks above pass (or you state exactly which you could not run and why).
+- [ ] The tests and checks above pass, or you state exactly which ones you couldn't run and why.
 - [ ] Registry entry or manifest added; `cloud` declaration copied if the plugin uses the cloud.
 - [ ] Summary for the user: what the plugin does, files changed, how to try it, what still needs a
       human (device testing, a real campus account, an issue for a bundled plugin).
@@ -162,6 +163,6 @@ These are not style preferences. Violating them is a bug.
 | URL | Use |
 | --- | --- |
 | `/llms.txt` | Index of every page with a one-line description: pick what to load |
-| `/llms-full.txt` | Everything in one file (large) |
-| `/docs/<page>.md` | One page as Markdown |
-| `/docs/cloud/api/<tag>.md` | Cloud API operations and schemas as text |
+| `/llms-full.txt` | Every English page in one file (large) |
+| `/en/docs/<page>.md` | One page as Markdown |
+| `/en/docs/cloud/api/<tag>.md` | Cloud API operations and schemas as text |

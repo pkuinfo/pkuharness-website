@@ -1,12 +1,12 @@
 ---
 title: Languages (i18n)
-description: Bundled plugins are bilingual. Manifest strings get an English overlay in `i18n.en`, screen and widget text lives in a `defineStrings` table, dates use the SDK formatters; model-facing text is never translated.
+description: Bundled plugins ship in Chinese and English. Manifest strings get an English overlay in `i18n.en`, screen and widget text goes in a `defineStrings` table, dates go through the SDK formatters, and text meant for the model stays untranslated.
 icon: Languages
 ---
 
-The app has two languages: Simplified Chinese (`zh-Hans`, the source) and English (`en`). Users
-pick 跟随系统 / 简体中文 / English in Settings. Every bundled plugin **MUST** be complete in both;
-`plugins/i18n.test.ts` in the plugins repository checks coverage for every bundled plugin.
+The app speaks Simplified Chinese (`zh-Hans`, the source language) and English (`en`). Users
+pick 跟随系统 / 简体中文 / English in Settings. Every bundled plugin **MUST** be complete in both,
+and `plugins/i18n.test.ts` in the plugins repository checks coverage for each one.
 
 ## What gets translated
 
@@ -44,7 +44,8 @@ definePlugin({
 });
 ```
 
-Anything missing in `en` falls back to Chinese, but the test fails, so fill everything.
+Anything missing from `en` falls back to Chinese at runtime, but the test fails, so fill in
+everything.
 
 ## String tables
 
@@ -67,12 +68,13 @@ const s = strings[host.useLocale()];
 <Text>{s.none}</Text>
 ```
 
-`defineStrings` type-checks `en` against `zh-Hans`: same keys, same value types. Use functions for
-strings with parameters; never concatenate translated fragments into sentences.
+`defineStrings` type-checks `en` against `zh-Hans`, so both need the same keys with the same value
+types. Strings with parameters are functions. Never build a sentence by concatenating translated
+fragments.
 
 ## Dates and numbers
 
-Hermes (the app's JavaScript engine) ignores `Intl` locales, so use the SDK formatters:
+Hermes, the app's JavaScript engine, ignores `Intl` locales. Use the SDK formatters instead:
 
 | Function | zh-Hans | en |
 | --- | --- | --- |
@@ -85,16 +87,16 @@ Hermes (the app's JavaScript engine) ignores `Intl` locales, so use the SDK form
 | `formatCountdown(ms, l)` | `2小时10分` | `2h 10m` |
 | `plural(n, one)` | — | `1 book`, `3 books` |
 
-See [SDK → format](/docs/sdk/format).
+Details in [SDK → format](/en/docs/sdk/format).
 
 ## English copy rules
 
-The coverage test also checks style:
+The coverage test checks style too:
 
-- No Chinese outside a parenthesised gloss or quotes: `Treehole (树洞)` is fine.
+- No Chinese except inside a parenthesised gloss or quotes. `Treehole (树洞)` is fine.
 - Curly apostrophes (`’`), not straight ones (`'`).
 - No exclamation marks.
-- Sentence case, short. Campus proper nouns use the official English or pinyin: Peking University,
-  Treehole (树洞), Course (教学网 / Blackboard), Campus Card.
+- Keep it short and in sentence case. Campus proper nouns use the official English name or pinyin:
+  Peking University, Treehole (树洞), Course (教学网 / Blackboard), Campus Card.
 
-Chinese copy: short, no exclamation marks.
+Chinese copy follows the same spirit: short, no exclamation marks.

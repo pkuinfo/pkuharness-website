@@ -1,12 +1,12 @@
 ---
 title: Architecture
-description: The harness is an agent loop, a design system and host services; plugins provide every capability through one contract.
+description: The harness is an agent loop, a design system and a set of host services. Every capability comes from plugins, through one contract.
 icon: Layers
 ---
 
 PKU Harness borrows two ideas from [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness):
-**everything is a plugin**, and the app is **AI-native but human-equal**. Every capability exists
-once, as a typed tool; the UI calls it on a tap and the agent calls it in a conversation.
+**everything is a plugin**, and the app is **AI-native but human-equal**. Each capability exists
+once, as a typed tool. The UI calls it when you tap; the agent calls it during a conversation.
 
 ## Layers
 
@@ -21,17 +21,17 @@ Plugins       PLUGIN.md documents (interpreted)  ·  bundled TypeScript  ·  rem
 Native        campus-http module (redirect control, per-session cookie jars, HTTP/1.1, no proxy)
 ```
 
-Dependencies point down only. Plugins never import app code; everything a plugin does outside
-itself goes through **host services** (`ctx.services`) and, for UI, through **`HostUI`**.
+Dependencies only point down. Plugins never import app code. Anything a plugin does outside itself
+goes through **host services** (`ctx.services`), and UI goes through **`HostUI`**.
 
 ## The harness
 
 | Part | What it is | Plugin-facing surface |
 | --- | --- | --- |
-| **Agent loop** | Streams a model (AI SDK, any provider plugin) with every enabled tool, multi-step (up to 10 steps per reply). Keeps a model-visible history per session; compacts old turns; records usage. | `tools`, `instructions`, `context`, `contributes.commands` |
-| **Design system** | Tokens, native controls, motion. Plugin screens are built from it, so they look native and keep working as the app evolves. | `HostUI` (`host.components`, `host.useTheme()`…) |
-| **Host services** | Campus HTTP, scheduler, widgets, to-dos, timetable, notifications readiness, files, browser, crypto, registry. | `HostServices` (`ctx.services`, `props.services`) |
-| **Generative UI** | A catalog of components the agent may render from a JSON spec, in chat and on the dashboard. | `ui.render` tool, `HostUI.components.GenUI` |
+| **Agent loop** | Streams a model (AI SDK, any provider plugin) with every enabled tool, multi-step (up to 10 steps per reply). Keeps a model-visible history per session, compacts old turns and records usage. | `tools`, `instructions`, `context`, `contributes.commands` |
+| **Design system** | Tokens, native controls, motion. Plugin screens are built from it, so they look native and keep working as the app changes. | `HostUI` (`host.components`, `host.useTheme()`…) |
+| **Host services** | Campus HTTP, scheduler, widgets, to-dos, timetable, notification readiness, files, browser, crypto, registry. | `HostServices` (`ctx.services`, `props.services`) |
+| **Generative UI** | A catalog of components the agent can render from a JSON spec, in chat and on the dashboard. | `ui.render` tool, `HostUI.components.GenUI` |
 
 ## The four tabs
 
@@ -44,9 +44,9 @@ itself goes through **host services** (`ctx.services`) and, for UI, through **`H
 
 ## Plugins
 
-A plugin is a `PLUGIN.md` document the app interprets, a TypeScript object built with
-`definePlugin` (bundled) or an MCP server (remote). The harness turns each into the same thing: a set of tools with ids `<plugin>.<tool>`,
-effects and input schemas, plus optional UI.
+A plugin is one of three things: a `PLUGIN.md` document the app interprets, a TypeScript object
+built with `definePlugin` (bundled), or an MCP server (remote). The harness turns each of them into
+the same shape: a set of tools with ids `<plugin>.<tool>`, effects and input schemas, plus optional UI.
 
 ```ts
 import { definePlugin, defineTool } from '@pku-harness/sdk';
@@ -70,9 +70,9 @@ export const helloPlugin = definePlugin({
 });
 ```
 
-The same plugin as a document is a `PLUGIN.md` with `tools: { greet: … }` and the tool written as
-YAML steps; see [Declarative plugins](/docs/build/declarative-plugins). See
-[Plugins](/docs/concepts/plugins) for the three kinds.
+Written as a document, the same plugin is a `PLUGIN.md` with `tools: { greet: … }` and the tool
+expressed as YAML steps; see [Declarative plugins](/en/docs/build/declarative-plugins).
+[Plugins](/en/docs/concepts/plugins) compares the three kinds.
 
 ## Where data lives
 
@@ -80,10 +80,10 @@ YAML steps; see [Declarative plugins](/docs/build/declarative-plugins). See
 | --- | --- |
 | Campus credentials, model API keys, remote plugin tokens | Device keystore (SecureStore) |
 | Chat sessions, usage, widgets, jobs, to-dos, timetable, plugin KV | SQLite on the device |
-| Optional plugin data you opted into | A [PKU Harness Cloud](/docs/cloud) provider, end-to-end encrypted |
+| Optional plugin data you opted into | A [PKU Harness Cloud](/en/docs/cloud) provider, end-to-end encrypted |
 
-There is no project server in the default path. The model provider you configured receives the
-conversation; campus services receive the requests they would get from a browser.
+The default path has no project server. The model provider you configured receives the
+conversation, and campus services receive the same requests a browser would send them.
 
 ## How code reaches users
 
@@ -92,11 +92,17 @@ conversation; campus services receive the requests they would get from a browser
 | A plugin document (`PLUGIN.md`), including the official ones bundled with the app | The app re-fetches its link (at most daily); same declarations apply, wider ones wait for the user |
 | A remote (MCP) plugin | Its server updates; the app calls it live |
 | A marketplace listing (`registry.json`) | Fetched live by the app |
-| App JavaScript, SDK, bundled TypeScript plugins | App release, or a signed over-the-air update (planned: self-hosted, code-signed expo-updates) |
+| App JavaScript, SDK, bundled TypeScript plugins | A signed over-the-air update from our own update server, applied on the next launch (or a new app release) |
 | Native code (modules, permissions) | New app release |
+
+Over-the-air updates use expo-updates against a static, code-signed server
+(`https://harness.novadiffusion.com/updates/`). CI signs every update with a key only maintainers
+hold, and the app embeds the certificate and rejects anything else. `runtimeVersion` follows the
+fingerprint policy, so any native change needs a new APK. Plugin documents don't use OTA at all;
+they update from their own links.
 
 ## Next
 
-- [Plugins](/docs/concepts/plugins): documents, bundled and remote, and how to choose.
-- [Tools and effects](/docs/concepts/tools-and-effects): the single API surface.
-- [Security model](/docs/concepts/security): credentials, prompt injection, consent.
+- [Plugins](/en/docs/concepts/plugins): documents, bundled and remote, and how to choose.
+- [Tools and effects](/en/docs/concepts/tools-and-effects): the single API surface.
+- [Security model](/en/docs/concepts/security): credentials, prompt injection, consent.

@@ -1,0 +1,73 @@
+---
+title: dashboard
+description: 看板小组件和 services.widgets 用到的 Widget 类型、Binding 与 WidgetSource 的 schema，以及 WidgetSize。
+---
+
+源码：`packages/sdk/src/dashboard.ts`。概念介绍：[看板](/docs/concepts/dashboard)。
+
+```ts
+import { z } from 'zod';
+
+export const bindingSchema = z.object({
+  tool: z.string().describe('read-only tool id, e.g. "calendar.today"'),
+  args: z.record(z.string(), z.unknown()).optional(),
+  /** Dot path into the tool result; empty = the whole result. */
+  path: z.string().optional(),
+  /** Cache lifetime in minutes (default 5). */
+  ttlMinutes: z.number().min(0).max(24 * 60).optional(),
+});
+export type Binding = z.infer<typeof bindingSchema>;
+
+export const widgetSizeSchema = z
+  .enum(['sm', 'md', 'lg'])
+  .describe('sm = half width tile, md = full width, lg = full width hero');
+export type WidgetSize = z.infer<typeof widgetSizeSchema>;
+
+/** A widget a plugin ships (`contributes.widgets`), placed on the dashboard by key. */
+export const widgetSourceSchema = z.object({
+  plugin: z.string(),
+  widget: z.string().describe("key in the plugin's contributes.widgets"),
+  config: z.record(z.string(), z.unknown()).optional(),
+});
+export type WidgetSource = z.infer<typeof widgetSourceSchema>;
+
+/**
+ * Two kinds, rendered side by side: AI-built (`spec` + `bindings`) or plugin-provided
+ * (`source`, the plugin draws it natively; `spec`/`bindings` stay empty).
+ */
+export type Widget = {
+  id: string;
+  title: string;
+  size: WidgetSize;
+  /** json-render spec ({ root, elements, state? }). */
+  spec: Record<string, unknown>;
+  /** State path (JSON pointer, e.g. "/card") → data source. */
+  bindings: Record<string, Binding>;
+  source?: WidgetSource;
+  position: number;
+  createdAt: number;
+  updatedAt: number;
+};
+```
+
+每个绑定都通过 [`setPointer`](/docs/sdk/pointer) 把结果写进 spec 的 state。所以挂在 `/card`、
+`path: "balance"` 的绑定会让 `{ "$state": "/card" }` 取到余额。
+
+要在工具里放置插件小组件，构造一个带 `source` 的 `Widget`，再调用 `put`：
+
+```ts
+const w: Widget = {
+  id: ctx.services.widgets.newId(),
+  title: '校园卡余额',
+  size: 'md',
+  spec: {},
+  bindings: {},
+  source: { plugin: 'wallet', widget: 'card', config: { warnBelow: 30 } },
+  position: ctx.services.widgets.list().length,
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+};
+await ctx.services.widgets.put(w);
+```
+
+大多数插件用不着这样做，助手自己会用 `dashboard.addPluginWidget` 放置小组件。

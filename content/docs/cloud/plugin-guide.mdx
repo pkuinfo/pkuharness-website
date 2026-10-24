@@ -1,0 +1,165 @@
+---
+title: 插件指南
+description: 在内置插件里使用 PKU Harness Cloud：声明云服务清单和数据说明，处理授权与可用性，使用存储和中继通道，并安全地展示分享链接。
+icon: Plug
+---
+
+## 1. 声明 [#1-declare-it]
+
+```ts
+import { definePlugin } from '@pku-harness/sdk';
+
+export const cardSharePlugin = definePlugin({
+  id: 'card-share',
+  name: '付款码共享',
+  description: '把校园卡付款码实时分享给朋友，端到端加密。',
+  version: '0.1.0',
+  requires: ['campus-session', 'network', 'cloud'],
+  cloud: {
+    protocol: 1,
+    uses: ['channels'],
+    e2e: true,
+    pages: ['view'],
+    disclosure: {
+      zh: ['分享期间，加密后的付款码经云服务转发给你分享的人；服务器无法解密', '服务器能看到：分享的开始/结束时间、查看者的 IP'],
+      en: ['While sharing, encrypted payment codes are relayed to the person you shared with; the server can’t decrypt them', 'The server sees when a share starts and ends, and the viewer’s IP address'],
+    },
+  },
+  defaultModes: { read: 'auto', write: 'auto', money: 'ask' },
+  scopes: ['bdcard.pku.edu.cn'],
+  tools: { /* … */ },
+});
+```
+
+| 字段 | 规则 |
+| --- | --- |
+| `protocol` | `1` |
+| `uses` | 只列你实际调用的服务。调用其他服务会被宿主拒绝。 |
+| `disclosure.zh` | `uses` 非空时**必填**。用大白话写清楚哪些数据会离开设备、服务器能看到什么，一行一件事。如果写了 `en`，必须逐行对应翻译。 |
+| `e2e` | 设为 `true` 后，宿主会拒绝明文写入存储。能开就开。 |
+| `optional` | 插件离开云服务也能用时设为 `true`。这时不要在 `requires` 里写 `'cloud'`，并检查 `ctx.cloud?.available`。 |
+| `pages` | `plugins/<id>/web` 下的静态查看页，部署在 `/w/<plugin>/<page>`，给没装 App 的人看。 |
+| `functions`、`backend` | 服务端函数，或外部后端 URL（会在用户授权前展示）。服务端函数目前在官方服务器上不开启，见[下文](#server-functions)。 |
+
+## 2. 授权 [#2-consent]
+
+每个插件都要单独获得用户授权。插件在设置里的详情页有一个**云服务**区块，显示服务商主机、你写的数据说明、端到端加密标识、用到的服务和配额用量，还有一个**允许使用云服务**开关和**清除此插件云端数据**按钮。
+
+用户允许之前，所有调用都会抛出 `CloudError('consent_required')`。在页面里，先调用 `cloud.requestConsent()` 询问：它会弹出宿主的授权面板，用户同意时返回 `true`（已经同意过的话立即返回），拒绝时返回 `false`。Agent 工具调用永远不会弹窗：让错误直接抛出去，助手会告诉用户去哪里开启。
+
+```tsx
+const start = async () => {
+  if (!(await props.cloud?.requestConsent())) return; // declined, or no cloud on this host
+  const channel = await props.cloud!.channels.open({ ttlS: 30 * 60, maxPeers: 1, page: 'view' });
+  // …
+};
+```
+
+```ts
+import { isCloudError } from '@pku-harness/sdk';
+
+try {
+  await ctx.cloud?.store.put('prefs', prefs);
+} catch (e) {
+  if (isCloudError(e, 'consent_required')) return { status: 'cloud_consent_required' };
+  if (isCloudError(e, 'offline')) throw new Error('网络不可用，稍后再试');
+  throw e;
+}
+```
+
+## 3. 可用性 [#3-availability]
+
+```ts
+const cloud = ctx.cloud;
+if (!cloud?.available) {
+  // provider not configured, no consent, or unreachable
+  return { status: 'cloud_unavailable', provider: cloud?.status().provider ?? 'off' };
+}
+```
+
+`status()` 返回 `{ provider: 'official' | 'custom' | 'off', baseURL?, consented, online }`。离线时，存储的读操作会退回本地镜像；写操作和函数调用会立即以 `offline` 失败（没有静默的待发队列）；通道会按退避策略自动重连。
+
+## 4. 存储 [#4-store]
+
+```ts
+const cur = await ctx.cloud!.store.get<{ count: number }>('counter');
+await ctx.cloud!.store.put('counter', { count: (cur?.value.count ?? 0) + 1 }, { ifVersion: cur?.version ?? 0 });
+const keys = await ctx.cloud!.store.list('history/');
+```
+
+- 服务商按 `(device, plugin)` 划分命名空间，其他插件读不到你的数据。
+- `ifVersion` 用来做乐观并发控制（`0` 表示这个键必须还不存在）。版本不匹配时服务器返回 `409 conflict`，宿主会把它抛成 `CloudError('protocol')`。
+- `ttlS` 让值到期自动删除。默认配额：每台设备每个插件 1 MB、1,000 个键，单个值最大 64 KB。
+
+## 5. 通道 [#5-channels]
+
+通道在机主手机和打开分享链接的人之间转发端到端加密的帧。服务商只转发密文、把关谁能加入，只有持有链接的人才能解密。
+
+```ts
+const channel = await cloud.channels.open({
+  ttlS: 30 * 60,          // 必填，60 秒 – 24 小时
+  maxPeers: 1,            // 第一个加入的人占住名额；转发出去的链接没用
+  page: 'view',           // 给没装 App 的人看的查看页
+  meta: { nameHint: '王_明', pinRequired: true },  // 已加密；查看者加入前就能读到
+});
+
+const off = channel.on('message', (e) => {
+  if (e.type !== 'message') return;
+  const msg = frameSchema.safeParse(e.msg);  // 对端发来的帧一律先校验
+  if (!msg.success) return;
+  // …
+});
+channel.on('join', (e) => e.type === 'join' && void channel.send(e.peerId, { t: 'hello' }));
+
+// 之后
+await channel.extend(15 * 60);
+await channel.close();
+off();
+```
+
+- `send(peerId | '*', msg)` 为每个对端分别加密。每帧最大 4 KB，每分钟最多 60 帧。
+- `mailbox.put(slot, msg, ttlS)` 留下加密数据块，你离线时对端也能读取。
+- `kick(peerId)` 踢掉一个查看者并释放名额，同一个链接可以给新的查看者用。
+- `channels.get(id)` 和 `list()` 在 App 重启后依然有效，因为密钥保存在系统密钥库里。
+- 在 Android 上做长时间分享时，用 `services.ongoing.start({ title, until, onStop })` 让 App 保持运行。`services.ongoing` 只在 Android 上存在。
+
+### 展示链接 [#showing-the-link]
+
+`channel.link` 是一个 `SecretLink`：你读不到其中的 URL，序列化后只是 `"[secret link]"`。
+
+```tsx
+const { QRCode, Button } = host.components;
+<QRCode link={channel.link} size={220} />
+<Button title="分享给朋友" onPress={() => void host.shareLink?.(channel.link, { message: '我的付款码' })} />
+```
+
+**绝对不要**从工具里返回链接，也不要把链接写进日志。工具应该返回 `{ status: 'awaiting_user' }`，然后打开一个页面让用户操作。
+
+## 6. 注册表条目 [#6-registry-entry]
+
+把云服务声明复制到你在 `registry.json` 里的条目中，这样插件市场在安装前就能显示「使用云服务」：
+
+```json
+{
+  "id": "card-share",
+  "cloud": {
+    "uses": ["channels"],
+    "e2e": true,
+    "disclosure": { "zh": ["分享期间，加密后的付款码经云服务转发给你分享的人；服务器无法解密", "服务器能看到：分享的开始/结束时间、查看者的 IP"] }
+  }
+}
+```
+
+注册表校验器会检查：`uses` 非空时必须有 `disclosure.zh`；如果写了 `en`，必须逐行翻译；外部 `backend.url` 必须是 HTTPS。
+
+## 服务端函数 [#server-functions]
+
+<Callout type="warn" title="官方服务器暂不开启">
+  请让插件在手机端完成工作，或者使用你自己的后端。
+</Callout>
+
+`PLUGIN.md` 插件在 `server:` 段里声明服务端函数（步骤和表达式与工具相同），再通过 `cloud.call { fn, input }` 能力调用；小组件可以绑定 `{ fn }`。有这一段就意味着 `uses: [functions]`，并且必须写 `disclosure`。参考服务器在 `POST /v1/fn/<plugin>/<name>` 运行 `access: user` 的函数，在 `/v1/p/<plugin>/<name>` 运行 `access: public` 的函数，提供服务端 KV、加密工具，以及访问已声明主机的 HTTPS 请求。详见[云服务 → 服务端函数](/docs/cloud#server-functions)和 [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)（已暂停）。
+
+## 查看页 [#viewer-pages]
+
+没装 App 的人打开 `https://<provider>/s/<id>#k=…`，会被重定向到 `/w/<plugin>/<page>?c=<id>#k=…`（片段在重定向后依然保留）。在 `plugins/<id>/web` 里把页面做成静态站点（比如 Vite + Preact），从 `location.hash` 读出 `k`，再用 [`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package) 派生密钥、加入通道并解密。页面必须能在微信内置浏览器里运行，所以不要依赖 WebCrypto（这个包用的是纯 JS 的 noble 加密库），并在 WebSocket 不可用时退回 SSE。完整的查看页可以参考 `plugins/card-share/web`。

@@ -1,0 +1,94 @@
+---
+title: 开发插件
+description: 在 PLUGIN.md 插件文档、远程（MCP）插件和内置（SDK）插件之间做选择，准备好仓库，从写第一个工具一路走到上架插件市场。
+icon: Hammer
+---
+
+插件（plugin）把 PKU Harness 接到某个校园服务上，或者给它加一项能力。助手和用户调用的是同一套带类型的工具（tool），所以写插件主要就三件事：找到服务的接口，把它包成好用的工具，在需要的地方加个小组件或页面。
+
+## 选择插件类型 [#choose-the-kind]
+
+| | 插件文档（`PLUGIN.md`） | 远程插件 | 内置 TypeScript 插件 |
+| --- | --- | --- | --- |
+| 适合 | 大多数校园接入：校园或公开请求加数据提取，需要时带上用户的校园会话 | 你自己的服务、重活，或需要通用代码的场景 | 框架自身的功能（看板、日程、定时任务、记忆、模型服务商……），以及插件语言暂时表达不了的接入 |
+| 语言 | YAML 步骤 + 安全表达式，由 App 解释执行 | 任意（基于 Streamable HTTP 的 MCP） | TypeScript + zod + React Native |
+| 发布 | `git push`；通过链接安装和更新 | 部署你的服务器，不用发 App 新版 | 随 App 版本发布（先开 issue） |
+| 从这里开始 | [快速上手](/docs/build/quickstart)、[声明式插件](/docs/build/declarative-plugins)，或[让 AI 帮你写](/docs/build/ai-authoring) | [`templates/remote-plugin`](/docs/build/remote-plugin) | [`definePlugin`](/docs/build/bundled-plugin) |
+
+官方的校园接入里，classrooms、campus-events、grades、canteen、shuttle 和 notices 已经是插件文档。其余接入目前还是 TypeScript，正在逐个迁移。
+
+## 开发流程 [#the-path]
+
+<Steps>
+<Step>
+
+### 读概念 [#read-the-concepts]
+
+[插件](/docs/concepts/plugins)、[工具与效果](/docs/concepts/tools-and-effects)、[权限](/docs/concepts/permissions)和[安全](/docs/concepts/security)这几页定下了每个插件都要遵守的规则。
+
+</Step>
+<Step>
+
+### 找到协议 [#find-the-protocol]
+
+如果 [`pkucli`](https://github.com/pkuinfo/pkucli) 已经对接过这个服务，就从那里移植，并注明出处文件。见[从 pkucli 移植](/docs/build/porting-from-pkucli)。
+
+</Step>
+<Step>
+
+### 写工具 [#write-the-tools]
+
+一个操作一个工具，效果（effect）如实声明，输入有边界，描述写给模型看。写插件文档看[声明式插件](/docs/build/declarative-plugins)，写代码看[工具与 schema](/docs/build/tools)。
+
+</Step>
+<Step>
+
+### 加界面 [#add-ui]
+
+插件文档可以添加生成式界面的小组件和页面、设置项和快捷指令，内置插件还能加原生页面。见[界面扩展](/docs/build/ui)和[多语言](/docs/build/i18n)。
+
+</Step>
+<Step>
+
+### 测试 [#test]
+
+插件文档用 `bun run plugin validate|test` 配合录制的响应来测；TypeScript 逻辑用 `bun test`；Agent 循环用模拟模型；MCP 用演示远程插件。见[测试](/docs/build/testing)。
+
+</Step>
+<Step>
+
+### 发布 [#publish]
+
+分享安装链接，并在插件市场登记。见[发布](/docs/build/publishing)，以及插件市场的[清单参考](/docs/marketplace/manifest)和[提交流程](/docs/marketplace/publishing)。
+
+</Step>
+</Steps>
+
+## 需要的仓库 [#repositories-you-need]
+
+| 仓库 | 用途 |
+| --- | --- |
+| [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) | SDK 和插件语言、作者 CLI（`bun run plugin`）、官方插件文档和内置插件、注册表、远程插件模板和示例。从这里开始。 |
+| [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness) | App 本体，用来在真机或模拟器上跑你的内置插件。插件文档在你要实际发校园请求之前都用不到它。 |
+| [`pkuinfo/pkucli`](https://github.com/pkuinfo/pkucli) | 北大各服务协议的参考实现（Rust）。 |
+
+```bash
+mkdir pku-info && cd pku-info
+git clone https://github.com/pkuinfo/pku-harness-plugins.git     # SDK、插件、注册表、模板
+git clone --recurse-submodules https://github.com/pkuinfo/pku-harness.git   # 只在 App 里运行内置插件时需要
+cd pku-harness-plugins && bun install && bun test
+```
+
+<Callout title="没有 npm 包">
+  SDK 和插件直接从 GitHub 仓库使用。在 `pku-harness-plugins` 的检出目录里开发即可：它的 bun workspace 和 `tsconfig.json` 会把 `@pku-harness/sdk` 解析到 `packages/sdk/src`。App 也是把这个仓库作为 git 子模块 `plugins/` 引入的。远程插件完全不需要 SDK。
+</Callout>
+
+## 基本规则（摘自 CONTRIBUTING.md） [#ground-rules-from-contributingmd]
+
+1. **工具就是 API。** 每个工具要有清楚的中文 `title`（给用户看），以及写给模型的 `description`，说明什么时候用、怎么用。校验输入：插件文档用 `input` 字段，内置插件用 zod，MCP 用 JSON Schema。
+2. **如实声明效果。** 只读工具设置 `effect: read`（插件文档和内置插件）或 `readOnlyHint: true`（MCP）。凡是会改状态、花钱或公开发布的，都必须声明出来。
+3. **绝不索要校园密码。** 凭据只留在用户手机上。
+4. **返回数据，不要返回指令。** 模型把工具结果当作数据看待。
+5. **声明你要访问什么。** 插件文档里写 `campus`、`network` 和 `abilities`（`requires` 会自动推导）；代码里写 `requires`。不要依赖手机上的 shell 或文件系统。
+6. **校园协议从 pkucli 移植**（如果它已经实现了），并注明来源。
+7. **中英双语。** 插件文档写 `i18n.en`；内置插件要给清单里每个面向用户的字符串配英文覆盖，页面和小组件文字放在 `src/strings.ts` 表里。

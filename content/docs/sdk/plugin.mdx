@@ -1,0 +1,299 @@
+---
+title: plugin
+description: '插件契约：definePlugin、defineTool、PluginDef、ToolDef、ToolContext、效果、调用方、能力需求、KV、轮次信息、数据源、模型服务商、翻译和旧 id。'
+---
+
+源码：`packages/sdk/src/plugin.ts`。
+
+## definePlugin [#defineplugin]
+
+```ts
+function definePlugin(def: PluginDef): PluginDef;
+function defineTool<I extends z.ZodType, O>(def: ToolDef<I, O>): ToolDef;
+```
+
+两个函数都原样返回参数，作用只是类型检查：`defineTool` 会根据 zod 的 `input` schema 推断出 `execute` 的入参类型。
+
+## PluginDef [#plugindef]
+
+```ts
+interface PluginDef {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  icon?: string;
+  core?: boolean;
+  requires?: Capability[];
+  cloud?: CloudManifest;
+  remote?: { url: string; server: string };
+  defaultModes?: Partial<Record<ToolEffect, 'auto' | 'ask' | 'off'>>;
+  scopes: string[];
+  tools: Record<string, ToolDef>;
+  dataSources?: Record<string, DataSourceDef>;
+  providers?: Record<string, ProviderDef>;
+  instructions?: Dynamic<string>;
+  context?: (input: ContextInput) => Promise<string | undefined>;
+  contributes?: Contributions;
+  i18n?: { en?: PluginTranslation };
+  legacy?: PluginLegacy;
+}
+```
+
+<TypeTable
+  type={{
+    id: { type: 'string', required: true, description: '注册 id：小写字母、数字和连字符（`PLUGIN.md` 插件必须匹配 `^[a-z0-9][a-z0-9-]{1,40}$`）。所有工具 id 都以它为前缀。' },
+    name: { type: 'string', required: true, description: '显示名称，用中文（英文写在 `i18n.en.name`）。' },
+    description: { type: 'string', required: true, description: '一句话，中文。' },
+    version: { type: 'string', required: true, description: '插件版本号，遵循 semver。' },
+    icon: { type: 'string', description: "宿主图标集里的图标名，如 'card'、'book'、'alarm'。" },
+    core: { type: 'boolean', description: '属于 Harness 核心体验：始终启用，不能关闭。' },
+    requires: { type: 'Capability[]', description: '插件需要设备提供什么；有不满足的需求时插件会被隐藏。' },
+    cloud: { type: 'CloudManifest', description: "如何使用 PKU Harness Cloud（云服务）。没有写 `optional: true` 时，还要在 `requires` 里列出 'cloud'。" },
+    remote: { type: '{ url: string; server: string }', description: '宿主为已安装的远程（MCP）插件填写，不要自己设置。' },
+    defaultModes: { type: "Partial<Record<ToolEffect, 'auto' | 'ask' | 'off'>>", description: '每种效果的默认授权方式，用户可以修改。', default: '全部 auto' },
+    scopes: { type: 'string[]', required: true, description: '插件会访问的校园服务或主机，展示给用户看。' },
+    tools: { type: 'Record<string, ToolDef>', required: true, description: '插件的 API，键是工具名。' },
+    dataSources: { type: 'Record<string, DataSourceDef>', description: '适合给小组件和定时检查用的读取工具。' },
+    providers: { type: 'Record<string, ProviderDef>', description: '模型服务商（服务商插件用）。' },
+    instructions: { type: 'Dynamic<string>', description: "追加到助手的系统提示词末尾。写短一些；提到工具时用模型侧名称（`plugin__tool`）。" },
+    context: { type: '(input: ContextInput) => Promise<string | undefined>', description: '每轮 Agent 对话前调用，返回的文本会标记为数据，在这一轮展示给模型。每次请求都要消耗 token。' },
+    contributes: { type: 'Contributions', description: '页面、设置项、标签页、小组件、命令。' },
+    i18n: { type: '{ en?: PluginTranslation }', description: "清单里面向用户的字符串的英文版本。给模型看的文本不翻译。" },
+    legacy: { type: 'PluginLegacy', description: '这个插件取代掉的旧 id，让已存的数据继续可用。' },
+  }}
+/>
+
+## ToolDef [#tooldef]
+
+```ts
+interface ToolDef<I extends z.ZodType = z.ZodType, O = unknown> {
+  title: string;
+  description: Dynamic<string>;
+  input: I;
+  effect: ToolEffect;
+  untrusted?: boolean;
+  userOnly?: boolean;
+  execute: (input: z.infer<I>, ctx: ToolContext) => Promise<O>;
+}
+```
+
+<TypeTable
+  type={{
+    title: { type: 'string', required: true, description: '展示给用户（聊天中的工具标签、审批、设置），用中文。' },
+    description: { type: 'Dynamic<string>', required: true, description: '写给模型看：什么时候用、怎么用这个工具。写成函数时可以读取宿主信息。' },
+    input: { type: 'z.ZodType', required: true, description: '宿主在运行 `execute` 之前校验。' },
+    effect: { type: 'ToolEffect', required: true, description: "'read' | 'write' | 'money' | 'public'." },
+    untrusted: { type: 'boolean', description: "返回第三方写的文本。调用后这一轮 Agent 对话会被标记为受污染。远程插件的工具一律算作此类。" },
+    userOnly: { type: 'boolean', description: '只能由用户在页面里运行：不提供给模型，助手和调度器的调用都会被拒绝。' },
+    execute: { type: '(input: z.infer<I>, ctx: ToolContext) => Promise<O>', required: true, description: '执行实际工作。失败时抛出带有用户能看懂的消息的 Error。' },
+  }}
+/>
+
+## ToolContext [#toolcontext]
+
+```ts
+interface ToolContext {
+  pluginId: string;
+  actor: Actor;
+  /** Set for agent calls inside a chat turn. */
+  turn?: TurnInfo;
+  /** This plugin's private store. */
+  kv: KV;
+  services: HostServices;
+  /** PKU Harness Cloud, bound to this plugin; optional until every host build wires it. */
+  cloud?: PluginCloud;
+  signal?: AbortSignal;
+}
+
+type Actor = 'user' | 'agent' | 'scheduler';
+
+interface TurnInfo {
+  sessionId?: string;
+  /** Earlier in this turn the agent called an untrusted tool (or any remote plugin). */
+  tainted: boolean;
+  /** The user's own message in this turn asks to remember something. */
+  userAsked?: boolean;
+}
+
+interface KV {
+  get<T>(key: string): Promise<T | undefined>;
+  set<T>(key: string, value: T): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+```
+
+## 效果与能力需求 [#effects-and-capabilities]
+
+```ts
+type ToolEffect = 'read' | 'write' | 'money' | 'public';
+
+type Capability =
+  | 'network'          // general internet access
+  | 'campus-network'   // hosts reachable only from the PKU network
+  | 'campus-session'   // authenticated campus HTTP via the host (credentials never exposed)
+  | 'notifications'
+  | 'background'       // periodic background execution
+  | 'shell'            // never available on phones; plugins needing it must run remotely
+  | 'filesystem'
+  | 'cloud'            // a PKU Harness Cloud provider is configured; see PluginDef.cloud
+  | 'ongoing';         // persistent ongoing notification / foreground service (Android only)
+```
+
+另见[工具与效果](/docs/concepts/tools-and-effects)和[能力需求](/docs/concepts/capabilities)。
+
+## 动态值 [#dynamic-values]
+
+```ts
+type Dynamic<T> = T | ((services: HostServices) => T);
+function resolveDynamic<T>(value: Dynamic<T>, services: HostServices): T;
+```
+
+## DataSourceDef [#datasourcedef]
+
+```ts
+interface DataSourceDef {
+  title: string;
+  /** Tool name inside this plugin. */
+  tool: string;
+  args?: Record<string, unknown>;
+  ttlMs: number;
+}
+```
+
+## 请求上下文 [#request-context]
+
+```ts
+interface ContextInput {
+  /** The user's latest message. */
+  query: string;
+  kv: KV;
+  services: HostServices;
+}
+
+/** Markers for context lines that retract a fact shown earlier. */
+const CONTEXT_MARK = { deleted: '[已删除]', corrected: '[更正]', arrow: ' → ' } as const;
+```
+
+宿主只会在历史里仍然显示 `old` 的对话中追加 `- [已删除] old` 和 `- [更正] old → new` 这样的行，而且只追加一次。事实文本里不能含有这个箭头。
+
+## PluginTranslation [#plugintranslation]
+
+```ts
+type PluginTranslation = {
+  name?: string;
+  description?: string;
+  /** Tool titles, keyed by tool name. */
+  tools?: Record<string, { title?: string }>;
+  widgets?: Record<string, { title?: string; description?: string }>;
+  screens?: Record<string, { title?: string }>;
+  /** Settings rows, keyed by the screen they open. */
+  settings?: Record<string, { title?: string; subtitle?: string }>;
+  /** `prompt`: the English template for prompt commands. */
+  commands?: Record<string, { description?: string; argHint?: string; aliases?: string[]; prompt?: string }>;
+  providers?: Record<string, { name?: string; description?: string; credentialHint?: string; models?: Record<string, { name?: string; description?: string }> }>;
+  dataSources?: Record<string, { title?: string }>;
+};
+```
+
+## PluginLegacy [#pluginlegacy]
+
+```ts
+interface PluginLegacy {
+  /** Old plugin ids now served by this plugin, e.g. ['campus-card', 'netfee']. */
+  pluginIds?: string[];
+  /** Old full tool id → tool name in this plugin, e.g. { 'campus-card.getBalance': 'cardBalance' }. */
+  tools?: Record<string, string>;
+  /** Old `<plugin>.<widget>` → widget key in this plugin's `contributes.widgets`. */
+  widgets?: Record<string, string>;
+}
+```
+
+合并或重命名插件之后用它。宿主会把旧插件 id（设置、`/p/<old>/…` 页面、小组件）和旧工具 id 映射到新插件，一次性改写已存的小组件和检查任务，并沿用原有设置（每种效果取最严格的授权方式）。旧 id 不会遮蔽真正安装着的插件。
+
+## 模型服务商 [#model-providers]
+
+```ts
+type ProviderAuth = 'apiKey' | 'account' | 'none';
+
+interface ProviderDef {
+  name: string;
+  description: string;
+  auth: ProviderAuth;
+  defaultBaseURL: string;
+  editableBaseURL?: boolean;
+  models: ProviderModel[];
+  defaultModel: string;
+  credentialHint?: string;
+  listModels?: (config: ProviderConfig) => Promise<ProviderModel[]>;
+  signIn?: () => Promise<string>;
+  /** Read the account balance with the user's own credential. */
+  balance?: (config: ProviderConfig) => Promise<ProviderAccount>;
+  /** Returns an AI SDK `LanguageModel` (typed loosely). */
+  createModel: (config: ProviderConfig) => unknown;
+}
+
+interface ProviderConfig {
+  baseURL: string;
+  model: string;
+  /** API key or account token from the host's secure storage. */
+  credential?: string;
+  /** Streaming fetch provided by the host (e.g. expo/fetch). */
+  fetch: typeof fetch;
+}
+
+interface ProviderModel {
+  id: string;
+  name?: string;
+  description?: string;
+  /** Context window in tokens. Unknown: 128k assumed. */
+  contextWindow?: number;
+  /** Image attachments are offered only when 'image' is listed. */
+  inputModalities?: ('text' | 'image')[];
+  pricing?: ModelPricing;
+}
+
+interface ModelPricing {
+  currency: 'CNY' | 'USD';
+  /** Per 1M tokens. */
+  inputCacheHit: number;
+  inputCacheMiss: number;
+  output: number;
+  /** Peak windows in the provider's time zone: weekdays (0 = Sunday) and [startHour, endHour). */
+  peak?: { multiplier: number; utcOffsetMinutes: number; weekdays: number[]; hours: [number, number][] };
+  /** Where the numbers come from (URL + date checked). */
+  source?: string;
+}
+
+interface ProviderBalance { currency: string; total: number; granted?: number; toppedUp?: number }
+interface ProviderAccount { available: boolean; balances: ProviderBalance[] }
+```
+
+服务商插件就是设置了 `providers` 的普通插件，通常没有工具。可以参考插件仓库里实际在用的
+`plugins/deepseek/src/index.ts` 和 `plugins/openai-compatible/src/index.ts`。
+
+```ts
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { definePlugin } from '@pku-harness/sdk';
+
+export const myProviderPlugin = definePlugin({
+  id: 'my-provider',
+  name: '我的模型',
+  description: '接入 example.com 的模型。',
+  version: '0.1.0',
+  scopes: ['api.example.com'],
+  tools: {},
+  providers: {
+    example: {
+      name: 'Example',
+      description: 'OpenAI-compatible models from example.com',
+      auth: 'apiKey',
+      defaultBaseURL: 'https://api.example.com/v1',
+      models: [{ id: 'example-large', name: 'Example Large', contextWindow: 128_000 }],
+      defaultModel: 'example-large',
+      createModel: ({ baseURL, model, credential, fetch }) =>
+        createOpenAICompatible({ name: 'example', baseURL, apiKey: credential, fetch })(model),
+    },
+  },
+});
+```

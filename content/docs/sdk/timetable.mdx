@@ -1,0 +1,72 @@
+---
+title: timetable
+description: Course 与 Semester 类型，以及课表相关的纯函数：周次表达式、教学周、某天的课、上课状态和课前提醒触发器。
+---
+
+源码：`packages/sdk/src/timetable.ts`。数据通过 `services.timetable` 获取。星期沿用 JavaScript 的编号：**0 = 周日 … 6 = 周六**。
+
+```ts
+type Course = {
+  id: string;
+  name: string;
+  location: string | null;
+  teacher: string | null;
+  weekday: number;          // 0 = Sunday … 6 = Saturday
+  start: string;            // "HH:MM"
+  end: string;              // "HH:MM"
+  /** Teaching weeks the course meets; null = every week. */
+  weeks: number[] | null;
+  /** Palette index for the colour chip (HostTheme.courseColor). */
+  color: number;
+  source: 'manual' | 'campus';
+};
+
+type Semester = { name: string; start: string /* "YYYY-MM-DD" */; weeks: number };
+```
+
+## 函数 [#functions]
+
+下面都是纯函数，有单元测试覆盖。
+
+```ts
+/**
+ * Parse a weeks expression: "1-16", "1-16单", "2-16双", "1,3,5-8", "单周", "双周", "全部"; English
+ * forms too ("1-15 odd", "2-16 even", "odd weeks", "every week"). null = every week. Throws on garbage.
+ */
+function parseWeeks(expr: string, total?: number /* 20 */): number[] | null;
+
+/** "1-16周", "1-15单周", "2,5,9周" (en: "Weeks 1-16", "Weeks 1-15 odd"). */
+function formatWeeks(weeks: number[] | null, locale?: 'zh-Hans' | 'en'): string;
+
+/** Arithmetic pattern of a weeks list (contiguous = step 1, odd/even = step 2), else null. */
+function weekPattern(weeks: number[]): { first: number; last: number; step: number } | null;
+
+/** Teaching week (1-based) of a date, or null without a semester. */
+function weekOf(sem: Semester | null, date: Date): number | null;
+
+/** Local date of a weekday in a given teaching week. */
+function dateOfWeek(sem: Semester, week: number, weekday: number): Date;
+
+/** Courses meeting on a date, sorted by start time. */
+function classesOn(courses: Course[], date: Date, sem: Semester | null): Course[];
+
+/** Status of a class at `now` on its day. */
+function classStatus(c: Course, now: Date): { state: 'before' | 'ongoing' | 'after'; progress: number; minutesToStart: number };
+
+/**
+ * Weekly reminder trigger, `minutesBefore` the start. With a semester the series runs from the
+ * first to the last teaching week (step 2 for odd/even weeks); otherwise weekly from now.
+ */
+function courseReminderTrigger(c: Course, minutesBefore: number, sem: Semester | null, now?: number): Trigger;
+```
+
+周次不规则时，`courseReminderTrigger` 会覆盖从第一周到最后一周的整段范围。
+
+```ts
+const { courses, semester } = ctx.services.timetable.get();
+const today = classesOn(courses, new Date(), semester);
+const next = today.find((c) => classStatus(c, new Date()).state === 'before');
+
+parseWeeks('1-15单');   // [1, 3, 5, …, 15]
+formatWeeks([2, 4, 6, 8], 'en');  // "Weeks 2-8 even"
+```

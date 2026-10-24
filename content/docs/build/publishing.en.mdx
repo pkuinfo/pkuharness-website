@@ -1,28 +1,29 @@
 ---
 title: Publishing
-description: Get a plugin to users. Remote plugins are listed in the marketplace registry; bundled plugins are merged into pku-harness-plugins and reach users with the next app release.
+description: Getting a plugin to users. Remote plugins are listed in the marketplace registry. Bundled plugins are merged into pku-harness-plugins and reach phones as a signed OTA update or with the next app release.
 icon: Send
 ---
 
 ## Remote plugins
 
-1. Deploy your MCP server over HTTPS ([Quickstart](/docs/build/remote-plugin#4-deploy)).
-2. Make sure your MCP server `name` equals the registry `id` you will use.
-3. List it in the marketplace: add a manifest to your repository and submit it on this website
-   ([manifest reference](/docs/marketplace/manifest), [submitting](/docs/marketplace/publishing)),
+1. Deploy your MCP server over HTTPS ([Quickstart](/en/docs/build/remote-plugin#4-deploy)).
+2. Make sure your MCP server `name` matches the registry `id` you'll use.
+3. List it in the marketplace. Either add a manifest to your repository and submit it on this
+   website ([manifest reference](/en/docs/marketplace/manifest), [submitting](/en/docs/marketplace/publishing)),
    or open a pull request that adds an entry to `registry/registry.json` in
    [`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins). Review and the
-   `verified` badge: [Review policy](/docs/marketplace/review).
+   `verified` badge are covered in the [review policy](/en/docs/marketplace/review).
 4. Users install it from Settings → Plugins → Marketplace, or add your URL by hand.
 
-Updates are live: when you deploy a new version, the app sees the new tool list the next time it
-refreshes the plugin. Keep tool names stable; renaming a tool breaks users' widgets and scheduled
-checks that reference it.
+Updates go out as soon as you deploy: the app picks up the new tool list the next time it refreshes
+the plugin. Keep tool names stable. Renaming a tool breaks users' widgets and scheduled checks that
+reference it.
 
 ## Bundled plugins
 
-1. Open an issue in `pku-harness-plugins` first (what it does, why it must be bundled).
-2. Pull request with `plugins/<id>/`, the `builtinPlugins` entry in `plugins/index.ts` and a
+1. Open an issue in `pku-harness-plugins` first, saying what the plugin does and why it has to be
+   bundled.
+2. Send a pull request with `plugins/<id>/`, the `builtinPlugins` entry in `plugins/index.ts` and a
    `"kind": "builtin"` registry entry.
 3. CI and reviewers run:
 
@@ -32,21 +33,21 @@ checks that reference it.
    bun scripts/validate-registry.ts
    ```
 
-4. After merge, the app bumps its `plugins/` submodule to the new commit, and users get the plugin
-   with the next app release (or a signed over-the-air update for JS-only changes, once that
-   channel exists).
+4. After the merge, the app bumps its `plugins/` submodule to the new commit. JS-only changes reach
+   phones as a signed over-the-air (OTA) update, applied on the next launch. Anything that needs
+   native code waits for the next app release (a new APK).
 
-Nothing is published to npm: the SDK and plugins are consumed from the GitHub repository.
+Nothing is published to npm. The SDK and plugins are consumed straight from the GitHub repository.
 
 ## Renaming or merging
 
-Never reuse or silently rename ids users may have stored (widgets, checks, settings). Use
+Never reuse or silently rename ids that users may have stored in widgets, checks or settings. Use
 `PluginDef.legacy` to map old plugin ids, tool ids and widget keys to the new ones
-([SDK → plugin](/docs/sdk/plugin#pluginlegacy)).
+([SDK → plugin](/en/docs/sdk/plugin#pluginlegacy)).
 
 ## Using PKU Harness Cloud
 
 If the plugin declares `PluginDef.cloud`, copy its `cloud` declaration (`uses`, `e2e`,
 `disclosure`, optional `backend`) into the registry entry. The marketplace shows it before
 install, and `disclosure.zh` must say in plain words what leaves the device. See
-[Cloud → plugin guide](/docs/cloud/plugin-guide#registry-entry).
+[Cloud → plugin guide](/en/docs/cloud/plugin-guide#6-registry-entry).

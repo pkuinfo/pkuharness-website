@@ -1,33 +1,33 @@
 ---
 title: cloud-protocol package
-description: '@pku-harness/cloud-protocol - the zod wire schemas, path builders, envelope crypto, share-link helpers, proof of work and token challenge shared by the app, providers and viewer pages.'
+description: '@pku-harness/cloud-protocol: the zod wire schemas, path builders, envelope crypto, share-link helpers, proof of work and token challenge that the app, providers and viewer pages share.'
 icon: Package
 ---
 
-`@pku-harness/cloud-protocol` is pure TypeScript for Hermes, Bun and browsers. The app, the
-reference server and viewer pages import the same file, so the wire format and the encryption
-can't drift. Dependencies: `@noble/ciphers`, `@noble/curves`, `@noble/hashes` (pinned); peer
-`zod ^4`. Plugins normally don't import it (the host does the cloud work); servers and viewer pages
-do.
+`@pku-harness/cloud-protocol` is pure TypeScript that runs on Hermes, Bun and in browsers. The
+app, the reference server and viewer pages import the same code, so the wire format and the
+encryption can't drift apart. Dependencies: `@noble/ciphers`, `@noble/curves` and `@noble/hashes`
+(pinned), with `zod ^4` as a peer. Plugins normally don't import it, because the host does the
+cloud work for them. Servers and viewer pages do.
 
 It lives in `packages/cloud-protocol` of
-[`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) and is not published to
-npm: use it from a checkout (workspace package `@pku-harness/cloud-protocol`), or vendor the
-`src/` folder into your server or page build.
+[`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) and isn't published to
+npm. Use it from a checkout (workspace package `@pku-harness/cloud-protocol`), or copy the `src/`
+folder into your server or page build.
 
 ## Modules
 
 | Module | Exports |
 | --- | --- |
 | `schemas.ts` | `PROTOCOL_VERSION`, every request/response/frame schema (`metaResponse`, `registerDeviceRequest`, `authTokenRequest`, `storePutRequest`, `createChannelRequest`, `ownerInFrame`, `peerInFrame`, …), id schemas, `envelopeSchema`, `errorBody`, `wireErrorCode`, `DEFAULT_LIMITS`, `paths` |
-| `crypto.ts` | `generateDeviceIdentity`, `generateSignKeyPair`, `generateBoxKeyPair`, `sign`, `verify`, `seal` / `open`, `sealBytes` / `openBytes`, `EnvelopeError`, `hkdfSha256`, `sha256`, `generateShareSecret`, `deriveShareKeys`, `joinHash`, `ownerPeerKey`, `viewerPeerKey`, `derivePeerKey`, `KDF_INFO`, `KEY_BYTES`, `NONCE_BYTES`, `SIG_BYTES` |
+| `crypto.ts` | `generateDeviceIdentity`, `generateSignKeyPair`, `generateBoxKeyPair`, `signPublicKey`, `boxPublicKey`, `sign`, `verify`, `seal` / `open`, `sealBytes` / `openBytes`, `EnvelopeError`, `hkdfSha256`, `sha256`, `generateShareSecret`, `deriveShareKeys`, `joinHash`, `ownerPeerKey`, `viewerPeerKey`, `derivePeerKey`, `KDF_INFO`, `KEY_BYTES`, `NONCE_BYTES`, `SIG_BYTES` |
 | `link.ts` | `buildShareLink`, `buildAppShareLink`, `parseShareLink`, `parseKeyFragment`, `scrubShareLinks`, `SHARE_LINK_SCRUB_RE`, `CHANNEL_ID_RE`, `APP_SCHEME` |
 | `pow.ts` | `solvePow`, `verifyPow`, `powHash`, `powPrefix`, `leadingZeroBits`, `DEFAULT_POW_DIFFICULTY` (16), `MAX_POW_DIFFICULTY` (28), `POW_CONTEXT` |
-| `auth.ts` | `signAuthChallenge`, `verifyAuthChallenge`, `authChallengeBytes`, `normaliseAudience`, `AUTH_CONTEXT`, `AUTH_MAX_SKEW_MS` (5 min), `TOKEN_TTL_S` (600) |
-| `bytes.ts` | `toB64url`, `fromB64url`, `isB64url`, `utf8` |
+| `auth.ts` | `signAuthChallenge`, `verifyAuthChallenge`, `authChallengeBytes`, `normaliseAudience`, `AUTH_CONTEXT`, `AUTH_MAX_SKEW_MS` (5 min), `AUTH_NONCE_BYTES` (16), `TOKEN_TTL_S` (600) |
+| `bytes.ts` | `toB64url`, `fromB64url`, `isB64url`, `utf8`, `fromUtf8`, `concatBytes`, `equalBytes`, `toHex` |
 
-Wire conventions: binary is base64url without padding; times are Unix ms unless the name ends in
-`S` (seconds); unknown keys are stripped on parse.
+Wire conventions: binary data is base64url without padding, times are Unix ms unless the name
+ends in `S` (seconds), and parsing strips unknown keys.
 
 ## Viewer page: join a channel and decrypt
 
@@ -75,10 +75,10 @@ ws.onmessage = (ev) => {
 };
 ```
 
-The reference server redirects `/s/<id>` to `/w/<plugin>/<page>?c=<id>`; the browser keeps the
-`#k=` fragment across the redirect, and the server never sees it. Webviews without WebSocket use
-`GET /v1/c/{id}/events?t=` (SSE) and `POST /v1/c/{id}/send` instead. A full viewer is
-`plugins/card-share/web` (a port of pkubdcard's UI).
+The reference server redirects `/s/<id>` to `/w/<plugin>/<page>?c=<id>`. The browser carries
+the `#k=` fragment across the redirect by itself, and the server never sees it. Webviews without
+WebSocket use `GET /v1/c/{id}/events?t=` (SSE) and `POST /v1/c/{id}/send` instead. For a complete
+viewer, see `plugins/card-share/web` (a port of pkubdcard's UI).
 
 ## Server: verify a token request
 
@@ -93,4 +93,4 @@ if (await nonces.seen(body.nonce)) return error(401, 'unauthorized', 'replay');
 // issue a token with claims { sub: deviceId, plg: plugin, svc: services, iat, exp: iat + 600_000 }
 ```
 
-The full endpoint list is in the [API reference](/docs/cloud/api/meta).
+The [API reference](/en/docs/cloud/api/meta) lists every endpoint.

@@ -1,12 +1,12 @@
 ---
 title: Plugins
-description: Plugin documents (PLUGIN.md) are interpreted by the app and installed by link; bundled TypeScript plugins ship in the app; remote plugins are MCP servers added by URL. All join the same registry, permissions and agent loop.
+description: Plugin documents (PLUGIN.md) are interpreted by the app and installed by link. Bundled TypeScript plugins ship inside the app. Remote plugins are MCP servers added by URL. All of them share one registry, one permission system and one agent loop.
 icon: Puzzle
 ---
 
-Every capability of PKU Harness is a plugin, and every plugin is equal. A plugin is a
+Every capability in PKU Harness is a plugin, and all plugins are equal. A plugin is either a
 **document** the app interprets, a **TypeScript** module bundled in the app, or a **remote** MCP
-server. The agent, the permission system and the marketplace treat them the same.
+server. The agent, the permission system and the marketplace treat all three the same way.
 
 ## Three kinds, one contract
 
@@ -15,16 +15,16 @@ server. The agent, the permission system and the marketplace treat them the same
 | What it is | A folder: YAML manifest + agent instructions + tools as YAML steps, widgets as generative-UI JSON | A TypeScript module built on `@pku-harness/sdk` (`definePlugin`) | An MCP server over Streamable HTTP, in any language |
 | Where it runs | On the phone, interpreted by the app (no plugin code runs) | On the phone, inside the app | On any HTTPS server you control |
 | How it ships | A link (GitHub folder or any `PLUGIN.md` URL); updates are a `git push`. Official documents are also bundled with the app and update from their link | With an app release (or a signed OTA update) | Deploy your server; users add its URL or install it from the marketplace |
-| Can use | Declared campus services (with the user's session), public hosts and [host abilities](/docs/build/declarative-plugins#host-abilities); widgets, screens, Settings rows, commands | Host services, native UI (screens, widgets, Settings rows, commands, tabs), PKU Harness Cloud | Tools only (results are shown to the model as data) |
+| Can use | Declared campus services (with the user's session), public hosts and [host abilities](/en/docs/build/declarative-plugins#host-abilities); widgets, screens, Settings rows, commands | Host services, native UI (screens, widgets, Settings rows, commands, tabs), PKU Harness Cloud | Tools only (results are shown to the model as data) |
 | Sees campus credentials | No: the harness signs its campus requests | No: it gets responses through `services.campus.request` | No, never |
 | Trust | Official (bundled or from `pkuinfo/pku-harness-plugins`) or community; community tools ask before `write` / `money` / `public` and their results are untrusted | Reviewed in the plugins repository | Third party: write effects ask first by default; every result taints the turn |
 | Tool ids | `<plugin id>.<tool>`, e.g. `classrooms.free` | `<plugin id>.<tool>`, e.g. `wallet.cardBalance` | `mcp-<server name>.<tool>`, e.g. `mcp-demo-canteen.menu` |
 
-App stores forbid downloading executable code. Documents are data, not code, so community
-plugins can run on the phone as documents, or remotely over MCP. The official campus
-integrations classrooms, campus-events, grades, canteen and shuttle are documents; TypeScript is
-for the harness's own features (UI, dashboard, scheduler, schedule, to-dos, memory, model
-providers…) and integrations the language can't express yet.
+App stores forbid downloading executable code. A document is data, so community plugins can run on
+the phone as documents, or remotely over MCP. The official campus integrations classrooms,
+campus-events, grades, canteen, shuttle and notices are all documents. TypeScript is kept for the
+harness's own features (UI, dashboard, scheduler, schedule, to-dos, memory, model providers…) and
+for integrations the language can't express yet.
 
 ## Choosing
 
@@ -39,44 +39,45 @@ Is it campus or public requests plus extraction (with the user's campus session 
 
 ## Lifecycle in the app
 
-1. **Registered**: bundled plugins and bundled documents at start-up; documents installed by
-   link once the user accepts the review sheet (the files and a content hash are stored on the
-   device); remote plugins when the user installs them (the app connects, lists the tools,
-   caches the manifest).
-2. **Available**: the device meets its `requires` [capabilities](/docs/concepts/capabilities).
-   Unavailable plugins are hidden from the agent and explained in Settings.
-3. **Enabled**: on by default; the user can turn any non-core plugin off. Core plugins (`core: true`,
-   e.g. generative UI, memory) can't be disabled.
-4. **Called**: every call goes through one path that validates input (zod), checks the
-   per-effect mode, asks for approval if needed, runs the tool and returns the result.
-5. **Updated** (documents): the app re-fetches the link at most daily. New content with the same
-   declarations applies; wider declarations wait for the user. See
-   [Declarative plugins → Updates](/docs/build/declarative-plugins#updates).
+1. **Registered**: bundled plugins and bundled documents at start-up. A document installed by link
+   is registered once the user accepts the review sheet; the files and a content hash are stored
+   on the device. A remote plugin is registered when the user installs it: the app connects, lists
+   the tools and caches the manifest.
+2. **Available**: the device meets its `requires` [capabilities](/en/docs/concepts/capabilities).
+   Unavailable plugins are hidden from the agent, and Settings explains why.
+3. **Enabled**: on by default. The user can turn off any non-core plugin. Core plugins
+   (`core: true`, e.g. generative UI, memory) can't be disabled.
+4. **Called**: every call takes one path. It validates the input (zod), checks the per-effect mode,
+   asks for approval if needed, runs the tool and returns the result.
+5. **Updated** (documents only): the app re-fetches the link at most once a day. New content with
+   the same declarations applies right away; wider declarations wait for the user. See
+   [Declarative plugins → Updates](/en/docs/build/declarative-plugins#updates).
 
 ## Remote plugins in detail
 
 - The user (or the agent, after approval) adds an MCP Streamable-HTTP URL and an optional bearer
-  token; the token goes to the keystore.
-- The plugin id is `mcp-` + a slug of the MCP server `name` (from the `initialize` response). Use
-  your registry id as the server name so the marketplace can match them.
-- Each MCP tool becomes a registry tool. Its input schema is converted from JSON Schema to zod;
-  `annotations.readOnlyHint: true` makes it a `read` tool, anything else is `write`.
-- Default modes for remote plugins: `read` auto, `write`/`money`/`public` ask.
-- Results are wrapped as `{ source, data }` (the `structuredContent`, or the text parsed as JSON),
-  and the plugin's system-prompt section tells the model they are data, not instructions.
+  token. The token goes to the keystore.
+- The plugin id is `mcp-` plus a slug of the MCP server `name` from the `initialize` response. Use
+  your registry id as the server name so the marketplace can match the two.
+- Each MCP tool becomes a registry tool. Its input schema is converted from JSON Schema to zod.
+  `annotations.readOnlyHint: true` makes it a `read` tool; anything else is `write`.
+- Default modes for remote plugins: `read` runs automatically, `write`/`money`/`public` ask.
+- Results are wrapped as `{ source, data }` (the `structuredContent`, or the text parsed as JSON).
+  The plugin's system-prompt section tells the model to treat them as data and never follow them
+  as instructions.
 - MCP tool names are sanitised to `[a-zA-Z0-9_-]` (anything else becomes `_`) and cut to 40
   characters. Keep them short ASCII camelCase.
 
 ## Merging and renaming plugins
 
-`PluginDef.legacy` lets a plugin take over old ids (for example, `wallet` replaced `campus-card`,
-`netfee` and `utilities`). The host then resolves old plugin ids, old tool ids and old widget keys
-to the new ones, and carries the user's settings over once. See
-[SDK → plugin](/docs/sdk/plugin#pluginlegacy).
+`PluginDef.legacy` lets a plugin take over old ids. For example, `wallet` replaced `campus-card`,
+`netfee` and `utilities`. The host then maps old plugin ids, old tool ids and old widget keys to
+the new ones, and carries the user's settings over once. See
+[SDK → plugin](/en/docs/sdk/plugin#pluginlegacy).
 
 ## Next
 
-- [Tools and effects](/docs/concepts/tools-and-effects)
-- [Your first plugin](/docs/build/quickstart) and [Declarative plugins](/docs/build/declarative-plugins)
-- [Quickstart: remote plugin](/docs/build/remote-plugin)
-- [Bundled plugin](/docs/build/bundled-plugin)
+- [Tools and effects](/en/docs/concepts/tools-and-effects)
+- [Your first plugin](/en/docs/build/quickstart) and [Declarative plugins](/en/docs/build/declarative-plugins)
+- [Quickstart: remote plugin](/en/docs/build/remote-plugin)
+- [Bundled plugin](/en/docs/build/bundled-plugin)

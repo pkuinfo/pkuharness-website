@@ -7,27 +7,29 @@ icon: Send
 ## Before you submit
 
 - Each plugin is a folder with a `PLUGIN.md`, and every file its frontmatter names (`tools/`,
-  `widgets/`, `screens/`) is committed. See the [manifest reference](/docs/marketplace/manifest)
-  and [Declarative plugins](/docs/build/declarative-plugins).
-- For a remote MCP plugin: the server is deployed over HTTPS (or you document how to self-host
+  `widgets/`, `screens/`) is committed. See the [manifest reference](/en/docs/marketplace/manifest)
+  and [Declarative plugins](/en/docs/build/declarative-plugins).
+- For a remote MCP plugin, the server is deployed over HTTPS (or you document how to self-host
   it) and its `name` equals the `id`. Start from
   [`templates/remote-plugin`](https://github.com/pkuinfo/pku-harness-plugins/tree/main/templates/remote-plugin).
 - The repository is **public** on github.com.
-- You follow the [review rules](/docs/marketplace/review): no campus passwords, honest effects,
-  data not instructions, cloud disclosure.
+- You follow the [review rules](/en/docs/marketplace/review): no campus passwords, honest effects,
+  data rather than instructions, and a cloud disclosure.
 
 ## Submit
 
-1. Open [/marketplace/submit](/marketplace/submit) and paste `owner/repo`, a repo URL, or a
+1. Open [/marketplace/submit](/en/marketplace/submit) and paste `owner/repo`, a repo URL or a
    folder URL (`https://github.com/owner/repo/tree/main/plugins`).
-2. Fix every error the preview shows. Re-run the check after each push (results are cached for
-   about a minute).
+2. Fix every error the preview shows. Run the check again after each push (results are cached
+   for about a minute).
 3. Click **Submit for listing**. It opens a prefilled issue in
    [`pkuinfo/pkuharness-website`](https://github.com/pkuinfo/pkuharness-website/issues) with the
    `plugin-submission` label.
-4. A GitHub Action scans the repo again, comments the report on the issue and, if it passes,
-   opens a pull request adding the repo to `data/sources.json`. Editing the issue re-runs it.
-5. A maintainer merges the pull request; the plugins appear in the marketplace on the next deploy.
+4. A GitHub Action scans the repo again and comments the report on the issue. If the scan passes,
+   it opens a pull request that adds the repo to `data/sources.json`. Editing the issue runs it
+   again.
+5. A maintainer merges the pull request, and the plugins appear in the marketplace with the next
+   deploy.
 
 You can also do it locally and open the pull request yourself:
 
@@ -36,14 +38,15 @@ bun scripts/marketplace.ts scan owner/repo   # print the report (exit 1 on error
 bun scripts/marketplace.ts add owner/repo    # scan, then add it to data/sources.json
 ```
 
-Set `GITHUB_TOKEN` (e.g. `GITHUB_TOKEN=$(gh auth token)`) for 5000 GitHub API requests per hour
-instead of 60.
+Set `GITHUB_TOKEN` (e.g. `GITHUB_TOKEN=$(gh auth token)`) to get 5000 GitHub API requests per
+hour instead of 60.
 
 ## Many plugins in one repo
 
-Nothing special is needed: every `PLUGIN.md` in the repo is picked up, each with its own handle
-`owner/repo/<folder>` and install link. For big monorepos, add a root `pku-harness.json` listing the plugin folders.
-It makes scans faster, fixes the order, and keeps example or test manifests out:
+You don't need to do anything special. The scanner picks up every `PLUGIN.md` in the repo, each
+with its own handle `owner/repo/<folder>` and its own install link. For big monorepos, add a
+`pku-harness.json` at the root that lists the plugin folders. Scans get faster, the order is
+fixed, and example or test manifests stay out:
 
 ```json title="pku-harness.json"
 { "plugins": ["services/canteen", "services/library-seat", "services/bus"] }
@@ -51,20 +54,21 @@ It makes scans faster, fixes the order, and keeps example or test manifests out:
 
 ## Updating
 
-Push. The marketplace rescans listed repositories about once an hour from their default branch,
-and the app re-fetches installed `PLUGIN.md` plugins from their link: same declarations, the
-update applies silently; wider declarations (a new campus service, host, ability or a stronger
-tool effect) wait for the user to accept.
-Adding a plugin folder lists it; deleting one removes it. Keep `id`s stable: users' installs,
-widgets and scheduled checks refer to them.
+Just push. The marketplace rescans listed repositories from their default branch about once an
+hour, and the app re-fetches installed `PLUGIN.md` plugins from their link. If the declarations
+are unchanged, the update applies silently. If they grow (a new campus service, host or ability,
+or a stronger tool effect), the update waits until the user accepts it. Adding a plugin folder
+lists it, and deleting one removes it. Keep your `id`s stable: users' installs, widgets and
+scheduled checks refer to them.
 
-If a push introduces an error, only that plugin drops out; the repo page shows the scan problem
+If a push introduces an error, only that plugin drops out. The repo page shows the scan problem
 so you can fix it.
 
 ## Removal
 
-- **By you:** delete the `PLUGIN.md` files (or the repo, or make it private). The listing disappears on
-  the next rescan. To remove the repo entry too, open a pull request deleting it from
-  `data/sources.json`.
-- **By maintainers:** plugins that break the [review rules](/docs/marketplace/review) are removed
-  by deleting the repo from `data/sources.json`, and may be blocked from resubmitting.
+- **By you:** delete the `PLUGIN.md` files (or the repo, or make it private). The listing
+  disappears on the next rescan. To remove the repo entry as well, open a pull request that
+  deletes it from `data/sources.json`.
+- **By maintainers:** plugins that break the [review rules](/en/docs/marketplace/review) are
+  removed by deleting the repo from `data/sources.json`, and the author may be blocked from
+  resubmitting.

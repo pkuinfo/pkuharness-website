@@ -1,33 +1,33 @@
 ---
 title: PKU Harness Cloud
-description: An optional, open backend standard for plugins - store, channels, push, files and functions - served by any conforming provider (official, self-hosted or custom), end-to-end encrypted by default, with no campus identity in the cloud.
+description: An optional, open backend standard for plugins (store, channels, push, files and functions) that any conforming provider can serve, official, self-hosted or custom. End-to-end encrypted by default, with no campus identity in the cloud.
 icon: Cloud
 ---
 
-Some plugin features need a server: sharing something live with a friend who doesn't have the app,
-or keeping a small piece of state across devices. **PKU Harness Cloud** is
-the standard for that, designed so the user still doesn't have to trust the server:
+A few plugin features need a server: sharing something live with a friend who doesn't have the
+app, or keeping a small piece of state across devices. **PKU Harness Cloud** is the standard for
+that. It is built so that the user still doesn't have to trust the server:
 
-- **A blind router and store by default.** Payloads are encrypted on the phone; the server forwards
-  and stores ciphertext.
-- **No campus identity in the cloud.** A device is identified only by a keypair. The server never
+- **The server is blind by default.** Payloads are encrypted on the phone; the server only
+  forwards and stores ciphertext.
+- **No campus identity in the cloud.** A device is known only by a keypair. The server never
   learns the student ID or name, and never receives campus credentials or sessions.
-- **One contract, many providers.** The official instance, a self-hosted reference server, or any
-  URL the user enters. Plugins can't tell which.
-- **Per-plugin isolation enforced by the host.** Each plugin gets a client bound to itself, with
-  its own tokens, namespace and the user's consent.
-- **The agent sees tools, never cloud credentials, tokens or share links.**
+- **One contract, many providers.** The official instance, a self-hosted reference server or any
+  URL the user enters. Plugins can't tell which one they're talking to.
+- **The host isolates plugins.** Each plugin gets a client bound to itself, with its own tokens,
+  its own namespace and its own consent from the user.
+- **The agent only sees tools.** It never sees cloud credentials, tokens or share links.
 
 <Callout title="Status (2026-10-23)">
-  Implemented: protocol v1 (`@pku-harness/cloud-protocol`), the SDK types, the reference server
+  Done: protocol v1 (`@pku-harness/cloud-protocol`), the SDK types, the reference server
   (`packages/cloud-server`), the host client (device identity, per-plugin binding and consent,
   E2E store and channels, Settings → Cloud with a connection test) and the first plugin,
-  `card-share` (share a campus-card payment code live, end to end encrypted). Not yet: the official
-  hosted instance (Settings offers self-hosted URLs meanwhile) and `push` (the reference server
-  answers `501 unsupported`).
+  `card-share`, which shares a campus-card payment code live and end to end encrypted. Not done
+  yet: the official hosted instance (use a self-hosted URL in Settings until then) and `push`
+  (the reference server answers `501 unsupported`).
 
-  The official instance is kept minimal: the blind relay for live shares (channels + mailbox), the
-  small end-to-end-encrypted store and static viewer pages. Plugin
+  The official instance is planned and will stay small on purpose: the blind relay for live
+  shares (channels and mailbox), the small end-to-end-encrypted store and the static viewer pages. Plugin
   [server functions](#server-functions) exist in the reference server but are **off on the
   official server for now**.
 </Callout>
@@ -36,22 +36,22 @@ the standard for that, designed so the user still doesn't have to trust the serv
 
 | Part | What | Where |
 | --- | --- | --- |
-| **Service definition** | SDK types (`CloudManifest`, `PluginCloud`) + a versioned HTTP protocol (`/v1`) | `@pku-harness/sdk` (`cloud.ts`), `@pku-harness/cloud-protocol`, [API reference](/docs/cloud/api/meta) |
-| **Service providers** | Official instance, open-source reference server (self-hosted), any conforming URL | [Providers and self-hosting](/docs/cloud/providers) |
-| **Consumers** | Plugins, through `ctx.cloud` / `props.cloud` | [Plugin guide](/docs/cloud/plugin-guide) |
+| **Service definition** | SDK types (`CloudManifest`, `PluginCloud`) and a versioned HTTP protocol (`/v1`) | `@pku-harness/sdk` (`cloud.ts`), `@pku-harness/cloud-protocol`, [API reference](/en/docs/cloud/api/meta) |
+| **Service providers** | The official instance, the open-source reference server (self-hosted), any conforming URL | [Providers and self-hosting](/en/docs/cloud/providers) |
+| **Consumers** | Plugins, through `ctx.cloud` / `props.cloud` | [Plugin guide](/en/docs/cloud/plugin-guide) |
 
 ## Services
 
 | Service | What it does | Encryption |
 | --- | --- | --- |
-| `store` | Key-value store per `(device, plugin)`, versions (`If-Match`), TTLs | Values sealed when the plugin declares `e2e` |
-| `channels` | Relay channels for live sharing: a device opens a channel, viewers join with a share link, frames are relayed | Always end to end: per-peer keys derived from the link secret |
-| `push` | Push tokens and scheduled pushes (planned; not on the official instance) | Payloads sealed; the server learns the time only |
+| `store` | Key-value store per `(device, plugin)`, with versions (`If-Match`) and TTLs | Values are sealed when the plugin declares `e2e` |
+| `channels` | Relay channels for live sharing: a device opens a channel, viewers join with a share link, the server relays frames | Always end to end, with per-peer keys derived from the link secret |
+| `push` | Push tokens and scheduled pushes (planned; not on the official instance) | Payloads sealed; the server only learns the time |
 | `files` | File storage (planned) | |
-| `functions` | Server functions a `PLUGIN.md` declares in `server:` ([below](#server-functions)); off on the official server for now | Declared and approved; the one place plaintext may be processed |
+| `functions` | Server functions declared in a `PLUGIN.md`'s `server:` section ([below](#server-functions)); off on the official server for now | Declared and approved; the one place where plaintext may be processed |
 
-`GET /v1/meta` tells the app which services a provider offers. A plugin whose `uses` aren't all
-offered is marked unavailable, with the reason.
+`GET /v1/meta` tells the app which services a provider offers. If a plugin `uses` a service the
+provider doesn't offer, the app marks the plugin unavailable and says why.
 
 ## How a request flows
 
@@ -69,23 +69,23 @@ plugin ──ctx.cloud.store.put(key, value)──► host (bound client for thi
 
 ## Where server code runs
 
-1. **Standard services** (store, channels, mailbox, push, files): implemented by every conforming
-   server, no plugin code on it. Prefer this tier.
-2. **Plugin server functions**: a `server:` section in a `PLUGIN.md`, run by the server with the
-   same interpreter as the app. Off on the official server for now.
-3. **External backends**: any URL speaking the protocol, declared in the manifest
+1. **Standard services** (store, channels, mailbox, push, files): every conforming server
+   implements them, and no plugin code runs there. Use this tier whenever you can.
+2. **Plugin server functions**: a `server:` section in a `PLUGIN.md`, which the server runs with
+   the same interpreter as the app. Off on the official server for now.
+3. **External backends**: any URL that speaks the protocol, declared in the manifest
    (`backend: { kind: 'external', url }`) and approved by the user.
 
 ## Server functions
 
 <Callout type="warn" title="Off on the official server for now">
-  Keep plugins phone-side or use your own backend. The design,
+  Keep your plugin on the phone, or run your own backend. The design,
   [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md),
   is on hold: what exists stays, but collections, schedules, push, groups and webhooks are not
   being built.
 </Callout>
 
-A plugin document can declare server functions in the same steps and expressions as its tools:
+A plugin document declares server functions with the same steps and expressions as its tools:
 
 ```yaml title="PLUGIN.md (frontmatter excerpt)"
 cloud:
@@ -106,19 +106,20 @@ server:
 ```
 
 - A `server:` section implies `cloud.uses: [functions]` and requires `cloud.disclosure`.
-- Server steps get a server ability set: per-user server KV (`kv.get/set/delete`) and
-  `crypto.sha256`, `crypto.hmacSha256` (with a secret by name) and `crypto.randomId`. They never
-  reach campus services; `caller.id` is a per-plugin pseudonym of the device.
-- The phone calls a function with the `cloud.call { fn, input }` ability, and widgets can bind
+- Server steps get their own ability set: per-user server KV (`kv.get/set/delete`) plus
+  `crypto.sha256`, `crypto.hmacSha256` (with a secret by name) and `crypto.randomId`. They can't
+  reach campus services. `caller.id` is a per-plugin pseudonym of the device.
+- The phone calls a function through the `cloud.call { fn, input }` ability, and a widget can bind
   `{ fn }` instead of `{ tool }`.
-- The token carries the consented document version (link + content hash), and the server runs
-  exactly that version, subject to the operator's policy (`CLOUD_FN_POLICY`: `verified`,
-  `allowlist` or `open`). See the reference server's README for its environment variables.
+- The token carries the document version the user consented to (link plus content hash), and the
+  server runs exactly that version, if the operator's policy allows it (`CLOUD_FN_POLICY`:
+  `verified`, `allowlist` or `open`). The reference server's README lists its environment
+  variables.
 
 ## Next
 
-- [Plugin guide](/docs/cloud/plugin-guide): declare `cloud`, get consent, use `store` and `channels`.
-- [Security](/docs/cloud/security): device keys, proof of work, tokens, envelopes, share links.
-- [Providers and self-hosting](/docs/cloud/providers).
-- [`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package): schemas and crypto for servers and viewer pages.
-- [API reference](/docs/cloud/api/meta): every endpoint, generated from the OpenAPI 3.1 spec.
+- [Plugin guide](/en/docs/cloud/plugin-guide): declare `cloud`, get consent, use `store` and `channels`.
+- [Security](/en/docs/cloud/security): device keys, proof of work, tokens, envelopes, share links.
+- [Providers and self-hosting](/en/docs/cloud/providers).
+- [`@pku-harness/cloud-protocol`](/en/docs/cloud/protocol-package): schemas and crypto for servers and viewer pages.
+- [API reference](/en/docs/cloud/api/meta): every endpoint, generated from the OpenAPI 3.1 spec.

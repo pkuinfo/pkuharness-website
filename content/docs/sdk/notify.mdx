@@ -1,0 +1,55 @@
+---
+title: notify
+description: NotifyReadiness 与 deliveryBlocker：在界面上检查提醒和定时检查能否准点触发。
+---
+
+源码：`packages/sdk/src/notify.ts`。配合 `services.notify.readiness()` 和
+`services.notify.fix(kind)` 使用。
+
+要准点送达，系统（目前优先 Android）需要满足三件事：通知权限；「闹钟和提醒」特殊权限，也就是精确闹钟（Android 14 起默认拒绝）；最好再关掉对本应用的电池优化，这一项只是建议。
+
+```ts
+type NotifyPermission = 'granted' | 'undetermined' | 'denied';
+
+interface NotifyReadiness {
+  /** 'denied' = the system won't ask again; only system settings can turn it on. */
+  notifications: NotifyPermission;
+  /** Exact alarms allowed (always true where the OS has no such permission). */
+  exactAlarms: boolean;
+  /** The OS may defer the app's background work (battery optimisation on). */
+  batteryOptimized: boolean;
+}
+
+/** Something the user can fix: shows the system prompt or opens the matching system screen. */
+type NotifyFixKind = 'notifications' | 'exactAlarms' | 'battery';
+
+/**
+ * The first thing that stops reminders from arriving on the minute, or null when nothing does.
+ * Battery optimisation is advisory (exact alarms still fire), so it never blocks.
+ */
+function deliveryBlocker(r: NotifyReadiness): 'notifications' | 'exactAlarms' | null;
+```
+
+只有真的有东西挡住送达时，界面才需要显示修复按钮。`fix` 只能在用户点击时调用：
+
+```tsx
+import { deliveryBlocker, type NotifyReadiness, type PluginScreenProps } from '@pku-harness/sdk';
+import { useEffect, useState } from 'react';
+
+export function ReminderBanner({ host, services }: PluginScreenProps) {
+  const { Button } = host.components;
+  const [r, setR] = useState<NotifyReadiness | null>(null);
+  useEffect(() => void services.notify.readiness().then(setR), [services]);
+  const blocker = r && deliveryBlocker(r);
+  if (!blocker) return null;
+  return (
+    <Button
+      title={blocker === 'notifications' ? '允许通知' : '允许准时提醒'}
+      variant="secondary"
+      onPress={() => void services.notify.fix(blocker).then(setR)}
+    />
+  );
+}
+```
+
+系统设置页可能在用户还没改任何东西时就返回了，所以应用回到前台时也要重新读一次 readiness。

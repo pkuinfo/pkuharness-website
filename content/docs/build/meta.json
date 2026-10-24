@@ -1,0 +1,18 @@
+{
+  "title": "开发插件",
+  "icon": "Hammer",
+  "pages": [
+    "index",
+    "quickstart",
+    "declarative-plugins",
+    "ai-authoring",
+    "remote-plugin",
+    "bundled-plugin",
+    "tools",
+    "ui",
+    "i18n",
+    "testing",
+    "porting-from-pkucli",
+    "publishing"
+  ]
+}

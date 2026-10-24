@@ -1,21 +1,21 @@
 ---
 title: Introduction
-description: PKU Harness is an open-source, AI-native app for campus life at Peking University. These docs are for people and AI agents who build plugins for it.
+description: PKU Harness is an open-source, AI-native app for campus life at Peking University. These docs are for the people and AI agents who build plugins for it.
 icon: House
 ---
 
-PKU Harness is one app a PKU student installs, signs in to once with their campus account (IAAA),
-and then uses to reach every campus system: timetable, campus card, network fee, Treehole (树洞),
-Blackboard (教学网), finance, room booking, and anything a plugin adds. An AI agent sits at the
-core and acts through those systems for the student, while the same capabilities stay one tap
-away in native UI.
+PKU Harness is the one app a PKU student installs. You sign in once with your campus account
+(IAAA) and reach every campus system from there: timetable, campus card, network fee, Treehole
+(树洞), Blackboard (教学网), finance, room booking, and whatever plugins add. An AI agent sits at
+the core and works those systems for you, and every feature it can use is also one tap away in
+native UI.
 
 ## Everything is a plugin
 
-The app is only a **harness**: an agent loop, a design system and a set of host services. Every
-capability (each campus service, the dashboard, reminders, the model provider) is a **plugin**, and
-every plugin is equal. A plugin that ships inside the app and one that a student runs on their own
-server use the same contract, show up in the same plugin list, and are governed by the same
+The app itself is only a **harness**: an agent loop, a design system and a set of host services.
+Everything else is a **plugin**: each campus service, the dashboard, reminders, even the model
+provider. Plugins are all equal. One that ships inside the app and one that a student runs on
+their own server use the same contract, sit in the same plugin list and follow the same
 permissions.
 
 ```
@@ -29,30 +29,30 @@ permissions.
    (TypeScript, SDK)        (MCP over HTTPS)     (optional backend)
 ```
 
-Two rules follow from this, and they shape everything in these docs:
+Two rules follow, and the rest of these docs keep coming back to them:
 
 - **Human and AI are equal operators.** Every capability is one typed tool. A screen calls it when
-  the user taps; the agent calls it in a conversation. Anything the user can do, the agent can do,
-  and the other way round.
+  you tap; the agent calls it in a conversation. Anything you can do, the agent can do, and the
+  other way round.
 - **Credentials never leave the device.** The harness signs in to campus services itself and hands
-  plugins responses, never passwords or session tokens.
+  plugins responses. Plugins never see passwords or session tokens.
 
 ## Who these docs are for
 
 <Cards>
-  <Card title="Student developers" href="/docs/build">
-    Connect a campus service the app doesn't cover yet, as a remote MCP server (any language) or a
-    bundled TypeScript plugin.
+  <Card title="Student developers" href="/en/docs/build">
+    Connect a campus service the app doesn't cover yet: a plugin document, a remote MCP server in
+    any language, or a bundled TypeScript plugin.
   </Card>
-  <Card title="AI agents" href="/docs/for-agents">
+  <Card title="AI agents" href="/en/docs/for-agents">
     Claude Code, Codex or the in-app agent writing a plugin. Start with the checklist, then read
     the pages it links.
   </Card>
-  <Card title="Users" href="/docs/getting-started/install">
+  <Card title="Users" href="/en/docs/getting-started/install">
     Install the app, sign in with your campus account and connect a model.
   </Card>
-  <Card title="Server operators" href="/docs/cloud">
-    Run a PKU Harness Cloud provider: the optional, end-to-end encrypted backend for plugins.
+  <Card title="Server operators" href="/en/docs/cloud">
+    Run a PKU Harness Cloud provider, the optional end-to-end encrypted backend for plugins.
   </Card>
 </Cards>
 
@@ -60,37 +60,41 @@ Two rules follow from this, and they shape everything in these docs:
 
 | You want to | Read |
 | --- | --- |
-| Understand how the app is put together | [Architecture](/docs/concepts/architecture), then the other [Concepts](/docs/concepts/plugins) pages |
-| Ship a plugin today without touching the app | [Quickstart: remote plugin](/docs/build/remote-plugin) |
-| Write a plugin that ships inside the app | [Bundled plugin](/docs/build/bundled-plugin) and the [SDK reference](/docs/sdk) |
-| List a plugin in the marketplace | [Marketplace](/docs/marketplace) |
-| Store data or share live with a server | [PKU Harness Cloud](/docs/cloud) and its [API reference](/docs/cloud/api/meta) |
-| See every repository and the roadmap | [Ecosystem](/docs/ecosystem/repositories) |
+| Understand how the app is put together | [Architecture](/en/docs/concepts/architecture), then the other [Concepts](/en/docs/concepts/plugins) pages |
+| Ship a plugin today without touching the app | [Quickstart: remote plugin](/en/docs/build/remote-plugin) |
+| Write a plugin that ships inside the app | [Bundled plugin](/en/docs/build/bundled-plugin) and the [SDK reference](/en/docs/sdk) |
+| List a plugin in the marketplace | [Marketplace](/en/docs/marketplace) |
+| Store data or share live with a server | [PKU Harness Cloud](/en/docs/cloud) and its [API reference](/en/docs/cloud/api/meta) |
+| See every repository and the roadmap | [Ecosystem](/en/docs/ecosystem/repositories) |
 
 ## Feeding these docs to an agent
 
-Every page is also available as Markdown, so you can give an agent exactly the context it needs.
+Every page is also served as Markdown, so you can hand an agent exactly the context it needs.
+The docs come in Simplified Chinese (default, under `/docs`) and English (under `/en/docs`).
 
 | URL | Content |
 | --- | --- |
-| [`/llms.txt`](/llms.txt) | Index of every page with its one-line description |
-| [`/llms-full.txt`](/llms-full.txt) | Every page in one file |
-| `/docs/<page>.md` | One page, e.g. [`/docs/sdk/plugin.md`](/docs/sdk/plugin.md) |
-| `/docs/<page>` with `Accept: text/markdown` | Same as `.md` (content negotiation) |
+| [`/llms.txt`](/llms.txt) | Index of every page in both languages, with one-line descriptions |
+| [`/llms-full.txt`](/llms-full.txt) | Every English page in one file |
+| [`/llms-full.zh.txt`](/llms-full.zh.txt) | Every Chinese page in one file |
+| `/en/docs/<page>.md` | One English page, e.g. [`/en/docs/sdk/plugin.md`](/en/docs/sdk/plugin.md) |
+| `/docs/<page>.md` | The same page in Chinese |
+| `/en/docs/<page>` with `Accept: text/markdown` | Same as `.md` (content negotiation) |
 
-Each page also has **Copy Markdown** and **Open in…** buttons under its title. The Cloud API
-reference pages render their operations and schemas as text in the Markdown version.
+Under each page title there are **Copy Markdown** and **Open in…** buttons. In the Markdown
+version, the Cloud API reference pages render their operations and schemas as text.
 
 ```bash
 # Give Claude Code the plugin checklist and the SDK contract
-curl -s https://<this-site>/docs/for-agents.md https://<this-site>/docs/sdk/plugin.md > plugin-context.md
+curl -s https://<this-site>/en/docs/for-agents.md https://<this-site>/en/docs/sdk/plugin.md > plugin-context.md
 ```
 
 <Callout title="Status">
-  PKU Harness is under active development (Android first, iOS later). The SDK and wire protocol
-  described here match the current default branches of
+  PKU Harness 1.0.0 is out for Android. iOS is being prepared. JavaScript fixes reach installed
+  apps as signed over-the-air updates; native changes ship as a new APK. The SDK and wire protocol
+  described here match the default branches of
   [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness) and
-  [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins). Plugins and the
-  SDK are consumed from that GitHub repository (not npm), and most campus integrations are
-  [plugin documents](/docs/build/declarative-plugins) (`PLUGIN.md`) installed by link.
+  [`pkuinfo/pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins). You consume
+  plugins and the SDK from that GitHub repository, not npm. Most campus integrations are
+  [plugin documents](/en/docs/build/declarative-plugins) (`PLUGIN.md`) installed by link.
 </Callout>

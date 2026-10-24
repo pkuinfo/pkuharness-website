@@ -5,11 +5,11 @@ icon: Globe
 ---
 
 A remote plugin is an [MCP](https://modelcontextprotocol.io) server that speaks the Streamable HTTP
-transport. Users add it by URL (or from the marketplace); its tools join the same registry,
-permissions and agent loop as bundled plugins. No third-party code runs on the phone, and remote
-plugins never see campus credentials.
+transport. Users add it by URL or from the marketplace, and its tools join the same registry,
+permissions and agent loop as bundled plugins. None of your code runs on the phone, and a remote
+plugin never sees campus credentials.
 
-This guide uses TypeScript with the official MCP SDK, as in the template. Any language with an MCP
+The template, and this page, use TypeScript with the official MCP SDK. Any language with an MCP
 server library works the same way.
 
 ## 1. Start from the template
@@ -21,7 +21,7 @@ cd ../my-plugin
 bun install
 ```
 
-The template is one file, `server.ts`, plus `package.json` with
+The template is a single `server.ts` plus a `package.json` that pulls in
 `@modelcontextprotocol/sdk`, `express` and `zod`:
 
 ```ts title="server.ts"
@@ -74,7 +74,7 @@ app.listen(Number(process.env.PORT ?? 8787), () => console.log('MCP plugin ready
 
 ## 2. Write real tools
 
-For each tool:
+Here is how PKU Harness reads each MCP field of a tool:
 
 | MCP field | How PKU Harness uses it |
 | --- | --- |
@@ -86,13 +86,14 @@ For each tool:
 | result `structuredContent` | Returned to the model as `data` (preferred). Without it, the text content is parsed as JSON, or passed as text. |
 | result `isError: true` | The text becomes the error message the agent sees. |
 
-The server's `instructions` (first 500 characters) are added to the plugin's section of the system
-prompt, after a line stating that the plugin's output is data, not instructions.
+The first 500 characters of the server's `instructions` go into the plugin's section of the system
+prompt, right after a line telling the model that this plugin's output is data and must not be
+followed as instructions.
 
 <Callout type="warn" title="Effects for remote tools">
-  Remote tools have only two effects in the app today: `read` (with `readOnlyHint: true`) and
-  `write` (everything else). A tool that spends money or posts publicly still lands on `write` and
-  asks first by default; say clearly in its `title` and `description` what it does.
+  For now the app gives remote tools one of two effects: `read` (when `readOnlyHint: true`) or
+  `write` (everything else). A tool that spends money or posts publicly still ends up as `write`
+  and asks first by default, so say plainly in its `title` and `description` what it does.
 </Callout>
 
 ## 3. Run it and add it to the app
@@ -102,7 +103,8 @@ bun server.ts                       # MCP plugin ready on /mcp, port 8787
 # optional: PLUGIN_TOKEN=secret bun server.ts
 ```
 
-In the app: **Settings → Plugins → Add remote plugin**, enter the URL and the token (if any):
+In the app, open **Settings → Plugins → Add remote plugin** and enter the URL, plus the token if
+you set one:
 
 | Where the app runs | URL |
 | --- | --- |
@@ -110,9 +112,9 @@ In the app: **Settings → Plugins → Add remote plugin**, enter the URL and th
 | Phone on the same network | `http://<your machine's LAN IP>:8787/mcp` |
 | Deployed | `https://my-plugin.example.com/mcp` |
 
-The app connects, lists your tools and shows them on the plugin's page with their effects. Ask the
-agent something your tool answers. You can also ask the agent to install it: it calls
-`plugins.installRemote`, which asks for your approval first.
+The app connects, lists your tools and shows them with their effects on the plugin's page. Ask the
+agent something your tool can answer. You can also ask the agent to install the plugin for you: it
+calls `plugins.installRemote`, which asks for your approval first.
 
 <Callout title="See a complete example">
   `examples/demo-canteen` in `pku-harness-plugins` is a working remote plugin with mock data (one
@@ -121,23 +123,23 @@ agent something your tool answers. You can also ask the agent to install it: it 
 
 ## 4. Deploy
 
-Deploy anywhere that serves HTTPS: a VPS, Fly.io, Railway, Cloudflare (with an MCP-compatible
-runtime), a campus server. Requirements:
+Any host that serves HTTPS will do: a VPS, Fly.io, Railway, Cloudflare (with an MCP-compatible
+runtime), a campus server. What matters:
 
-- HTTPS in production (plain HTTP only for local development).
-- `POST /mcp` answers MCP Streamable HTTP. The template is **stateless** (a new server per
+- Production needs HTTPS. Plain HTTP is only for local development.
+- `POST /mcp` must answer MCP Streamable HTTP. The template is **stateless** (a new server per
   request), which suits serverless hosts.
-- If campus hosts answer only on the PKU network, your server must run on that network; the app
-  can't lend it the user's campus session.
-- Keep secrets (your own API keys) on the server. If you protect the endpoint, use a bearer token
-  and set `"auth": "bearer"` in the registry entry.
+- If the campus host you call only answers on the PKU network, your server has to run on that
+  network too. The app can't lend it the user's campus session.
+- Your own secrets, such as API keys, stay on the server. To protect the endpoint, use a bearer
+  token and set `"auth": "bearer"` in the registry entry.
 
 ## 5. Register it
 
-Either add a manifest to your repository and submit it through this website's marketplace
-([manifest reference](/docs/marketplace/manifest), [submitting](/docs/marketplace/publishing)), or
-add an entry to `registry/registry.json` in `pku-harness-plugins`. Use the same `id` as your MCP
-server `name`:
+You have two options. Add a manifest to your repository and submit it through this website's
+marketplace ([manifest reference](/en/docs/marketplace/manifest),
+[submitting](/en/docs/marketplace/publishing)), or add an entry to `registry/registry.json` in
+`pku-harness-plugins`. Either way, the `id` must match your MCP server's `name`:
 
 ```json
 {
@@ -155,14 +157,14 @@ server `name`:
 }
 ```
 
-For a registry pull request, run `bun scripts/validate-registry.ts` first. See
-[Publishing](/docs/build/publishing) and the [review policy](/docs/marketplace/review).
+Before opening a registry pull request, run `bun scripts/validate-registry.ts`. See
+[Publishing](/en/docs/build/publishing) and the [review policy](/en/docs/marketplace/review).
 
 ## Checklist
 
 - [ ] MCP server `name` equals the registry `id` (`^[a-z0-9][a-z0-9-]{1,40}$`).
 - [ ] Every tool has a Chinese `title`, a model-facing `description` and described input fields.
-- [ ] Read-only tools set `annotations.readOnlyHint: true`; nothing else does.
+- [ ] Read-only tools set `annotations.readOnlyHint: true`, and no other tool does.
 - [ ] Results are data (`structuredContent`), never instructions, and reasonably small.
 - [ ] The plugin never asks for a campus password.
-- [ ] HTTPS endpoint; bearer auth declared if used.
+- [ ] HTTPS endpoint, with bearer auth declared if you use it.

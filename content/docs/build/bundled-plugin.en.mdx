@@ -1,27 +1,27 @@
 ---
 title: Bundled plugin
-description: Write a plugin that ships inside the app with definePlugin, step by step, using a complete example (tools, data source, screen, Settings row, widget, command, English overlay, tests).
+description: Write a plugin that ships inside the app with definePlugin, walking through a complete example with tools, a data source, a screen, a Settings row, a widget, a command, an English overlay and tests.
 icon: Package
 ---
 
-A bundled plugin is a TypeScript module in `pku-harness-plugins/plugins/<id>` built only on
-`@pku-harness/sdk`. It runs on the phone, reaches the app only through host services, and can add
-native UI. Bundled plugins ship with app releases, so **open an issue first** describing what the
-plugin does and why it can't be a plugin document or remote.
+A bundled plugin is a TypeScript module in `pku-harness-plugins/plugins/<id>` that depends only on
+`@pku-harness/sdk`. It runs on the phone, talks to the app only through host services, and can add
+native UI. Bundled plugins ship with app releases, so **open an issue first**: say what the plugin
+does and why it can't be a plugin document or a remote plugin.
 
 <Callout title="Most campus integrations are documents now">
   TypeScript is for the harness's own features (UI, dashboard, scheduler, to-dos, schedule,
   timetable, memory, plugin management, model providers, the authenticator, the payment-code
   screen) and for integrations the plugin language can't express yet. The official campus
-  integrations classrooms, campus-events, grades, canteen and shuttle are
-  [plugin documents](/docs/build/declarative-plugins) bundled with the app, and others are being
+  integrations classrooms, campus-events, grades, canteen, shuttle and notices are
+  [plugin documents](/en/docs/build/declarative-plugins) bundled with the app, and the rest are being
   ported. If your plugin is campus or public requests plus extraction, write a `PLUGIN.md`
-  instead; if it needs something the language lacks, propose a host ability.
+  instead. If it needs something the language lacks, propose a host ability.
 </Callout>
 
-This page builds a complete plugin, `focus` (track focus sessions, see today's total), that uses
-no external service, so you can run it as is. For campus services, swap the storage calls for
-`ctx.services.campus.request(...)` (see [Campus sessions](/docs/concepts/campus-sessions)).
+This page builds a complete plugin, `focus`, which tracks focus sessions and shows today's total.
+It calls no external service, so you can run it as is. For a campus service, replace the storage
+calls with `ctx.services.campus.request(...)` (see [Campus sessions](/en/docs/concepts/campus-sessions)).
 
 ## Layout
 
@@ -68,13 +68,13 @@ no external service, so you can run it as is. For campus services, swap the stor
 }
 ```
 
-The plugins workspace resolves `@pku-harness/sdk` to `packages/sdk/src`; packages are private
-(nothing is published to npm). Don't add other runtime dependencies without discussing it:
-everything ships in the app bundle.
+The plugins workspace resolves `@pku-harness/sdk` to `packages/sdk/src`. All packages are private;
+nothing goes to npm. Talk to us before adding another runtime dependency, because everything ships
+in the app bundle.
 
 ## 2. Pure logic first
 
-Keep logic that doesn't need React Native in plain modules, so `bun test` can cover it.
+Put logic that doesn't need React Native in plain modules, where `bun test` can reach it.
 
 ```ts title="plugins/focus/src/store.ts"
 import type { KV } from '@pku-harness/sdk';
@@ -218,7 +218,7 @@ What each part does:
 
 ## 4. UI
 
-Screens and widgets get the harness's components through `host`, never from the app:
+Screens and widgets get the harness's components through `host`. They never import them from the app:
 
 ```tsx title="plugins/focus/src/screen.tsx"
 import type { PluginScreenProps } from '@pku-harness/sdk';
@@ -316,8 +316,8 @@ export const strings = defineStrings<Strings>({
 });
 ```
 
-`invoke` runs a tool **as the user** (`actor: 'user'`): same validation and permissions, no
-approval prompt. After a write, refresh the live query you show.
+`invoke` runs a tool **as the user** (`actor: 'user'`), with the same validation and permissions
+but no approval prompt. After a write, refresh whatever live query you are showing.
 
 ## 5. Tests
 
@@ -346,7 +346,7 @@ describe('minutesOn', () => {
 
 ## 6. Register the plugin
 
-Add it to the bundled list (order = order in Settings and in the system prompt):
+Add it to the bundled list. The order here is the order in Settings and in the system prompt:
 
 ```ts title="plugins/index.ts"
 import { focusPlugin } from './focus/src';
@@ -357,7 +357,7 @@ export const builtinPlugins: PluginDef[] = [
 ];
 ```
 
-And to `registry/registry.json`, with an icon no other entry uses:
+Then add it to `registry/registry.json`, with an icon no other entry uses:
 
 ```json
 {
@@ -374,7 +374,7 @@ And to `registry/registry.json`, with an icon no other entry uses:
 }
 ```
 
-Then check everything:
+Finally, check everything:
 
 ```bash
 bun test                          # your tests + the i18n coverage test (plugins/i18n.test.ts)
@@ -384,8 +384,8 @@ bun scripts/validate-registry.ts  # schema, unique ids and icons, built-ins exis
 
 ## Run it in the app
 
-The app includes `pku-harness-plugins` as the git submodule `plugins/` and resolves
-`@pku-harness/sdk` and the bundled plugins from it, so you develop inside the submodule.
+The app pulls in `pku-harness-plugins` as the git submodule `plugins/` and resolves
+`@pku-harness/sdk` and the bundled plugins from there, so you develop inside the submodule.
 
 <Steps>
 <Step>
@@ -403,8 +403,8 @@ bun install
 
 ### Work in `plugins/`
 
-Create `plugins/plugins/focus/` (the submodule's `plugins/` folder), register it in
-`plugins/plugins/index.ts`, then run the app:
+Create `plugins/plugins/focus/` (the `plugins/` folder inside the submodule), register it in
+`plugins/plugins/index.ts`, and run the app:
 
 ```bash
 bun run android           # dev build on an emulator or device
@@ -412,8 +412,9 @@ bun run android           # dev build on an emulator or device
 bunx expo start --dev-client
 ```
 
-Metro reloads on save. Point the submodule at your fork (`git -C plugins remote add …`) to push your
-branch; the pull request goes to `pku-harness-plugins`, and the app later commits the submodule bump.
+Metro reloads on save. To push your branch, point the submodule at your fork
+(`git -C plugins remote add …`). The pull request goes to `pku-harness-plugins`; the app commits
+the submodule bump later.
 
 </Step>
 <Step>
@@ -426,15 +427,15 @@ the agent "开始专注高数作业".
 </Step>
 </Steps>
 
-Without a model key, use the [mock model](/docs/build/testing#mock-model). On a device, dev-only
-deep links run a tool directly: `pkuharness://dev?tool=focus.today&input={}`.
+No model key? Use the [mock model](/en/docs/build/testing#mock-model). On a device, dev-only deep
+links run a tool directly: `pkuharness://dev?tool=focus.today&input={}`.
 
 ## Rules
 
-- **MUST** use only `@pku-harness/sdk`, `zod`, `react` and `react-native` imports, plus your own
+- **MUST** import only from `@pku-harness/sdk`, `zod`, `react` and `react-native`, plus your own
   files and `plugins/shared/` (code shared by bundled plugins, e.g. `campus-card.ts`). No app
-  imports, no imports from another plugin's folder.
-- **MUST** follow the [tool rules](/docs/build/tools), [i18n rules](/docs/build/i18n) and
-  [capability rules](/docs/concepts/capabilities).
-- **MUST** load widget and screen data with `host.useToolData` instead of polling.
-- **SHOULD** keep `instructions` and `context` short: they cost tokens on every request.
+  imports, and no imports from another plugin's folder.
+- **MUST** follow the [tool rules](/en/docs/build/tools), [i18n rules](/en/docs/build/i18n) and
+  [capability rules](/en/docs/concepts/capabilities).
+- **MUST** load widget and screen data with `host.useToolData`. Don't poll.
+- **SHOULD** keep `instructions` and `context` short, since they cost tokens on every request.

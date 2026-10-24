@@ -1,0 +1,96 @@
+---
+title: 多语言（i18n）
+description: 内置插件同时提供中文和英文。清单里的文字在 `i18n.en` 里写英文覆盖，界面和小组件文字放进 `defineStrings` 表，日期交给 SDK 的格式化函数，给模型看的文字不翻译。
+icon: Languages
+---
+
+App 支持简体中文（`zh-Hans`，源语言）和英文（`en`），用户在设置里选择“跟随系统 / 简体中文 / English”。每个内置插件（bundled plugin）**必须**两种语言都写全，插件仓库里的 `plugins/i18n.test.ts` 会逐个检查覆盖情况。
+
+## 哪些要翻译 [#what-gets-translated]
+
+| 文字 | 位置 | 是否翻译 |
+| --- | --- | --- |
+| 插件 `name`、`description` | `definePlugin`（中文）+ `i18n.en` | 是 |
+| 工具 `title` | `tools.<name>.title` + `i18n.en.tools.<name>.title` | 是 |
+| 小组件标题和描述 | `contributes.widgets` + `i18n.en.widgets` | 是 |
+| 页面标题 | `contributes.screens` + `i18n.en.screens` | 是 |
+| 设置项 | `contributes.settings` + `i18n.en.settings.<screen>` | 是 |
+| 快捷指令 | `contributes.commands` + `i18n.en.commands.<name>`（`description`、`argHint`、`aliases`、`prompt`） | 是 |
+| 数据源标题 | `dataSources` + `i18n.en.dataSources` | 是 |
+| 模型服务商名称、提示、模型名 | `providers` + `i18n.en.providers` | 是 |
+| 页面和小组件里的文字 | `src/strings.ts`（`defineStrings`） | 是 |
+| 工具 `description`、`instructions`、`context`、工具结果 | 给模型看 | **否** |
+
+## 清单的英文覆盖 [#manifest-overlay]
+
+```ts
+definePlugin({
+  id: 'shuttle',
+  name: '校车',
+  description: '燕园—新燕园（昌平）通勤班车和新燕园—地铁北安河快速公交时刻表，算出下一班车。',
+  i18n: {
+    en: {
+      name: 'Shuttle bus',
+      description: 'Timetables for the Yanyuan–Xinyanyuan (Changping) commuter shuttle and the Xinyanyuan–Bei’anhe metro express bus, with the next departure worked out for you.',
+      tools: { next: { title: 'Next shuttle' }, timetable: { title: 'Shuttle timetable' } },
+      widgets: { next: { title: 'Next shuttle', description: '…' } },
+      commands: { shuttle: { description: 'Next shuttle (works offline)', argHint: 'e.g. Yanyuan to Xinyanyuan', aliases: ['bus'] } },
+      dataSources: { next: { title: 'Next shuttle' } },
+    },
+  },
+  // …
+});
+```
+
+`en` 里缺的字段运行时会回退到中文，但测试会失败，所以要全部填上。
+
+## 字符串表 [#string-tables]
+
+```ts title="src/strings.ts"
+import { defineStrings } from '@pku-harness/sdk';
+
+type Strings = {
+  none: string;
+  later: (list: string) => string;
+};
+
+export const strings = defineStrings<Strings>({
+  'zh-Hans': { none: '今明两天没有班次', later: (list) => `之后 ${list}` },
+  en: { none: 'No buses today or tomorrow', later: (list) => `Then ${list}` },
+});
+```
+
+```tsx
+const s = strings[host.useLocale()];
+<Text>{s.none}</Text>
+```
+
+`defineStrings` 会拿 `en` 和 `zh-Hans` 做类型检查：键要一样，值的类型也要一样。带参数的字符串写成函数。不要把翻译好的片段拼成句子。
+
+## 日期和数字 [#dates-and-numbers]
+
+App 的 JavaScript 引擎 Hermes 不认 `Intl` 的语言设置，所以请用 SDK 提供的格式化函数：
+
+| 函数 | zh-Hans | en |
+| --- | --- | --- |
+| `formatClock(d)` | `21:04` | `21:04` |
+| `formatWeekday(d, l)` | `周一` | `Mon` |
+| `formatLocalDate(d, l)` | `10月18日` | `Oct 18` |
+| `formatLocalDateTime(d, l)` | `10月18日 21:04` | `Oct 18, 21:04` |
+| `formatRelative(ms, l)` | `刚刚`, `3 分钟前`, `昨天 21:04` | `Just now`, `3 min ago`, `Yesterday 21:04` |
+| `formatDay(d, l)` | `今天`, `明天`, `周三` | `Today`, `Tomorrow`, `Wed` |
+| `formatCountdown(ms, l)` | `2小时10分` | `2h 10m` |
+| `plural(n, one)` | — | `1 book`, `3 books` |
+
+详见 [SDK → format](/docs/sdk/format)。
+
+## 英文文案规范 [#english-copy-rules]
+
+覆盖测试也会检查英文的写法：
+
+- 除了括号里的注释和引号内的内容，不能出现中文。`Treehole (树洞)` 是可以的。
+- 用弯撇号（`’`），不用直撇号（`'`）。
+- 不用感叹号。
+- 简短，用句首大写（sentence case）。校园专有名词用官方英文名或拼音：Peking University、Treehole (树洞)、Course (教学网 / Blackboard)、Campus Card。
+
+中文文案同理：简短，不用感叹号。

@@ -1,22 +1,23 @@
 ---
 title: Campus account
-description: Sign in once with your PKU student ID and password (IAAA); the app handles second factors, per-service sessions and the campus network.
+description: Sign in once with your PKU student ID and password (IAAA). The app handles second factors, per-service sessions and the campus network.
 icon: KeyRound
 ---
 
-PKU Harness signs in to campus services the same way a browser does, but from your phone and on
-your behalf: once with IAAA (统一身份认证), then once per service (portal, campus card, Treehole,
-Blackboard…). You enter your credentials once, in Settings → Campus account (or during onboarding).
+PKU Harness signs in to campus services the way a browser does, except it runs on your phone and
+acts for you. It signs in once with IAAA (统一身份认证), then once per service: portal, campus card,
+Treehole, Blackboard and so on. You type your credentials once, in Settings → Campus account or
+during onboarding.
 
 ## What happens when you sign in
 
-1. The app fetches IAAA's RSA public key, encrypts your password and posts the login
-   (ported from [`pkucli`](https://github.com/pkuinfo/pkucli) `crates/common`).
-2. If the credentials are wrong you see IAAA's message and nothing is stored.
-3. On success the student ID and password are saved in the **device keystore** (Expo SecureStore).
-   They are never sent to any server run by the project, and never handed to a plugin.
-4. Each campus service is signed in **on demand**, the first time a plugin needs it, and its
-   session (cookies or a token) is cached on the device and refreshed when it expires.
+1. The app fetches IAAA's RSA public key, encrypts your password and posts the login. This is
+   ported from [`pkucli`](https://github.com/pkuinfo/pkucli) `crates/common`.
+2. If the credentials are wrong, you see IAAA's message and nothing is stored.
+3. If they're right, the student ID and password go into the **device keystore** (Expo
+   SecureStore). They are never sent to any server the project runs, and no plugin ever gets them.
+4. Each campus service is signed in **on demand**, the first time a plugin needs it. Its session
+   (cookies or a token) is cached on the device and refreshed when it expires.
 
 ```
 IAAA (iaaa.pku.edu.cn) ──token──► service SSO callback ──► session cached on the device
@@ -25,39 +26,40 @@ IAAA (iaaa.pku.edu.cn) ──token──► service SSO callback ──► sessi
 
 ## Second factors
 
-IAAA usually doesn't ask for more than the password, but it can, at any sign-in including a
-background session refresh. The app then shows a prompt and the sign-in waits for you:
+IAAA usually wants nothing beyond the password, but it can ask for more at any sign-in, including
+a background session refresh. When that happens the app shows a prompt and the sign-in waits for
+you:
 
 | Mode | What you do |
 | --- | --- |
-| SMS code | Enter the code sent to your phone. On Android the app can offer **one-tap takeover** (SMS User Consent): you allow reading that one message, nothing more. |
+| SMS code | Enter the code sent to your phone. On Android the app can offer **one-tap takeover** (SMS User Consent): you allow it to read that one message and nothing else. |
 | Email code | Enter the code sent to your email. |
-| 手机令牌 (OTP) | Filled in automatically if you bound the app's authenticator (see below), otherwise enter it from your token app. |
+| 手机令牌 (OTP) | Filled in automatically if you bound the app's authenticator (see below). Otherwise, copy it from your token app. |
 
-Some services have their own extra checks on top of IAAA. Treehole asks for an SMS check now and
-then and a separate course-data token; the Treehole plugin shows these as a verification step in
-the chat or on its screen, and you (or the agent, with your code) complete it there.
+Some services add their own checks on top of IAAA. Treehole asks for an SMS check now and then,
+plus a separate token for course data. The Treehole plugin shows these as a verification step in
+the chat or on its screen, and you complete it there, or the agent does once you give it the code.
 
 ### Bind the authenticator (optional)
 
-The bundled **Authenticator** plugin can bind IAAA's 手机令牌 to the app: it verifies your stored
-credentials, IAAA sends a binding SMS, and you confirm the code. After that the app fills OTP
-prompts itself (for example in finance sign-ins), and a dashboard widget shows the current code.
-The secret stays in the keystore; plugins can read only the current code, never the secret.
+The bundled **Authenticator** plugin can bind IAAA's 手机令牌 to the app. It verifies your stored
+credentials, IAAA sends a binding SMS, and you confirm the code. From then on the app fills OTP
+prompts itself (in finance sign-ins, for example), and a dashboard widget shows the current code.
+The secret stays in the keystore. Plugins can read the current code but never the secret.
 
 ## The campus network
 
-Some hosts answer only from inside the PKU network (for example the finance system, `cwfw`).
-Plugins that need them declare the `campus-network` [capability](/docs/concepts/capabilities).
-The app's campus HTTP client always connects **directly**: it ignores system proxies and VPNs, so
-use campus Wi-Fi (or a campus VPN that routes the whole device) for those plugins.
+Some hosts only answer from inside the PKU network, such as the finance system (`cwfw`). Plugins
+that need them declare the `campus-network` [capability](/en/docs/concepts/capabilities). The
+app's campus HTTP client always connects **directly** and ignores system proxies and VPNs. Use
+campus Wi-Fi for those plugins, or a campus VPN that routes the whole device.
 
 <Callout type="warn" title="Developers with a system proxy">
   If your machine runs Clash or a similar proxy, start the Android emulator **without** inheriting
-  `HTTP_PROXY`/`HTTPS_PROXY`, or campus services can't be reached directly from it.
+  `HTTP_PROXY`/`HTTPS_PROXY`. Otherwise it can't reach campus services directly.
 </Callout>
 
 ## Signing out
 
 Settings → Campus account → sign out deletes the stored credentials and every cached service
-session from the device. Settings → Data → reset wipes everything the app stored.
+session from the device. Settings → Data → reset wipes everything the app has stored.

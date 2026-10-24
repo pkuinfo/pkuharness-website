@@ -1,18 +1,19 @@
 ---
 title: SDK reference
-description: '`@pku-harness/sdk`: the plugin contract (definePlugin, tools, providers, HostServices, HostUI, capabilities) and pure helpers (recurrence, schedules, timetable, formatting). Where to get it and what each module exports.'
+description: '`@pku-harness/sdk`: the plugin contract (definePlugin, tools, providers, HostServices, HostUI, capabilities), the plugin language and pure helpers (recurrence, schedules, timetable, formatting). Where to get it and what each module exports.'
 icon: Braces
 ---
 
-`@pku-harness/sdk` is the only package a bundled plugin depends on (besides `zod`, `react` and
-`react-native`). It is TypeScript source in the plugins repository; the app's bundler (Metro) compiles it like app code.
-Peer dependencies: `zod ^4`, `react >=19`.
+A bundled plugin depends on `@pku-harness/sdk` and nothing else from us; the only other imports are
+`zod`, `react` and `react-native`. The SDK ships as TypeScript source in the plugins repository, and
+the app's bundler (Metro) compiles it together with the app code. Peer dependencies: `zod ^4`,
+`react >=19`.
 
 ## Install
 
 There is no npm package. The SDK lives in
-[`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) (`packages/sdk`), and you
-work inside a checkout of that repository: its bun workspace and `tsconfig.json` resolve
+[`pku-harness-plugins`](https://github.com/pkuinfo/pku-harness-plugins) under `packages/sdk`, and
+you work inside a checkout of that repository. Its bun workspace and `tsconfig.json` resolve
 `@pku-harness/sdk` to `packages/sdk/src`.
 
 ```bash
@@ -21,38 +22,40 @@ cd pku-harness-plugins
 bun install
 ```
 
-The app includes the same repository as its git submodule `plugins/`, so a plugin you build there
-runs in the app ([Bundled plugin → Run it in the app](/docs/build/bundled-plugin#run-it-in-the-app)).
+The app pulls in the same repository as its git submodule `plugins/`, so a plugin you build there
+also runs in the app (see [Bundled plugin → Run it in the app](/en/docs/build/bundled-plugin#run-it-in-the-app)).
 
 ```ts
 import { definePlugin, defineTool, type PluginScreenProps } from '@pku-harness/sdk';
 ```
 
-Everything is exported from the package root.
+Everything is exported from the package root. The plugin language modules are also reachable one by
+one as `@pku-harness/sdk/lang/<module>`.
 
 ## Modules
 
 | Module | Page | Main exports |
 | --- | --- | --- |
-| `plugin.ts` | [plugin](/docs/sdk/plugin) | `definePlugin`, `defineTool`, `PluginDef`, `ToolDef`, `ToolContext`, `ToolEffect`, `Actor`, `Capability`, `KV`, `TurnInfo`, `DataSourceDef`, `ProviderDef`, `PluginTranslation`, `PluginLegacy`, `ContextInput`, `CONTEXT_MARK`, `Dynamic`, `resolveDynamic` |
-| `plugin.ts` | [host services](/docs/sdk/host-services) | `HostServices`, `JobInput`, `JobPatch`, `CheckResult`, `PluginInfo`, `ToolInfo`, `WidgetCatalogEntry`, `OngoingOptions`, `OngoingHandle` |
-| `ui.ts` | [ui](/docs/sdk/ui) | `HostUI`, `HostComponents`, `HostTheme`, `LiveData`, `PluginScreenProps`, `PluginWidgetProps`, `Contributions`, `ScreenContribution`, `SettingsContribution`, `TabContribution`, `WidgetContribution`, `CommandContribution`, `AppLocale` |
-| `genui.ts` | [genui](/docs/sdk/genui) | `specSchema`, `UISpec`, `SpecCheck` |
-| `dashboard.ts` | [dashboard](/docs/sdk/dashboard) | `Widget`, `Binding`, `bindingSchema`, `WidgetSize`, `widgetSizeSchema`, `WidgetSource`, `widgetSourceSchema` |
-| `scheduler/*` | [scheduler](/docs/sdk/scheduler) | `Trigger`, `Action`, `Condition`, `Job`, `JobRun`, schemas, recurrence engine, `ScheduleInput` + `toTrigger`/`summarize`, `evaluate`, policy constants |
-| `notify.ts` | [notify](/docs/sdk/notify) | `NotifyReadiness`, `NotifyFixKind`, `deliveryBlocker` |
-| `campus.ts` | [campus](/docs/sdk/campus) | `CampusService`, `CampusRequest`, `CampusResponse`, `CampusMultipart`, `PickedFile`, `CampusStatus`, `OtpCode`, `OtpStatus` |
-| `cloud.ts` | [cloud](/docs/sdk/cloud) | `CloudManifest`, `PluginCloud`, `Channel`, `SecretLink`, `CloudError`, `isCloudError`, `defineCloudFunction` |
-| `timetable.ts` | [timetable](/docs/sdk/timetable) | `Course`, `Semester`, `parseWeeks`, `formatWeeks`, `weekOf`, `classesOn`, `classStatus`, `courseReminderTrigger` |
-| `todo.ts` | [todo](/docs/sdk/todo) | `Todo`, `TodoInput` |
-| `format.ts` | [format](/docs/sdk/format) | `defineStrings`, `Localized`, `formatClock`, `formatLocalDate`, `formatRelative`, `formatDay`, `formatCountdown`, `plural`, … |
-| `pointer.ts` | [pointer](/docs/sdk/pointer) | `setPointer` |
+| `plugin.ts` | [plugin](/en/docs/sdk/plugin) | `definePlugin`, `defineTool`, `PluginDef`, `ToolDef`, `ToolContext`, `ToolEffect`, `Actor`, `Capability`, `KV`, `TurnInfo`, `DataSourceDef`, `ProviderDef`, `PluginTranslation`, `PluginLegacy`, `ContextInput`, `CONTEXT_MARK`, `Dynamic`, `resolveDynamic` |
+| `plugin.ts` | [host services](/en/docs/sdk/host-services) | `HostServices`, `JobInput`, `JobPatch`, `CheckResult`, `PluginInfo`, `ToolInfo`, `WidgetCatalogEntry`, `OngoingOptions`, `OngoingHandle` |
+| `ui.ts` | [ui](/en/docs/sdk/ui) | `HostUI`, `HostComponents`, `HostTheme`, `LiveData`, `PluginScreenProps`, `PluginWidgetProps`, `Contributions`, `ScreenContribution`, `SettingsContribution`, `TabContribution`, `WidgetContribution`, `CommandContribution`, `AppLocale` |
+| `genui.ts` | [genui](/en/docs/sdk/genui) | `specSchema`, `UISpec`, `SpecCheck` |
+| `dashboard.ts` | [dashboard](/en/docs/sdk/dashboard) | `Widget`, `Binding`, `bindingSchema`, `WidgetSize`, `widgetSizeSchema`, `WidgetSource`, `widgetSourceSchema` |
+| `scheduler/*` | [scheduler](/en/docs/sdk/scheduler) | `Trigger`, `Action`, `Condition`, `Job`, `JobRun`, schemas, recurrence engine, `ScheduleInput` + `toTrigger`/`summarize`, `evaluate`, policy constants |
+| `notify.ts` | [notify](/en/docs/sdk/notify) | `NotifyReadiness`, `NotifyFixKind`, `deliveryBlocker` |
+| `campus.ts` | [campus](/en/docs/sdk/campus) | `CampusService`, `CampusRequest`, `CampusResponse`, `CampusMultipart`, `PickedFile`, `CampusStatus`, `OtpCode`, `OtpStatus` |
+| `cloud.ts` | [cloud](/en/docs/sdk/cloud) | `CloudManifest`, `PluginCloud`, `Channel`, `SecretLink`, `CloudError`, `isCloudError`, `defineCloudFunction` |
+| `timetable.ts` | [timetable](/en/docs/sdk/timetable) | `Course`, `Semester`, `parseWeeks`, `formatWeeks`, `weekOf`, `classesOn`, `classStatus`, `courseReminderTrigger` |
+| `todo.ts` | [todo](/en/docs/sdk/todo) | `Todo`, `TodoInput` |
+| `format.ts` | [format](/en/docs/sdk/format) | `defineStrings`, `Localized`, `formatClock`, `formatLocalDate`, `formatRelative`, `formatDay`, `formatCountdown`, `plural`, … |
+| `pointer.ts` | [pointer](/en/docs/sdk/pointer) | `setPointer` |
+| `lang/*` | [Declarative plugins](/en/docs/build/declarative-plugins) | The `PLUGIN.md` interpreter: `loadDocument`, `compilePlugin`, `runTool`, `manifestSchema`, `toolSchema`, `ABILITIES`, `LIMITS`, `LANGUAGE_REFERENCE`, `memoryKV`, … |
 
 ## Conventions
 
-- Times are **epoch milliseconds**, device-local when interpreted as wall time. Model- and
-  form-facing strings use local `"YYYY-MM-DD HH:mm"`.
-- Timetable weekdays use JavaScript numbering (0 = Sunday … 6 = Saturday); `weekdayName` takes
+- Times are **epoch milliseconds**, read as device-local wall time where that matters. Strings
+  that the model or a form sees use local `"YYYY-MM-DD HH:mm"`.
+- Timetable weekdays use JavaScript numbering (0 = Sunday … 6 = Saturday), but `weekdayName` takes
   1 = Monday … 7 = Sunday.
-- Schemas are zod 4 objects; types are `z.infer` of them.
-- Pure helpers have no React Native imports and are unit-tested with `bun test`.
+- Schemas are zod 4 objects, and the types are `z.infer` of them.
+- Pure helpers import nothing from React Native and are unit-tested with `bun test`.

@@ -1,22 +1,22 @@
 ---
 title: Dashboard widgets and data
-description: Widgets are either AI-built (a generative-UI spec plus bindings to read tools) or plugin-provided native components; the host owns refresh with a shared stale-while-revalidate cache.
+description: A widget is either built by the agent (a generative-UI spec plus bindings to read tools) or a plugin's native component. The host handles refresh with one shared stale-while-revalidate cache.
 icon: LayoutDashboard
 ---
 
-The Dashboard tab is filled by the `dashboard` plugin. It shows one ordered list of widgets of two
-kinds, side by side. Users ask the agent for numbers ("show my card balance and the next shuttle")
-and the agent builds or edits the dashboard; users can also long-press to reorder, resize or
-delete, and add plugin widgets from the widget gallery.
+The `dashboard` plugin fills the Dashboard tab. It holds one ordered list of widgets, and two kinds
+sit side by side in it. You ask the agent for the numbers you care about ("show my card balance and
+the next shuttle") and it builds or edits the dashboard. You can also long-press a widget to
+reorder, resize or delete it, and add plugin widgets from the widget gallery.
 
 | Kind | Drawn by | Data |
 | --- | --- | --- |
-| **AI-built** `{ spec, bindings }` | The agent writes a [generative-UI](/docs/concepts/generative-ui) spec (`dashboard.upsertWidget`) | `bindings`: state path → read tool |
+| **AI-built** `{ spec, bindings }` | The agent writes a [generative-UI](/en/docs/concepts/generative-ui) spec (`dashboard.upsertWidget`) | `bindings`: state path → read tool |
 | **Plugin-provided** `{ source: { plugin, widget, config? } }` | The plugin's own native component (`contributes.widgets`), mounted in an error boundary | The component calls `host.useToolData(...)` |
 
-The agent checks `dashboard.catalog` first and places a plugin widget when one fits
-(`dashboard.addPluginWidget`); it builds its own only otherwise. The dashboard draws the card
-chrome (title, freshness, long-press menu) for both kinds.
+The agent looks at `dashboard.catalog` first. If a plugin widget fits, it places that one
+(`dashboard.addPluginWidget`) and only builds its own when nothing does. Either way the dashboard
+draws the card chrome around it: title, freshness and the long-press menu.
 
 ## Widget model
 
@@ -41,7 +41,7 @@ type Binding = {
 };
 ```
 
-An AI-built widget that shows today's classes:
+Here is an AI-built widget that shows today's classes:
 
 ```json
 {
@@ -61,20 +61,22 @@ An AI-built widget that shows today's classes:
 
 ## Refresh: owned by the host
 
-Every read-tool result lives in **one store keyed by tool + args**, shared by AI-built widgets,
-plugin widgets, plugin screens and scheduled checks (the TanStack Query model):
+Every read-tool result lives in **one store keyed by tool + args**. AI-built widgets, plugin
+widgets, plugin screens and scheduled checks all share it. If you know TanStack Query, it's the
+same model:
 
-- The last value is persisted, so a cold start shows numbers immediately with their age
-  ("3 分钟前"); a skeleton appears only when nothing was ever fetched.
-- A value is stale after its TTL (default 5 min). Stale queries **on a focused screen** refetch on
-  screen focus, when the app returns to the foreground, and on a timer while visible. Hidden tabs
-  and the background never poll.
+- The last value is persisted. After a cold start the numbers show up right away with their age
+  ("3 分钟前"). You only see a skeleton when nothing was ever fetched.
+- A value goes stale after its TTL (default 5 min). Stale queries **on a focused screen** refetch
+  when the screen gains focus, when the app comes back to the foreground, and on a timer while
+  visible. Hidden tabs and the background never poll.
 - Pull-to-refresh forces every query on screen. Identical concurrent requests share one promise.
-- A failed refresh keeps the last value and marks it ("刷新失败 · 10 分钟前").
-- Scheduled checks prime the store, so a background balance check also updates the widget.
+- If a refresh fails, the last value stays and gets marked ("刷新失败 · 10 分钟前").
+- Scheduled checks write into the same store, so a background balance check also updates the
+  widget.
 
-So a plugin widget **MUST NOT** poll on its own timer. Load data with `host.useToolData` and pick a
-TTL that matches how fast the data changes (balances 5–15 min, slow data 60+).
+That's why a plugin widget **MUST NOT** poll on its own timer. Load data with `host.useToolData`
+and pick a TTL that matches how fast the data changes: 5–15 min for balances, 60+ for slow data.
 
 ## Writing a plugin widget
 
@@ -101,5 +103,5 @@ export function CrowdWidget({ host, size }: PluginWidgetProps) {
 }
 ```
 
-Register it under `contributes.widgets` with a `description` written for the agent (it reads it
-to choose widgets). See [UI contributions](/docs/build/ui#widgets).
+Register it under `contributes.widgets` and give it a `description` written for the agent, since
+that's what the agent reads when choosing widgets. See [UI contributions](/en/docs/build/ui#widgets).

@@ -1,9 +1,9 @@
 ---
 title: genui
-description: specSchema and the UISpec type for generative UI specs, and the SpecCheck result returned by services.genui.checkSpec.
+description: specSchema and the UISpec type for generative UI specs, plus the SpecCheck result that services.genui.checkSpec returns.
 ---
 
-Source: `packages/sdk/src/genui.ts`. Concepts: [Generative UI](/docs/concepts/generative-ui).
+Source: `packages/sdk/src/genui.ts`. Concepts: [Generative UI](/en/docs/concepts/generative-ui).
 
 ```ts
 import { z } from 'zod';
@@ -29,13 +29,13 @@ export type UISpec = z.infer<typeof specSchema>;
 export type SpecCheck = { ok: true; spec: UISpec } | { ok: false; issues: string[] };
 ```
 
-`specSchema` checks the shape only. Whether each `type` exists in the catalog and its props are
-valid is checked by the host: `services.genui.checkSpec(spec)`.
+`specSchema` only checks the shape. Whether each `type` exists in the catalog and whether its props
+are valid is up to the host, through `services.genui.checkSpec(spec)`:
 
 ```ts
 const r = ctx.services.genui.checkSpec(spec);
 if (!r.ok) return { shown: false, issues: r.issues }; // let the model fix its spec
 ```
 
-Use `specSchema` as the input of tools that accept a spec (as `ui.render` and
-`dashboard.upsertWidget` do), and `host.components.GenUI` to render one in a screen.
+Use `specSchema` as the input schema of any tool that accepts a spec (`ui.render` and
+`dashboard.upsertWidget` do this). To render a spec in a screen, use `host.components.GenUI`.

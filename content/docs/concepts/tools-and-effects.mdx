@@ -1,0 +1,88 @@
+---
+title: 工具与效果
+description: 工具是插件唯一的 API。每个工具有 id、标题、写给模型的说明、zod 输入 schema，以及唯一一个效果（read、write、money、public）。
+icon: Wrench
+---
+
+一个**工具**（tool）就是一个有类型的操作。助手在对话中调用它，页面在用户点击时调用它（`invoke`），小组件读取它（`host.useToolData`），定时检查也运行它。除此之外没有别的途径能用到插件的能力，所以工具的定义就是插件的 API。
+
+## 结构 [#anatomy]
+
+```ts
+import { defineTool } from '@pku-harness/sdk';
+import { z } from 'zod';
+
+const cardBalance = defineTool({
+  title: '校园卡余额',                       // 展示给用户（聊天中的标签、审批弹窗、设置页）
+  description: 'Campus card balance in CNY, today\'s spending and the daily limit. Use when the user asks how much money is left on the card.',
+  input: z.object({}),                      // 在 execute 运行前校验
+  effect: 'read',                           // 它会改变什么：read | write | money | public
+  execute: async (_input, ctx) => {
+    const res = await ctx.services.campus.request('card', { url: '/berserker-app/ykt/tsm/queryCard?synAccessSource=h5' });
+    return parseBalance(res.body);          // 纯 JSON 数据，绝不包含指令
+  },
+});
+```
+
+| 字段 | 规则 |
+| --- | --- |
+| `title` | 中文、简短，展示给用户。英文标题写在 `i18n.en.tools.<name>.title`。 |
+| `description` | 写给模型看：**什么时候**用、**怎么**用这个工具，以及单位、格式和限制。中英文均可，不做翻译。可以是基于宿主服务的函数（`Dynamic<string>`）。 |
+| `input` | 一个 zod schema。给字段加上 `.describe()`，模型看到的是 JSON Schema。 |
+| `effect` | 下面四种效果之一，只能选一个。如实填写。 |
+| `untrusted` | 结果里含有第三方写的文字（论坛帖子、通知、活动简介）时设为 `true`。 |
+| `userOnly` | 设为 `true` 表示这是助手不能自己打开的“闸门”：工具对模型隐藏，来自助手和定时任务的调用都会被拒绝。 |
+| `execute` | `(input, ctx) => Promise<output>`。失败时抛出 `Error`，消息要清楚，让用户能看懂。 |
+
+## id 与名称 [#ids-and-names]
+
+- 工具 id：`<plugin id>.<tool name>`，例如 `wallet.cardBalance`、`scheduler.create`。代码里都用 id：`invoke('memory.list')`、`host.useToolData('wallet.cardBalance')`、检查任务、小组件绑定。
+- 模型看到的名称：把 id 中第一个 `.` 换成 `__`，例如 `wallet__cardBalance`，因为模型 API 不允许工具名里有点号。在 `instructions` 或说明里提到某个工具时，用这种写法（`"use canteen__openNow for …"`）。
+- 远程插件：`mcp-<server>.<tool>` / `mcp-<server>__<tool>`。
+
+## 效果 [#effects]
+
+| 效果 | 含义 | 例子 |
+| --- | --- | --- |
+| `read`（读取） | 只读数据，什么都不改 | 余额、课表、搜索、列表 |
+| `write`（修改） | 改变状态（设备上或服务端） | 添加待办、创建提醒、关注帖子、预约房间 |
+| `money`（花钱） | 花钱或转钱，或者让付款成为可能 | 校园卡充值、创建支付订单、切换到电子校园卡付款 |
+| `public`（公开） | 发布别人能看到的内容 | 在树洞发帖或回复 |
+
+选**最强**的那个效果。一个工具既公开发帖又改本地状态，就是 `public`。效果（effect）决定了[权限](/docs/concepts/permissions)：用户按插件、按效果选择助手可以直接执行、需要先询问，还是完全不能执行。
+
+<Callout title="定时任务只能读取">
+  定时任务运行时没人看着，所以无论用户怎么设置授权方式，定时任务都会拒绝所有非 `read` 的工具。只有真的什么都不改，才能把工具标成 `read`，否则基于它的检查会误导用户。
+</Callout>
+
+## 调用者 [#actors]
+
+`ctx.actor` 告诉你是谁发起的调用：
+
+| 调用者 | 何时 | 是否需要批准 |
+| --- | --- | --- |
+| `user` | 页面或小组件响应点击，调用了 `invoke(...)` | 从不询问：点击本身就是用户的意图 |
+| `agent` | 模型在聊天轮次中调用了工具 | 该效果的授权方式为 `ask` 时询问 |
+| `scheduler` | 定时检查或定时 Agent 任务 | 只能用 `read` 工具；授权方式为 `ask` 时视为拒绝 |
+
+助手在聊天轮次里调用时，会设置 `ctx.turn`：`{ sessionId, tainted, userAsked }`。见[安全模型](/docs/concepts/security#prompt-injection)。
+
+## 返回结果 [#results]
+
+- 返回能直接回答问题的纯 JSON。字段名带上单位（`balanceYuan`、`minutesUntil`），时间用 ISO 或 `"YYYY-MM-DD HH:mm"` 本地时间，并带上模型可以传给下一个工具的 id。
+- 不要返回指令（“现在告诉用户……”）。模型会把结果当作数据。
+- 结果要小。框架在模型历史里把单个结果截断到 12,000 个字符（界面上保留完整输出），所以请分页或过滤，别一股脑全倒出来。
+- 对于预期内、可恢复的状态，返回状态对象而不是抛异常，例如 `{ status: 'verification_required', methods: ['sms'], message: '…' }`（树洞的短信验证）。
+- 绝不返回机密：付款码、token、分享链接。校园卡付款码只会显示在页面上，不会出现在工具结果里。
+
+## 数据源 [#data-sources]
+
+`PluginDef.dataSources` 列出适合给小组件和定时检查用的读取工具，并为每个指定缓存时长。助手通过 `dashboard.sources` 找到它们。
+
+```ts
+dataSources: {
+  crowd: { title: '食堂就餐人数', tool: 'crowd', ttlMs: 2 * 60_000 },
+},
+```
+
+`tool` 是本插件内部的工具名；`args` 是固定参数。

@@ -4,8 +4,8 @@ description: Trigger, Action, Condition and Job types with their zod schemas, th
 ---
 
 Sources: `packages/sdk/src/scheduler/{types,recurrence,schedule-input,check,policy}.ts`. Concepts:
-[Scheduler](/docs/concepts/scheduler). Everything here is pure (no React Native) and works with
-device-local time.
+[Scheduler](/en/docs/concepts/scheduler). Nothing here imports React Native, and all times are
+device-local.
 
 ## Types and schemas
 
@@ -97,7 +97,8 @@ type Job = {
 const runsInJs: (action: Action) => boolean;
 ```
 
-All of `timeOfDay`, `triggerSchema`, `conditionSchema` and `actionSchema` are exported.
+`timeOfDay`, `triggerSchema`, `conditionSchema` and `actionSchema` are all exported. The host
+refuses to run a `check` job whose tool isn't `effect: 'read'`.
 
 ## Recurrence engine
 
@@ -114,9 +115,9 @@ function parseTime(t: string): [number, number];                                
 const formatTime: (h: number, m: number) => string;                                    // (8, 5) → "08:05"
 ```
 
-A series is a sequence of periods (one minute/hour step, one day, or one Monday-based week), each
-with a fixed list of slots (times × weekdays). Slots before `startAt` are skipped; the rest are
-numbered 0, 1, 2… and `count` / `until` cut the series. DST-safe.
+A series is a run of periods: one step of minutes or hours, one day, or one week starting on Monday.
+Every period has the same slots (times × weekdays). Slots before `startAt` are skipped, the rest are
+numbered 0, 1, 2… and `count` or `until` ends the series. Daylight-saving changes don't shift it.
 
 ```ts
 const every3Days16Times: Trigger = {
@@ -159,8 +160,8 @@ function summarize(trigger: Trigger, now?: number, n?: number): {
 };
 ```
 
-Use `scheduleInputSchema` as a tool input and `summarize` in the result, so the model can read back
-the exact times to the user.
+Use `scheduleInputSchema` as a tool's input and return `summarize` in its result. The model then has
+the exact times to read back to the user.
 
 ## Conditions
 
@@ -173,8 +174,8 @@ function evaluate(cond: Condition, value: unknown, previous?: unknown): boolean;
 function fillTemplate(template: string, value: unknown): string;
 ```
 
-`changed` is true only when there was a previous value and it differs (JSON comparison). Numeric
-ops coerce numeric strings; anything non-numeric compares false.
+`changed` is true only when there is a previous value and it differs (compared as JSON). Numeric
+operators accept numeric strings; anything that isn't a number compares false.
 
 ## Policy constants
 
@@ -200,4 +201,5 @@ const isSilentReply: (text: string) => boolean;                            // em
 function agentJobHeader(job: { id: string; title: string; prompt: string }): string;
 ```
 
-These are enforced by the host's scheduler engine; plugins use them to explain limits up front.
+The host's scheduler engine enforces these. Plugins import them to explain the limits up front
+instead of letting the user run into them.

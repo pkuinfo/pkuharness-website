@@ -1,6 +1,6 @@
 ---
 title: todo
-description: The Todo and TodoInput types used by services.todos.
+description: The Todo and TodoInput types behind services.todos.
 ---
 
 Source: `packages/sdk/src/todo.ts`.
@@ -35,4 +35,5 @@ await ctx.services.todos.add(
 );
 ```
 
-Marking a to-do done (`setDone(id, true)`) pauses its reminder.
+`setDone(id, true)` pauses the to-do's reminder job; `setDone(id, false)` turns it back on.
+Removing the to-do deletes the job too.

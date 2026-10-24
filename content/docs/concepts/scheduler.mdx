@@ -1,0 +1,93 @@
+---
+title: 定时任务与通知
+description: 提醒、待办、上课提醒和定时检查都由同一个引擎驱动。每个任务由一个触发器（单次或有限次的重复）和一个动作（通知、检查、助手）组成，准点到分钟触发。
+icon: AlarmClock
+---
+
+PKU Harness 里所有和时间有关的东西都是同一个定时任务引擎（`scheduler`）里的一个**任务**（job）：一条提醒、某个待办的提醒、上课提醒，或者“每天早上查一下我的校园卡余额”。用户可以在日程标签页里创建任务，也可以直接让助手创建。插件通过 `services.scheduler` 创建任务。
+
+## 任务 [#jobs]
+
+```ts
+type Job = {
+  id: string;
+  title: string;
+  trigger: Trigger;          // 何时触发
+  action: Action;            // 做什么
+  enabled: boolean;
+  source: 'user' | 'agent' | 'plugin';
+  runs: number;              // 已触发（或已错过）的次数
+  lastRunAt: number | null;
+  nextRunAt: number | null;  // 系列结束后为 null
+  // check / agent 任务还会记录 lastValue、lastError、history（最近 20 次）、failures …
+  meta?: Record<string, unknown>;  // 指回所属对象，例如 { todoId }
+  createdAt: number;
+  updatedAt: number;
+};
+```
+
+## 触发器 [#triggers]
+
+所有时间都是**设备本地时间**。
+
+| 触发器 | 字段 | 适用场景 |
+| --- | --- | --- |
+| `{ type: 'at' }` | `at`（毫秒时间戳） | “两天后”“明天 8:00” |
+| `{ type: 'every' }` | `unit`（`minute` `hour` `day` `week`），`interval`（1–1000），`times?`（`"HH:MM"`，用于 day/week），`weekdays?`（0 = 周日 … 6，用于 week），`startAt`，`count?`，`until?` | “每天早上 8 点”“每 3 天一次，共 16 次后停止”“每周一三五 07:30，到学期结束” |
+
+一个重复系列由若干周期组成：一个分钟或小时步长、一天，或者从周一开始的一周。每个周期里有若干时间点（时刻 × 星期）。早于 `startAt` 的时间点会被跳过，剩下的依次编号 0、1、2……，再由 `count`、`until`（含当天）或两者一起截断。
+
+助手和表单使用更友好的输入格式 `ScheduleInput`，时间写成本地的 `"YYYY-MM-DD HH:mm"` 字符串：
+
+```json
+{ "type": "repeat", "unit": "day", "interval": 3, "times": ["09:00"], "count": 16 }
+```
+
+`toTrigger(input)` 负责转换。`summarize(trigger)` 返回 `{ schedule, next, total, finished }`，例如 `"每 3 天 09:00 · 共 16 次"` 以及接下来的三个时间，助手可以在保存前把时间念给用户确认。
+
+## 动作 [#actions]
+
+| 动作 | 字段 | 执行方式 |
+| --- | --- | --- |
+| `notify` | `title`，`body?`，`url?`（点击通知后打开的 App 内路由） | 提前注册为精确通知，触发时不运行任何代码 |
+| `check` | `tool`（只读，`<plugin>.<tool>`），`args?`，`condition`，`title`，`body?`，`url?` | 调用工具，读取 `condition.path`，条件成立才发通知；文案里的 `{value}` 会替换成读到的值 |
+| `agent` | `prompt`（4–1000 字符） | 新开一个只读的助手会话，不带聊天记录；回复 `NO_REPLY` 表示不打扰，否则它的简短回答就是通知内容 |
+
+条件写作 `{ path, op, value? }`，`op` 取 `<` `<=` `>` `>=` `==` `!=` `changed` `always` 之一。
+
+```json
+{
+  "type": "check",
+  "tool": "wallet.cardBalance",
+  "condition": { "path": "balance", "op": "<", "value": 100 },
+  "title": "校园卡余额只剩 ¥{value}，记得充值"
+}
+```
+
+## 精确送达（Android） [#exact-delivery-android]
+
+`notify` 任务会提前注册为精确闹钟，窗口为 14 天，每个任务最多 64 个，总共最多 400 个。App 启动、任务每次变更、App 回到前台以及后台任务运行时，都会重新注册。
+
+`check` 和 `agent` 任务在 JavaScript 里运行。App 在前台时，由计时器准点到分钟触发。App 在后台或已被杀掉时，由精确闹钟唤醒一个 headless 任务，它会执行所有到期的任务、注册下一个闹钟，并移除占位通知。
+
+这些都需要通知权限和“闹钟和提醒”特殊权限，Android 14 及以上默认不授予后者。电池优化只是建议项。`services.notify.readiness()` 会报告这三项状态，`deliveryBlocker(readiness)` 指出第一个阻碍项，`services.notify.fix(kind)` 打开对应的系统弹窗或设置页。`fix` 要在用户点击时调用。
+
+## 无人值守运行策略 [#unattended-run-policy]
+
+定时检查运行时没人盯着，所以它受到限制、全程留有记录，失败时会大声提醒：
+
+| 规则 | 取值 |
+| --- | --- |
+| 定时运行可调用的工具 | 只能是 `read`，运行时会重新检查；授权方式为 `ask` 时视为拒绝 |
+| 启用中的任务 | ≤ 50（`MAX_ACTIVE_JOBS`） |
+| 检查频率 | 最多每 15 分钟一次（`MIN_CHECK_GAP_MS`）；不允许重复的检查（工具、参数、条件都相同） |
+| 助手任务 | ≤ 10 个（`MAX_AGENT_JOBS`），最多每小时一次（`MIN_AGENT_GAP_MS`），每次运行 ≤ 8 步（`AGENT_MAX_STEPS`） |
+| 延迟运行 | 迟到超过 2 小时（`MAX_LATE_MS`）的运行记为错过，不会在几小时后才弹出提醒 |
+| 运行日志 | 最近 20 次（`HISTORY_LIMIT`）：计划时间与实际时间、结果、值、错误 |
+| 失败处理 | 连续 2 次失败（`FAIL_ALERT_AFTER`）提醒用户一次，6 小时后再提醒；连续 10 次（`DISABLE_AFTER`）停用任务并告知用户 |
+
+## 写给插件作者 [#for-plugin-authors]
+
+- 把工具写得适合被检查：效果为 `read`、响应快、有一个稳定的数字或布尔字段可供比较（`balance`、`unread`、`available`）。把这些工具列在 `dataSources` 里，助手才能找到它们。
+- 只在响应用户操作时才用 `services.scheduler.create({ …, source: 'plugin' })` 创建任务。保存好任务 id（放在 `meta` 或你的 `kv` 里），之后才能更新或删除它。
+- SDK 导出了纯计算引擎（`occurrencesAfter`、`nextOccurrence`、`describeTrigger`、`evaluate` 等）。详见 [SDK → scheduler](/docs/sdk/scheduler)。

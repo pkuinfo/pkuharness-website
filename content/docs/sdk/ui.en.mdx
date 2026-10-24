@@ -1,9 +1,9 @@
 ---
 title: ui
-description: HostUI (components, theme, navigation, haptics, live data hooks), the props screens and widgets receive, and every contribution type (screens, Settings rows, tabs, widgets, commands).
+description: 'HostUI (components, theme, navigation, haptics, live data hooks), the props that screens and widgets receive, and every contribution type (screens, Settings rows, tabs, widgets, commands).'
 ---
 
-Source: `packages/sdk/src/ui.ts`. Guide: [UI contributions](/docs/build/ui).
+Source: `packages/sdk/src/ui.ts`. Guide: [UI contributions](/en/docs/build/ui).
 
 ## Props
 
@@ -91,10 +91,11 @@ interface LiveData<T = unknown> {
 }
 ```
 
-Stale-while-revalidate: the last value (persisted across launches) shows at once; the host
-refetches when it is older than its TTL, on screen focus, when the app returns to the foreground,
-every TTL while visible, and on `refresh()`. The same tool + args share one request and one cache
-entry across widgets, screens and scheduled checks.
+Live data is stale-while-revalidate. The last value is kept across launches and shows immediately.
+The host refetches when that value is older than its TTL, when the screen gets focus, when the app
+comes back to the foreground, once per TTL while the screen is visible, and when you call
+`refresh()`. Widgets, screens and scheduled checks that ask for the same tool with the same args
+share one request and one cache entry.
 
 ## HostTheme
 
@@ -120,7 +121,7 @@ interface HostTheme {
 
 ## HostComponents
 
-All are React components passed by the host. `Style` is a plain React Native style, passed through.
+The host passes these in as React components. `Style` is a plain React Native style and is passed through unchanged.
 
 ```ts
 type Tone = 'default' | 'muted' | 'faint' | 'accent' | 'up' | 'down' | 'warn' | 'info' | 'onAccent';
@@ -165,15 +166,15 @@ interface HostComponents {
 
 | Component | Notes |
 | --- | --- |
-| `Screen` | Root of a pushed screen: header with title, back, optional trailing element, pull-to-refresh. |
-| `SheetScreen` | Form sheet layout for modal screens: title + close, scrolling body, primary (and optional secondary / danger) action. |
+| `Screen` | Root of a pushed screen: a header with title, back button and optional trailing element, plus pull-to-refresh. |
+| `SheetScreen` | Form sheet layout for modal screens: title and close button, a scrolling body, a primary action and optional secondary / danger actions. |
 | `Pressable` | Tappable container with the app's press feedback. |
-| `Hourglass` | Drains over `period` seconds aligned to Unix time (e.g. a TOTP window) and flips at each boundary. |
-| `GenUI` | Renders a [generative-UI spec](/docs/sdk/genui) with the host catalog. |
-| `SortableList` | Vertical list sortable by dragging a handle; rows rendered by the plugin. |
-| `PluginWidget` | Mounts a plugin-contributed widget (error-isolated). |
-| `Glass` / `GlassEdges` | The app's panel material; use for cards and tiles. |
-| `QRCode` | Dark on white in every theme. `link` encodes a share link the plugin can't read (wins over `value`). |
+| `Hourglass` | Drains over `period` seconds aligned to Unix time (a TOTP window, for example) and flips at each boundary. |
+| `GenUI` | Renders a [generative UI spec](/en/docs/sdk/genui) with the host catalog. |
+| `SortableList` | Vertical list that the user reorders by dragging a handle. The plugin renders the rows. |
+| `PluginWidget` | Mounts a widget contributed by a plugin. Errors stay inside the widget, and it shows a notice if that plugin is off. |
+| `Glass` / `GlassEdges` | The app's panel material. Use `Glass` for cards and tiles; `GlassEdges` adds the edge and top light to a container that paints its own `colors.surface*` fill. |
+| `QRCode` | Dark on white in every theme. `link` encodes a share link the plugin itself can't read, and wins over `value` when both are set. |
 
 ## Contributions
 
@@ -239,3 +240,8 @@ type CommandContribution = {
     }
 );
 ```
+
+A plugin widget gets placed by the agent (`dashboard.addPluginWidget`) or by the user from the
+dashboard's widget gallery. Load its data with `host.useToolData` so it refreshes like every other
+widget; the dashboard draws the card chrome (title, background). Command names only get a
+`/plugin:name` prefix when two plugins pick the same name.

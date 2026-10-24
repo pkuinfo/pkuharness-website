@@ -1,0 +1,38 @@
+---
+title: todo
+description: services.todos 使用的 Todo 与 TodoInput 类型。
+---
+
+源码：`packages/sdk/src/todo.ts`。
+
+```ts
+type Todo = {
+  id: string;
+  title: string;
+  notes: string | null;
+  dueAt: number | null;
+  doneAt: number | null;
+  /** Reminder job in the scheduler, if any. */
+  jobId: string | null;
+  createdAt: number;
+};
+
+type TodoInput = {
+  title: string;
+  notes?: string | null;
+  dueAt?: number | null;
+  /** When to remind; null = no reminder. A trigger allows repeating reminders. */
+  remind?: Trigger | null;
+};
+```
+
+```ts
+// 周五 23:59 截止的待办，前一天晚上 8 点提醒
+const due = new Date(2026, 9, 30, 23, 59).getTime();
+await ctx.services.todos.add(
+  { title: '交高数作业', dueAt: due, remind: { type: 'at', at: new Date(2026, 9, 29, 20, 0).getTime() } },
+  'plugin',
+);
+```
+
+`setDone(id, true)` 会暂停这条待办的提醒任务，`setDone(id, false)` 再把它打开。删除待办时，提醒任务也一并删除。

@@ -1,9 +1,9 @@
 ---
 title: dashboard
-description: The Widget type, Binding and WidgetSource schemas and WidgetSize used by dashboard widgets and services.widgets.
+description: The Widget type, the Binding and WidgetSource schemas, and WidgetSize, as used by dashboard widgets and services.widgets.
 ---
 
-Source: `packages/sdk/src/dashboard.ts`. Concepts: [Dashboard](/docs/concepts/dashboard).
+Source: `packages/sdk/src/dashboard.ts`. Concepts: [Dashboard](/en/docs/concepts/dashboard).
 
 ```ts
 import { z } from 'zod';
@@ -50,19 +50,20 @@ export type Widget = {
 };
 ```
 
-Bindings write their results into the spec's state with [`setPointer`](/docs/sdk/pointer), so a
-binding at `/card` with `path: "balance"` makes `{ "$state": "/card" }` the balance.
+Each binding writes its result into the spec's state with [`setPointer`](/en/docs/sdk/pointer). A
+binding at `/card` with `path: "balance"` therefore makes `{ "$state": "/card" }` resolve to the
+balance.
 
-Placing a plugin widget from a tool:
+To place a plugin widget from a tool, build a `Widget` with a `source` and `put` it:
 
 ```ts
 const w: Widget = {
   id: ctx.services.widgets.newId(),
-  title: '下一班校车',
+  title: '校园卡余额',
   size: 'md',
   spec: {},
   bindings: {},
-  source: { plugin: 'shuttle', widget: 'next', config: { from: '新燕园', to: '燕园' } },
+  source: { plugin: 'wallet', widget: 'card', config: { warnBelow: 30 } },
   position: ctx.services.widgets.list().length,
   createdAt: Date.now(),
   updatedAt: Date.now(),
@@ -70,4 +71,5 @@ const w: Widget = {
 await ctx.services.widgets.put(w);
 ```
 
-Most plugins don't need this: the agent places widgets with `dashboard.addPluginWidget`.
+Most plugins never need to do this, because the agent places widgets itself with
+`dashboard.addPluginWidget`.

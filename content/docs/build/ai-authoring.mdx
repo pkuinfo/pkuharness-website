@@ -1,0 +1,66 @@
+---
+title: 让 AI 帮你写插件
+description: 在 App 里让助手和你一起写 PLUGIN.md 插件。它会查阅语言参考、校验草稿、对真实服务试跑只读工具，最后弹出同一张审核页，由你决定要不要安装。
+icon: Sparkles
+---
+
+插件（plugin）说到底是一堆文本，所以 App 里的助手可以和你一起写。你说一句“给体育馆预约网站做个插件”，最后就会得到一个 `PLUGIN.md` 文件夹，供你审核、安装。助手用的是内置 **Plugins** 插件（`plugins`）提供的工具（tool），没有你点头，它什么也装不了。
+
+## 相关工具 [#the-tools]
+
+| 工具 | 效果 | 作用 |
+| --- | --- | --- |
+| `plugins.reference` | read | 一页纸讲完插件语言：清单、步骤、表达式、标准库、宿主能力、限制和一个示例。助手在写或改插件前按需读取，并不会放进每一轮提示词。 |
+| `plugins.validate` | read | 用和 App 相同的加载器校验一个草稿文件夹（`{ files: { "PLUGIN.md": "…", "tools/x.yaml": "…" } }`）。返回 `{ ok: true, id, version, tools, widgets, campus, network, abilities }`，或者 `{ ok: false, issues }`，每个问题都标出文件和步骤。 |
+| `plugins.tryTool` | read | 不安装，直接真实运行草稿里的某个**只读**工具：发真实请求，对草稿声明的服务使用你的校园会话，存储是一次性的。`write`、`money` 和 `public` 工具不能试跑。结果视为不可信数据。 |
+| `plugins.source` | read | 读取已安装插件文档的文件，用来解释、修复或派生它。内置的 TypeScript 插件没有插件文档。 |
+| `plugins.install` | write | 为一个链接（GitHub 文件夹或 `PLUGIN.md` URL）或一份草稿（`{ files }`）打开 App 的审核页。它只负责打开审核页，装不装由你决定。 |
+
+Plugins 插件默认在执行 `write` 工具前询问，所以只要你没改过这个授权方式，助手在打开审核页之前也会先问你。
+
+## 流程 [#the-flow]
+
+<Steps>
+<Step>
+
+### 说出你的需求 [#describe-what-you-want]
+
+说清楚插件要做什么；如果知道该用哪个页面或接口，也一并告诉它。如果是校园服务，记得点明：插件会用你已登录的会话去调用，永远看不到你的密码。
+
+</Step>
+<Step>
+
+### 助手起草并校验 [#the-agent-drafts-and-validates]
+
+助手会先读 `plugins.reference`，再写 `PLUGIN.md` 和各个工具文件，然后反复调用 `plugins.validate`，直到没有问题为止。
+
+</Step>
+<Step>
+
+### 试跑只读工具 [#it-tries-the-read-tools]
+
+`plugins.tryTool` 会对真实服务运行只读工具，安装之前你就能看到实际结果。
+
+</Step>
+<Step>
+
+### 审核并安装 [#you-review-and-install]
+
+`plugins.install` 打开的审核页和安装链接时看到的一样：官方还是社区、能访问哪些校园服务、网站和 App 功能，以及每个工具和它的效果。在对话里写出来的草稿算社区插件。你点“安装”之前，什么都不会装上。
+
+</Step>
+</Steps>
+
+想修改已安装的插件文档，直接让助手修或者加功能就行。它会用 `plugins.source` 读取文件、修改、校验，再用新版本重新打开审核页。你在对话里贴一个插件链接，助手会用 `plugins.install { link }` 打开审核页。
+
+## 分享你的作品 [#share-what-you-made]
+
+助手写出的草稿就是普通的插件文件夹。想分享它，或者让它能通过链接持续更新，就把文件夹放进一个公开的 GitHub 仓库，文件夹的 URL 就是安装链接（见[第一个插件](/docs/build/quickstart#share-it)）。发布之前，请在电脑上跑一遍[作者 CLI](/docs/build/declarative-plugins#test)，并补上录制好的测试。
+
+## 安全 [#safety]
+
+- 助手绝不会自行安装。`plugins.install` 只会打开审核页。
+- `tryTool` 只运行只读工具，只能访问草稿声明的范围，也不会保存任何东西。
+- 装好的草稿和其他社区插件遵守同样的规则：`write`、`money` 和 `public` 工具先询问，结果作为数据交给 AI，绝不会被当作指令。
+
+插件语言本身见[声明式插件](/docs/build/declarative-plugins)，各种授权方式怎么运作见[权限](/docs/concepts/permissions)。

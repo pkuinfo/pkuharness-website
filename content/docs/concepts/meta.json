@@ -1,0 +1,17 @@
+{
+  "title": "核心概念",
+  "icon": "Lightbulb",
+  "pages": [
+    "architecture",
+    "plugins",
+    "tools-and-effects",
+    "permissions",
+    "capabilities",
+    "host-services",
+    "generative-ui",
+    "dashboard",
+    "scheduler",
+    "campus-sessions",
+    "security"
+  ]
+}
