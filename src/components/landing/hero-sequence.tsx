@@ -82,8 +82,13 @@ export function HeroSequence({
   const [playing, setPlaying] = useState(false);
   const [want, setWant] = useState<boolean | null>(null);
 
-  const rec = media?.dark.kind === 'video' ? media.dark : undefined;
+  const darkRec = media?.dark.kind === 'video' ? media.dark : undefined;
+  const lightRec = media?.light?.kind === 'video' ? media.light : undefined;
+  // The page's theme picks the recording; CSS picks the poster, so the first paint is right too.
+  const rec = tone === 'light' && lightRec ? lightRec : darkRec;
   const poster = rec ? rec.poster : media?.dark.src;
+  const darkPoster = darkRec ? darkRec.poster : media?.dark.src;
+  const lightPoster = lightRec?.poster;
 
   // breakpoint + when to start the 3D scene (after the intro, when the browser is idle)
   useEffect(() => {
@@ -125,7 +130,13 @@ export function HeroSequence({
     }
     // first time: fetch the recording only once the page is idle, so it never delays first paint
     const start = () => v.play().catch(() => setPlaying(false));
+    if (v.src && v.src.endsWith(rec.src)) {
+      start();
+      return;
+    }
     if (v.src) {
+      // the theme changed: switch to the other recording
+      v.src = rec.src;
       start();
       return;
     }
@@ -174,11 +185,23 @@ export function HeroSequence({
               <div className={cn('lp-phone', ready3d && 'lp-phone-handed-off')}>
                 <div className="lp-phone-glass" />
                 <div className="lp-phone-screen">
-                  {rec ? (
+                  {darkPoster && (
+                    // biome-ignore lint/performance/noImgElement: the screen's first frame; sized by CSS
+                    <img
+                      src={darkPoster}
+                      alt=""
+                      fetchPriority="high"
+                      className={cn(lightPoster && 'hidden dark:block')}
+                    />
+                  )}
+                  {lightPoster && (
+                    // biome-ignore lint/performance/noImgElement: the screen's first frame; sized by CSS
+                    <img src={lightPoster} alt="" fetchPriority="high" className="dark:hidden" />
+                  )}
+                  {rec && (
                     <video
                       id={VIDEO_ID}
                       ref={video}
-                      poster={poster}
                       muted
                       loop
                       playsInline
@@ -186,11 +209,6 @@ export function HeroSequence({
                       onPlay={() => setPlaying(true)}
                       onPause={() => setPlaying(false)}
                     />
-                  ) : (
-                    poster && (
-                      // biome-ignore lint/performance/noImgElement: the screen of the static phone; sized by CSS
-                      <img src={poster} alt="" fetchPriority="high" />
-                    )
                   )}
                 </div>
                 <span className="lp-phone-hole" />

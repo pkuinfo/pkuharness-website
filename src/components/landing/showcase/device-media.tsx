@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { DeviceFrame } from '@/components/ui/device-frame';
 import { cn } from '@/lib/cn';
+import { useThemeTone } from '../use-theme-tone';
 import type { ShowcaseMedia } from './media';
 
 export interface MediaPair {
@@ -48,7 +49,13 @@ export function DeviceMedia({
   return (
     <figure className={cn('relative', className)}>
       {isVideo ? (
-        <VideoDevice media={dark} labels={labels} glow={glow} frameClassName={frameClassName} />
+        <VideoDevice
+          media={dark}
+          light={light?.kind === 'video' ? light : undefined}
+          labels={labels}
+          glow={glow}
+          frameClassName={frameClassName}
+        />
       ) : (
         <div className="relative isolate">
           {glow && <StillGlow dark={dark} light={light} />}
@@ -108,12 +115,15 @@ function StillGlow({ dark, light: lightMedia }: { dark: ShowcaseMedia; light?: S
 }
 
 function VideoDevice({
-  media,
+  media: darkMedia,
+  light,
   labels,
   glow,
   frameClassName,
 }: {
   media: ShowcaseMedia;
+  /** The same recording in the app's light theme, played on the light page. */
+  light?: ShowcaseMedia;
   labels: Props['labels'];
   glow: boolean;
   frameClassName?: string;
@@ -128,14 +138,18 @@ function VideoDevice({
   const [playing, setPlaying] = useState(false);
   const shouldPlay = near && visible && (want ?? !reduce);
 
+  // Videos are below the fold, so the page has its theme long before one loads.
+  const tone = useThemeTone();
+  const media = tone === 'light' && light ? light : darkMedia;
   const poster = media.poster;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a theme switch swaps the source; play the new one
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
     if (shouldPlay) v.play().catch(() => setPlaying(false));
     else v.pause();
-  }, [shouldPlay]);
+  }, [shouldPlay, media.src]);
 
   // Ambient light (adapted from 21st.dev: unlumen/video-ambient): paint the current frame into a
   // tiny canvas a few times a second, only while the video plays; CSS blur does the rest.
@@ -190,7 +204,7 @@ function VideoDevice({
             loop
             playsInline
             preload="none"
-            aria-label={media.caption}
+            aria-label={darkMedia.caption}
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
             className="absolute inset-0 size-full object-cover"
@@ -211,7 +225,7 @@ function VideoDevice({
             <Play className="size-3.5 translate-x-px" aria-hidden="true" />
           )}
         </button>
-        <span className="max-w-[34ch] text-pretty pt-1">{media.caption}</span>
+        <span className="max-w-[34ch] text-pretty pt-1">{darkMedia.caption}</span>
       </figcaption>
     </>
   );

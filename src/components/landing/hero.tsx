@@ -26,10 +26,12 @@ export function Hero({
 }) {
   const m = t(lang);
   const h = m.home.hero;
-  // The recording's poster is the first screen's largest image: fetch it with the HTML.
-  const dark = media?.dark;
-  const poster = dark?.kind === 'video' ? dark.poster : dark?.src;
-  if (poster) preload(poster, { as: 'image', fetchPriority: 'high' });
+  // The recording's poster is the first screen's largest image: fetch it with the HTML. Both
+  // themes, since the theme is only known in the browser.
+  for (const x of [media?.dark, media?.light]) {
+    const poster = x?.kind === 'video' ? x.poster : x?.src;
+    if (poster) preload(poster, { as: 'image', fetchPriority: 'high' });
+  }
   return (
     <>
       {/* biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed inline script, no user input */}

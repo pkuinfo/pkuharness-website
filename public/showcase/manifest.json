@@ -17,6 +17,19 @@
       "lang": "en"
     },
     {
+      "file": "chat-light.png",
+      "type": "image",
+      "feature": "chat",
+      "theme": "light",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "对话页（浅色）",
+        "en": "The chat (light theme)"
+      },
+      "lang": "en"
+    },
+    {
       "file": "chat-stream.mp4",
       "type": "video",
       "feature": "chat",
@@ -27,6 +40,20 @@
       "caption": {
         "zh": "一次完整的对话：调用插件、流式生成回答与卡片（2 倍速）",
         "en": "A full chat turn: plugin call, streamed answer and card (2x speed)"
+      },
+      "lang": "en"
+    },
+    {
+      "file": "chat-stream-light.mp4",
+      "type": "video",
+      "feature": "chat",
+      "theme": "light",
+      "width": 720,
+      "height": 1600,
+      "duration": 14.7,
+      "caption": {
+        "zh": "一次完整的对话（浅色，2 倍速）",
+        "en": "A full chat turn (light theme, 2x speed)"
       },
       "lang": "en"
     },
@@ -136,6 +163,19 @@
       "lang": "zh"
     },
     {
+      "file": "chat-light.zh.png",
+      "type": "image",
+      "feature": "chat",
+      "theme": "light",
+      "width": 1080,
+      "height": 2400,
+      "caption": {
+        "zh": "对话页（浅色）",
+        "en": "The chat in Chinese (light theme)"
+      },
+      "lang": "zh"
+    },
+    {
       "file": "chat-stream.zh.mp4",
       "type": "video",
       "feature": "chat",
@@ -146,6 +186,20 @@
       "caption": {
         "zh": "一次完整的中文对话：调用插件、流式生成回答与卡片（2 倍速）",
         "en": "A full chat turn in Chinese (2x speed)"
+      },
+      "lang": "zh"
+    },
+    {
+      "file": "chat-stream-light.zh.mp4",
+      "type": "video",
+      "feature": "chat",
+      "theme": "light",
+      "width": 720,
+      "height": 1600,
+      "duration": 13.1,
+      "caption": {
+        "zh": "一次完整的中文对话（浅色，2 倍速）",
+        "en": "A full chat turn in Chinese (light theme, 2x speed)"
       },
       "lang": "zh"
     },
@@ -255,6 +309,19 @@
       }
     },
     {
+      "file": "dashboard-widgets-light.zh.png",
+      "type": "image",
+      "feature": "dashboard",
+      "theme": "light",
+      "width": 1080,
+      "height": 2400,
+      "lang": "zh",
+      "caption": {
+        "zh": "看板上的实时组件（浅色）",
+        "en": "Live dashboard widgets (light theme)"
+      }
+    },
+    {
       "file": "dashboard-widgets-dark.png",
       "type": "image",
       "feature": "dashboard",
@@ -265,6 +332,19 @@
       "caption": {
         "zh": "看板上的实时组件：下一班校车和各教学楼的空闲教室数，由 AI 按你的要求添加",
         "en": "Live dashboard widgets: the next shuttle and free classrooms per building, added by the assistant on request"
+      }
+    },
+    {
+      "file": "dashboard-widgets-light.png",
+      "type": "image",
+      "feature": "dashboard",
+      "theme": "light",
+      "width": 1080,
+      "height": 2400,
+      "lang": "en",
+      "caption": {
+        "zh": "看板上的实时组件（浅色）",
+        "en": "Live dashboard widgets (light theme)"
       }
     },
     {
@@ -309,6 +389,19 @@
       }
     },
     {
+      "file": "schedule-light.zh.png",
+      "type": "image",
+      "feature": "schedule",
+      "theme": "light",
+      "width": 1080,
+      "height": 2400,
+      "lang": "zh",
+      "caption": {
+        "zh": "日程页（浅色）",
+        "en": "The Schedule tab (light theme)"
+      }
+    },
+    {
       "file": "schedule-dark.png",
       "type": "image",
       "feature": "schedule",
@@ -319,6 +412,19 @@
       "caption": {
         "zh": "日程页：今天的课、待办和提醒。「每 3 天一次，共 16 次」这样的重复提醒由 AI 在对话里创建",
         "en": "The Schedule tab: today's classes, to-dos and reminders. A series like \"every 3 days, 16 times\" is created by the assistant from chat"
+      }
+    },
+    {
+      "file": "schedule-light.png",
+      "type": "image",
+      "feature": "schedule",
+      "theme": "light",
+      "width": 1080,
+      "height": 2400,
+      "lang": "en",
+      "caption": {
+        "zh": "日程页（浅色）",
+        "en": "The Schedule tab (light theme)"
       }
     },
     {
