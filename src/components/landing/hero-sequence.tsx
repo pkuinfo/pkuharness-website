@@ -314,10 +314,13 @@ function segment(text: string, lang: Lang): string[] {
   return out;
 }
 
-/** Data saver or a slow connection: keep the poster still; the visitor can press play. */
+/**
+ * Data saver or a 2G connection: keep the poster still; the visitor can press play. Not 3G:
+ * browsers report "3g" for many ordinary connections, and the recording is under 1 MB.
+ */
 function slowConnection() {
   const c = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
-  return Boolean(c?.saveData || (c?.effectiveType && /(^|-)(2g|3g)$/.test(c.effectiveType)));
+  return Boolean(c?.saveData || (c?.effectiveType && /(^|-)2g$/.test(c.effectiveType)));
 }
 
 function supportsWebGL() {

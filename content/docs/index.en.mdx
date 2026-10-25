@@ -26,16 +26,19 @@ dashboard, reminders and even the AI model provider. A plugin that ships inside 
 plugin that a student runs on their own server use the same interface. Both appear in the same
 plugin list and use the same permission system.
 
-```
- ┌──────────────── PKU Harness app (the harness) ────────────────┐
- │  Agent loop      Design system (HostUI)     Host services      │
- │      │                  │                 (campus, scheduler,  │
- │      └────── tools ─────┴───── screens ──  widgets, todos, …)  │
- └──────────▲──────────────────────▲──────────────────▲───────────┘
-            │                      │                  │
-   bundled plugins          remote plugins       PKU Harness Cloud
-   (TypeScript, SDK)        (MCP over HTTPS)     (optional backend)
-```
+<LayerDiagram
+  title="PKU Harness app (the harness)"
+  parts={[
+    { name: 'Agent loop', note: 'calls tools' },
+    { name: 'Design system (HostUI)', note: 'shows screens' },
+    { name: 'Host services', note: 'campus login, scheduler, widgets, todos, …' },
+  ]}
+  below={[
+    { name: 'Bundled plugins', note: 'TypeScript, SDK' },
+    { name: 'Remote plugins', note: 'MCP over HTTPS' },
+    { name: 'PKU Harness Cloud', note: 'optional backend' },
+  ]}
+/>
 
 This design leads to two rules that the rest of these docs come back to often.
 

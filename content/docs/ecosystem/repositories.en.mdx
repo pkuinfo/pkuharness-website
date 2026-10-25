@@ -45,20 +45,14 @@ documents the campus protocols, and the app follows them. The app includes
 Context Protocol (MCP), and the PKU Harness Cloud provider is built on the cloud protocol and the
 reference cloud server from the plugins repository.
 
-```
-                 PKU IAAA (iaaa.pku.edu.cn)
-                           │
-      pkucli (Rust) ───────┼──────── protocol reference ────────┐
-                           │                                     ▼
-                     pku-harness (app) ◄── git submodule ── pku-harness-plugins
-                     harness + host services               sdk · plugins · registry · cloud-protocol · cloud-server
-                           │                                     │
-                           ├── remote plugins (MCP, anyone) ◄────┤ templates/remote-plugin
-                           │                                     │
-                           └── PKU Harness Cloud provider ◄──────┘ cloud-protocol + cloud-server (reference)
-
-   pkuharness-website: docs · marketplace (registry.json + indexed repos) · downloads (GitHub releases)
-```
+| Repository | Uses | How |
+| --- | --- | --- |
+| `pku-harness` (the app) | PKU IAAA (`iaaa.pku.edu.cn`) | Every campus login goes through it |
+| `pku-harness` (the app) | `pkucli` | Implements campus services from the protocols pkucli records |
+| `pku-harness` (the app) | `pku-harness-plugins` | Includes the SDK and plugins as a git submodule |
+| Remote plugins (anyone can write one) | `templates/remote-plugin` in `pku-harness-plugins` | Start from the template; connect to the app over MCP |
+| PKU Harness Cloud providers | `cloud-protocol` and `cloud-server` in `pku-harness-plugins` | Implement the cloud protocol; `cloud-server` is the reference |
+| `pkuharness-website` | `registry.json`, indexed plugin repositories, GitHub releases | Builds the docs, the marketplace and the download page |
 
 The website stands beside the others. Its marketplace reads `registry.json` and the plugin
 repositories it has indexed, and its download page lists the app's GitHub releases.
