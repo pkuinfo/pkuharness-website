@@ -40,9 +40,13 @@ export interface Pose {
 
 type Key = [at: number, pose: Pose];
 
-/** Rest pose = progress 0: low in the frame, leaning back, as in the static first paint. */
+/**
+ * Rest pose = progress 0, as in the static first paint. Wide screens: the phone stands in the right
+ * half, turned a little toward the headline on the left. Narrow screens: low in the frame under
+ * the headline, leaning back.
+ */
 const WIDE: Key[] = [
-  [0, { x: 0, y: 29, scale: 1.12, rx: -0.3, ry: 0 }],
+  [0, { x: 22, y: 2, scale: 1.16, rx: -0.05, ry: -0.3 }],
   [0.38, { x: 0, y: 0, scale: 1.24, rx: 0, ry: 0 }],
   [0.72, { x: -19, y: 1, scale: 1.08, rx: 0, ry: 0.36 }],
   [1, { x: -19, y: 1, scale: 1.08, rx: 0, ry: 0.36 }],
@@ -95,8 +99,8 @@ export function poseToCss(p: Pose): string {
 /** Focal length for CSS: half the viewport height over tan(fov / 2). */
 export const PERSPECTIVE_CSS = `calc(50svh / ${Math.tan((FOV * Math.PI) / 360).toFixed(6)})`;
 
-/** Rest poses for the first paint (the aspect only matters for x, which is 0 at rest). */
+/** Rest poses for the first paint. Wide x depends on the aspect, so CSS gets it in vw (see below). */
 export const REST_CSS = {
-  wide: poseToCss(poseAt(0, false, 1.6)),
+  wide: poseToCss(poseAt(0, false, 1)).replace(/^translate3d\(([-\d.]+)svh/, 'translate3d($1vw'),
   narrow: poseToCss(poseAt(0, true, 0.5)),
 };

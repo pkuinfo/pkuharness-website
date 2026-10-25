@@ -359,15 +359,14 @@ function Orbit({
   );
   const tmp = useMemo(() => new THREE.Vector3(), []);
 
-  useFrame(({ clock }, dt) => {
+  useFrame((_, dt) => {
     // the orbit draws itself once, after the hand-off
     born.current = Math.min(1, born.current + dt / 1.4);
     const e = 1 - (1 - born.current) ** 3;
     line.geometry.setDrawRange(0, Math.floor(e * (SEG + 1)));
-    // the agent: one lap every ~14 s, appearing at the end of the drawn arc
-    const lap = (clock.getElapsedTime() / 14) % 1;
+    // the agent rides the tip of the arc as it draws, then rests at its end
     if (bead.current) {
-      arcPoint(born.current < 1 ? e : lap, tmp);
+      arcPoint(e, tmp);
       bead.current.position.copy(tmp);
       bead.current.scale.setScalar(e);
     }

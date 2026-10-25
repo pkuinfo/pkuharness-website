@@ -297,6 +297,26 @@
   animation: lp-fade 0.9s ease-out 0.8s both;
 }
 
+/* Wide screens: the copy is a left column beside the phone, which stands in the right half. */
+@media (min-width: 768px) and (min-aspect-ratio: 9 / 10) {
+  .lp-hero-copy {
+    top: 50%;
+    right: auto;
+    left: max(1.5rem, 7vw);
+    width: min(46vw, 40rem);
+    padding-inline: 0;
+    translate: 0 -50%;
+    text-align: left;
+  }
+  .lp-hero-copy .lp-hero-title {
+    margin-inline: 0;
+    font-size: clamp(2.75rem, 5vw, 5.5rem);
+  }
+  .lp-hero-copy :is(.lp-hero-actions, .lp-hero-meta) {
+    justify-content: flex-start;
+  }
+}
+
 /* The paragraph that appears beside (wide) or under (narrow) the phone at the end. */
 .lp-hero-lead {
   position: absolute;

@@ -28,7 +28,9 @@ interface LinkProps {
  * The first screen and its scroll sequence, in the manner of Apple's product pages.
  *
  * First paint (no JavaScript needed): a short kicker, the headline, two pill buttons, and a phone
- * in HTML/CSS playing the app's real chat recording, low in the frame and leaning back. A short
+ * in HTML/CSS playing the app's real chat recording. Wide screens put the copy in a left column and
+ * the phone in the right half, turned toward it; narrow screens stack them, the phone low in the
+ * frame and leaning back. A short
  * intro (CSS) raises the phone, turns it toward you and lights its screen while the headline
  * rises word by word; the full intro plays once per session (`hero.tsx` sets
  * `data-lp-intro`).
