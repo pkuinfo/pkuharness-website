@@ -150,6 +150,20 @@
       "lang": "en"
     },
     {
+      "file": "install-from-link-light.mp4",
+      "type": "video",
+      "feature": "install",
+      "theme": "light",
+      "width": 720,
+      "height": 1600,
+      "duration": 11.6,
+      "caption": {
+        "zh": "从一个链接打开插件，检查后即可安装（浅色）",
+        "en": "Open a plugin from a link, check it, install (light theme)"
+      },
+      "lang": "en"
+    },
+    {
       "file": "chat-dark.zh.png",
       "type": "image",
       "feature": "chat",
@@ -292,6 +306,20 @@
       "caption": {
         "zh": "从一个链接打开插件，检查后即可安装",
         "en": "Open a plugin from a link, check it, install"
+      },
+      "lang": "zh"
+    },
+    {
+      "file": "install-from-link-light.zh.mp4",
+      "type": "video",
+      "feature": "install",
+      "theme": "light",
+      "width": 720,
+      "height": 1600,
+      "duration": 11.7,
+      "caption": {
+        "zh": "从一个链接打开插件，检查后即可安装（浅色）",
+        "en": "Open a plugin from a link, check it, install (light theme)"
       },
       "lang": "zh"
     },

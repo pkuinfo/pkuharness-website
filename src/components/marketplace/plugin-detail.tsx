@@ -165,6 +165,7 @@ function Permissions({ plugin, lang, m }: { plugin: MarketplacePlugin; lang: Lan
   const none = <p className="text-sm text-fd-muted-foreground">{p.none}</p>;
   const tools = plugin.tools ?? [];
   const sep = lang === 'zh' ? '、' : ', ';
+  const colon = lang === 'zh' ? '：' : ': ';
   return (
     <Section id="permissions" title={p.title}>
       <p className="mb-5 max-w-[65ch] text-sm leading-6 text-fd-muted-foreground">{p.lede}</p>
@@ -257,14 +258,20 @@ function Permissions({ plugin, lang, m }: { plugin: MarketplacePlugin; lang: Lan
             <ul className="space-y-1 text-sm">
               {plugin.widgets?.length ? (
                 <li>
-                  <span className="text-fd-muted-foreground">{p.widgets}: </span>
-                  {plugin.widgets.join(sep)}
+                  <span className="text-fd-muted-foreground">
+                    {p.widgets}
+                    {colon}
+                  </span>
+                  <span className="font-mono">{plugin.widgets.join(sep)}</span>
                 </li>
               ) : null}
               {plugin.screens?.length ? (
                 <li>
-                  <span className="text-fd-muted-foreground">{p.screens}: </span>
-                  {plugin.screens.join(sep)}
+                  <span className="text-fd-muted-foreground">
+                    {p.screens}
+                    {colon}
+                  </span>
+                  <span className="font-mono">{plugin.screens.join(sep)}</span>
                 </li>
               ) : null}
               {plugin.commands?.map((c) => (

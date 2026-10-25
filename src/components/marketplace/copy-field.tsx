@@ -3,6 +3,7 @@
 import { useCopyButton } from 'fumadocs-ui/utils/use-copy-button';
 import { Check, Copy } from 'lucide-react';
 import { useParams } from 'next/navigation';
+import { Fragment } from 'react';
 import { cn } from '@/lib/cn';
 import { toLang } from '@/lib/i18n';
 import { t } from '@/lib/messages';
@@ -15,8 +16,15 @@ export function CopyField({ label, value, className }: { label?: string; value: 
     <div className={cn('min-w-0', className)}>
       {label && <p className="mb-1.5 text-xs text-fd-muted-foreground">{label}</p>}
       <div className="flex items-center gap-2 rounded-lg border border-fd-border bg-fd-background/60 py-1 ps-3 pe-1 font-mono text-[12.5px]">
-        <span className="min-w-0 flex-1 break-all select-all" title={value}>
-          {value}
+        <span className="min-w-0 flex-1 select-all [overflow-wrap:anywhere]" title={value}>
+          {/* break lines after a slash or other separator, not inside a word */}
+          {value.split(/(?<=[/?&=.])/).map((part, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed split of one string
+            <Fragment key={i}>
+              {i > 0 && <wbr />}
+              {part}
+            </Fragment>
+          ))}
         </span>
         <button
           type="button"
