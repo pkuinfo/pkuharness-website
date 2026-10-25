@@ -55,23 +55,35 @@ export default function PhoneScene(props: PhoneSceneProps) {
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       style={{ pointerEvents: 'none' }}
     >
-      <Lights />
+      <Lights tone={props.tone} />
       <Phone {...props} />
     </Canvas>
   );
 }
 
-function Lights() {
+function Lights({ tone }: { tone: 'dark' | 'light' }) {
   return (
     <>
-      <Environment files="/models/studio_small_09_256.hdr" resolution={256} frames={2} environmentIntensity={0.9}>
+      <Environment
+        key={tone}
+        files="/models/studio_small_09_256.hdr"
+        resolution={256}
+        frames={2}
+        environmentIntensity={0.9}
+      >
         <Lightformer form="rect" intensity={6} position={[-1, 0, -10]} scale={10} color="#495057" />
         <Lightformer form="rect" intensity={5} position={[-10, 2, 1]} scale={10} rotation-y={Math.PI / 2} />
         <Lightformer form="rect" intensity={5} position={[10, 0, 1]} scale={10} rotation-y={-Math.PI / 2} />
-        <Lightformer form="rect" intensity={3} position={[3, 1, -6]} scale={[3, 10, 1]} color="#c42236" />
+        <Lightformer
+          form="rect"
+          intensity={tone === 'dark' ? 3 : 1}
+          position={[3, 1, -6]}
+          scale={[3, 10, 1]}
+          color="#c42236"
+        />
       </Environment>
       <spotLight position={[0, 15, 5]} angle={0.15} penumbra={1} decay={0.1} intensity={Math.PI * 2.4} />
-      <directionalLight position={[4, 2, -4]} intensity={0.8} color="#ff5a6a" />
+      <directionalLight position={[4, 2, -4]} intensity={tone === 'dark' ? 0.8 : 0.3} color="#ff5a6a" />
     </>
   );
 }
@@ -223,7 +235,7 @@ function Phone({ progress, narrow, videoId, poster, onReady, beads, tone }: Phon
       {/* frame */}
       <RoundedBox args={[PHONE.w, PHONE.h, PHONE.d]} radius={PHONE.radius} smoothness={8} bevelSegments={6}>
         <meshPhysicalMaterial
-          color="#3b3b40"
+          color={tone === 'dark' ? '#3b3b40' : '#c6c6cb'}
           metalness={0.92}
           roughness={0.3}
           clearcoat={0.5}
@@ -253,10 +265,10 @@ function Phone({ progress, narrow, videoId, poster, onReady, beads, tone }: Phon
       </mesh>
       {/* side keys */}
       <RoundedBox args={[0.016, 0.24, 0.034]} radius={0.007} smoothness={3} position={[PHONE.w / 2 + 0.004, 0.42, 0]}>
-        <meshStandardMaterial color="#45454b" metalness={0.9} roughness={0.32} />
+        <meshStandardMaterial color={tone === 'dark' ? '#45454b' : '#b9b9be'} metalness={0.9} roughness={0.32} />
       </RoundedBox>
       <RoundedBox args={[0.016, 0.13, 0.034]} radius={0.007} smoothness={3} position={[PHONE.w / 2 + 0.004, 0.1, 0]}>
-        <meshStandardMaterial color="#45454b" metalness={0.9} roughness={0.32} />
+        <meshStandardMaterial color={tone === 'dark' ? '#45454b' : '#b9b9be'} metalness={0.9} roughness={0.32} />
       </RoundedBox>
       {/* back: camera island and two lenses */}
       <RoundedBox

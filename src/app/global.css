@@ -36,9 +36,10 @@
   /* Home and product pages: true black in dark, off-white in light (see .lp-canvas); secondary ink. */
   --color-lp-canvas: #f5f5f7;
   --color-lp-ink-2: #6e6e73;
-  /* Phone hardware (hero 3D phone and DeviceFrame): graphite frame, keys, black glass. */
-  --lp-device-metal: linear-gradient(115deg, #6a6a70 0%, #303034 18%, #232326 50%, #3a3a3f 82%, #707076 100%);
-  --color-device-key: #45454b;
+  /* Phone hardware (hero 3D phone and DeviceFrame): silver frame and keys in light, graphite in
+     dark (see .dark); black glass in both. */
+  --lp-device-metal: linear-gradient(115deg, #f4f4f6 0%, #c9c9ce 18%, #b6b6bb 50%, #d0d0d5 82%, #f6f6f8 100%);
+  --color-device-key: #b9b9be;
   --color-device-glass: #030304;
   --color-fd-primary: #8b0012;
   --color-fd-primary-foreground: #fff;
@@ -46,6 +47,8 @@
 }
 
 .dark {
+  --lp-device-metal: linear-gradient(115deg, #6a6a70 0%, #303034 18%, #232326 50%, #3a3a3f 82%, #707076 100%);
+  --color-device-key: #45454b;
   --color-lp-canvas: #000000;
   --color-lp-ink-2: #86868b;
   --color-fd-background: hsl(0, 0%, 4%);
