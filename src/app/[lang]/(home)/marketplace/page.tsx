@@ -1,6 +1,5 @@
 import { TriangleAlert } from 'lucide-react';
 import type { Metadata } from 'next';
-import { PageAurora } from '@/components/landing/page-aurora';
 import { MarketplaceBrowser } from '@/components/marketplace/browser';
 import { MarketplaceHero } from '@/components/marketplace/hero';
 import { HowListingWorks } from '@/components/marketplace/how-it-works';
@@ -30,8 +29,7 @@ export default async function MarketplacePage({ params }: PageProps<'/[lang]/mar
     (s) => s.repo === 'pkuinfo/pku-harness-plugins' && s.error && s.plugins === 0,
   );
   return (
-    <div className="relative isolate -mt-14 flex-1 overflow-x-clip pt-14">
-      <PageAurora />
+    <div className="flex-1">
       <div className="mx-auto w-full max-w-[1200px] px-4 pb-24 md:px-8">
         <MarketplaceHero
           lang={lang}

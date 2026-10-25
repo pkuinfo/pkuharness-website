@@ -17,7 +17,6 @@ import QRCode from 'qrcode';
 import { Logo } from '@/components/brand/logo';
 import { GitHubIcon } from '@/components/marketplace/badges';
 import { Rich } from '@/components/marketplace/rich';
-import { ShimmerLink } from '@/components/ui/shimmer-link';
 import { ShineBorder } from '@/components/ui/shine-border';
 import { Timeline } from '@/components/ui/timeline';
 import { cn } from '@/lib/cn';
@@ -25,7 +24,6 @@ import { htmlLang, type Lang, localePath } from '@/lib/i18n';
 import { t } from '@/lib/messages';
 import { formatBytes, pickLatest, type Release, type ReleasesResult } from '@/lib/releases';
 import { github, repos } from '@/lib/shared';
-import { PageAurora } from '../page-aurora';
 import { CopyButton } from './copy-button';
 
 type M = ReturnType<typeof t>['download'];
@@ -81,7 +79,6 @@ export async function DownloadView({ data, lang, preview }: { data: ReleasesResu
   return (
     <div className="flex flex-col">
       <header className="relative isolate -mt-14 overflow-hidden pt-14">
-        <PageAurora className="h-full" />
         <div className="mx-auto w-full max-w-[1200px] px-4 pt-14 pb-10 md:px-8 md:pt-20">
           {preview && (
             <p className="mb-6 inline-flex items-center gap-2 rounded-lg border border-pku-amber/30 bg-pku-amber/10 px-3 py-1.5 text-sm">
@@ -89,8 +86,8 @@ export async function DownloadView({ data, lang, preview }: { data: ReleasesResu
               {m.previewBanner}
             </p>
           )}
-          <h1 className="text-4xl font-semibold tracking-[-0.03em] md:text-6xl">{m.title}</h1>
-          <p className="mt-3 text-lg text-fd-muted-foreground md:text-xl">{m.lede}</p>
+          <h1 className="lp-display text-5xl leading-[1.05] md:text-8xl">{m.title}</h1>
+          <p className="mt-5 max-w-2xl text-xl text-[var(--color-lp-ink-2)] md:text-2xl">{m.lede}</p>
         </div>
       </header>
 
@@ -154,10 +151,10 @@ async function LatestRelease({ release, lang, m }: { release: Release; lang: Lan
             {release.apks.map((a, i) => (
               <li key={a.url} className="flex flex-wrap items-center gap-x-4 gap-y-3">
                 {i === 0 ? (
-                  <ShimmerLink href={a.url} className="px-6">
+                  <a href={a.url} className="lp-pill lp-pill-primary">
                     <ArrowDownToLine className="size-[18px]" aria-hidden="true" />
                     {m.latest.download}
-                  </ShimmerLink>
+                  </a>
                 ) : (
                   <a
                     href={a.url}

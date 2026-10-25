@@ -39,27 +39,36 @@ export function lines(text: string): ReactNode {
   ));
 }
 
-/** Section heading: one title (`\n` = line break) and an optional lead paragraph. */
+/** Section heading: one large title (`\n` = line break) and an optional lead paragraph. */
 export function SectionHeading({
   id,
   title,
   children,
   align = 'left',
+  size = 'lg',
   className,
 }: {
   id?: string;
   title: ReactNode;
   children?: ReactNode;
   align?: 'left' | 'center';
+  /** `md` for headings that share the row with a figure */
+  size?: 'md' | 'lg';
   className?: string;
 }) {
   return (
-    <div className={cn('max-w-2xl', align === 'center' && 'mx-auto text-center', className)}>
-      <h2 id={id} className="lp-display text-balance font-semibold text-[2rem] leading-[1.18] md:text-[2.75rem]">
+    <div className={cn('max-w-3xl', align === 'center' && 'mx-auto text-center', className)}>
+      <h2
+        id={id}
+        className={cn(
+          'lp-display text-balance text-[2.5rem] leading-[1.06]',
+          size === 'lg' ? 'md:text-[4rem] lg:text-[4.5rem]' : 'md:text-[3rem] lg:text-[3.25rem]',
+        )}
+      >
         {typeof title === 'string' ? lines(title) : title}
       </h2>
       {children && (
-        <div className="mt-5 max-w-[36rem] text-pretty text-fd-muted-foreground text-lg leading-[1.75] [.text-center_&]:mx-auto">
+        <div className="mt-6 max-w-[40rem] text-pretty text-[19px] text-[var(--color-lp-ink-2)] leading-[1.55] md:text-[21px] [.text-center_&]:mx-auto">
           {children}
         </div>
       )}

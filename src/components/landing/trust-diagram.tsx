@@ -27,9 +27,8 @@ const OURS = 'M160 228 C 200 231, 214 233, 234 234';
 /**
  * Phone ↔ campus (direct), phone ↔ your model provider, and no line to "our server", told once
  * when the diagram scrolls into view: the phone appears, the vault's shackle closes, the two
- * real connections draw out to their services and start carrying light, and the third line
- * stops short at a cross before it reaches our server. The light along the lines is the
- * gradient-dash technique of 21st.dev: dillionverma/animated-beam (Magic UI), done in SVG/CSS.
+ * real connections draw out to their services and they fill with colour, and the third line
+ * stops short at a cross before it reaches our server.
  * Under reduced motion the finished diagram is shown as is.
  */
 export function TrustDiagram({ labels }: { labels: TrustDiagramLabels }) {
@@ -67,25 +66,26 @@ export function TrustDiagram({ labels }: { labels: TrustDiagramLabels }) {
       {/* connections: rails draw out, then light travels along them */}
       <motion.path d={CAMPUS} fill="none" stroke={ink} strokeOpacity="0.16" strokeWidth="1.5" {...draw(0.55)} />
       <motion.path d={MODEL} fill="none" stroke={ink} strokeOpacity="0.16" strokeWidth="1.5" {...draw(0.75)} />
-      <motion.g initial={{ opacity: 0 }} animate={play ? { opacity: 1 } : undefined} transition={t(1.4, 0.6)}>
-        <path
-          d={CAMPUS}
-          fill="none"
-          stroke="url(#trust-flow)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          className="lp-flow"
-        />
-        <path
-          d={MODEL}
-          fill="none"
-          stroke="url(#trust-flow)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          className="lp-flow [animation-delay:-1.2s]"
-        />
-        <circle r="3" fill="#ff5a6a" className="lp-endpoint" cx="352" cy="58" />
-        <circle r="3" fill="#efaa3c" className="lp-endpoint [animation-delay:-1.2s]" cx="352" cy="150" />
+      {/* the live connections: drawn once in colour over the rails */}
+      <motion.path
+        d={CAMPUS}
+        fill="none"
+        stroke="url(#trust-flow)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        {...draw(1.3, 1.1)}
+      />
+      <motion.path
+        d={MODEL}
+        fill="none"
+        stroke="url(#trust-flow)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        {...draw(1.5, 1.1)}
+      />
+      <motion.g initial={{ opacity: 0 }} animate={play ? { opacity: 1 } : undefined} transition={t(2.3, 0.5)}>
+        <circle r="3" fill="var(--color-brand-bright)" cx="352" cy="58" />
+        <circle r="3" fill="var(--color-pku-amber)" cx="352" cy="150" />
       </motion.g>
       <motion.text x="246" y="114" fontSize="11" fill={ink} fillOpacity="0.55" textAnchor="middle" {...appear(1.1)}>
         {labels.direct}

@@ -28,40 +28,26 @@
   --color-pine-fg: #44472c;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
-  /* Shimmer button (21st.dev: dillionverma/shimmer-button) */
-  --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
-  --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
-
-  @keyframes shimmer-slide {
-    to {
-      transform: translate(calc(100cqw - 100%), 0);
-    }
-  }
-  @keyframes spin-around {
-    0% {
-      transform: translateZ(0) rotate(0);
-    }
-    15%,
-    35% {
-      transform: translateZ(0) rotate(90deg);
-    }
-    65%,
-    85% {
-      transform: translateZ(0) rotate(270deg);
-    }
-    100% {
-      transform: translateZ(0) rotate(360deg);
-    }
-  }
+  /* Apple-style decelerate for entrances and scroll reveals */
+  --ease-apple: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root {
+  /* Home and product pages: true black in dark, off-white in light (see .lp-canvas); secondary ink. */
+  --color-lp-canvas: #f5f5f7;
+  --color-lp-ink-2: #6e6e73;
+  /* Phone hardware (hero 3D phone and DeviceFrame): graphite frame, keys, black glass. */
+  --lp-device-metal: linear-gradient(115deg, #6a6a70 0%, #303034 18%, #232326 50%, #3a3a3f 82%, #707076 100%);
+  --color-device-key: #45454b;
+  --color-device-glass: #030304;
   --color-fd-primary: #8b0012;
   --color-fd-primary-foreground: #fff;
   --color-fd-ring: #c42236;
 }
 
 .dark {
+  --color-lp-canvas: #000000;
+  --color-lp-ink-2: #86868b;
   --color-fd-background: hsl(0, 0%, 4%);
   --color-fd-card: hsl(0, 0%, 6.5%);
   --color-fd-popover: hsl(0, 0%, 7%);
@@ -77,6 +63,11 @@
 
 html {
   scrollbar-gutter: stable;
+}
+
+/* The (home) pages sit on the product canvas: #000 in dark, #f5f5f7 in light. */
+.lp-canvas {
+  --color-fd-background: var(--color-lp-canvas);
 }
 
 html > body[data-scroll-locked] {

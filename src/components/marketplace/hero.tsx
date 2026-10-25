@@ -24,8 +24,10 @@ export function MarketplaceHero({
     <header className="relative pt-14 md:pt-20">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
-          <h1 className="text-4xl font-semibold tracking-[-0.03em] text-balance md:text-5xl">{m.title}</h1>
-          <p className="mt-4 text-[15px] leading-7 text-fd-muted-foreground md:text-base md:leading-7">{m.lede}</p>
+          <h1 className="text-5xl font-semibold leading-[1.05] tracking-[-0.035em] text-balance md:text-8xl">
+            {m.title}
+          </h1>
+          <p className="mt-5 text-lg leading-relaxed text-[var(--color-lp-ink-2)] md:text-xl">{m.lede}</p>
           <p className="mt-3 text-sm text-fd-muted-foreground tabular-nums">
             <span className="me-2 inline-block size-1.5 translate-y-[-2px] rounded-full bg-up" aria-hidden="true" />
             {m.stats(stats.plugins, stats.repos, date)}

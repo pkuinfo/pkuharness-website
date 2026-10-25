@@ -63,10 +63,10 @@ export async function Developers({ lang }: { lang: Lang }) {
     { href: github(repos.plugins), icon: GitHubIcon, ...m.links.repo },
   ];
   return (
-    <Section labelledBy="dev-title" className="py-16 md:py-24">
+    <Section labelledBy="dev-title" className="py-24 md:py-36">
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start lg:gap-16">
         <div>
-          <SectionHeading id="dev-title" title={m.title}>
+          <SectionHeading id="dev-title" title={m.title} size="md">
             <p>{m.lead}</p>
           </SectionHeading>
           <ul className="mt-10 grid max-w-[34rem] gap-1">

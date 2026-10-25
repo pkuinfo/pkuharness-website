@@ -20,7 +20,6 @@ import {
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import type { ReactNode } from 'react';
-import { PageAurora } from '@/components/landing/page-aurora';
 import { CodePanel, type CodePanelFile } from '@/components/ui/code-panel';
 import { cn } from '@/lib/cn';
 import { type Lang, localePath } from '@/lib/i18n';
@@ -535,8 +534,7 @@ export async function PluginDetail({
   const isPluginMd = plugin.format === 'plugin-md';
 
   return (
-    <div className="relative isolate -mt-14 flex-1 overflow-x-clip pt-14">
-      <PageAurora className="h-[380px]" />
+    <div className="flex-1">
       <div className="mx-auto w-full max-w-[1200px] px-4 pt-10 pb-24 md:px-8">
         <Crumbs plugin={plugin} lang={lang} m={m} />
 
@@ -549,7 +547,7 @@ export async function PluginDetail({
             <PluginIcon id={plugin.id} icon={plugin.icon} name={plugin.name} size="lg" />
           </span>
           <div className="min-w-0 flex-1">
-            <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">{name}</h1>
+            <h1 className="text-4xl font-semibold tracking-[-0.035em] md:text-6xl">{name}</h1>
             <p className="mt-1 font-mono text-xs text-fd-muted-foreground">{plugin.handle ?? plugin.slug}</p>
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <TrustBadge plugin={plugin} lang={lang} />

@@ -6,14 +6,13 @@ import { type Chapter, FeatureTour } from '@/components/landing/feature-tour';
 import { Hero } from '@/components/landing/hero';
 import { HomeFaq } from '@/components/landing/home-faq';
 import { PluginsSection } from '@/components/landing/plugins-section';
-import { getLocalizedPlugins } from '@/components/landing/registry';
+import { CORE_PLUGIN_IDS, getLocalizedPlugins } from '@/components/landing/registry';
 import { getShowcase, pick } from '@/components/landing/showcase/media';
 import { Trust } from '@/components/landing/trust';
 import { toLang } from '@/lib/i18n';
 import { getMarketplaceIndex } from '@/lib/marketplace';
 import { t } from '@/lib/messages';
 import { getReleases, pickLatest } from '@/lib/releases';
-import '@/components/landing/landing.css';
 
 export async function generateMetadata({ params }: PageProps<'/[lang]'>): Promise<Metadata> {
   const m = t(toLang((await params).lang)).home.meta;
@@ -42,11 +41,6 @@ export default async function HomePage({ params }: PageProps<'/[lang]'>) {
   const latest = pickLatest(releases);
 
   const heroCenter = pick(media, lang, ['chat'], { preferVideo: true });
-  const stage = {
-    center: heroCenter,
-    left: pick(media, lang, ['plugins']),
-    right: pick(media, lang, ['install', 'permissions']),
-  };
   const chapters: Chapter[] = (['chat', 'dashboard', 'schedule', 'settings'] as const).map((id) => ({
     id,
     ...m.tour.chapters[id],
@@ -56,17 +50,19 @@ export default async function HomePage({ params }: PageProps<'/[lang]'>) {
   const install = pick(media, lang, ['install'], { preferVideo: true });
 
   return (
-    <div className="lp-home flex flex-col overflow-x-clip">
-      <Hero lang={lang} latest={latest} stage={stage} />
+    <div className="lp-home flex flex-col">
+      <Hero
+        lang={lang}
+        latest={latest}
+        media={heroCenter}
+        beads={plugins.map((p) => (p.kind === 'remote' ? 'remote' : CORE_PLUGIN_IDS.has(p.id) ? 'core' : 'campus'))}
+      />
 
-      <Section labelledBy="tour-title" id="tour" className="pt-16 pb-4 md:pt-24">
-        <SectionHeading id="tour-title" title={m.tour.title}>
+      <Section labelledBy="tour-title" id="tour" className="pt-24 md:pt-36">
+        <SectionHeading id="tour-title" title={m.tour.title} align="center">
           <p>{m.tour.lead}</p>
         </SectionHeading>
-        <FeatureTour
-          chapters={chapters}
-          labels={{ ...m.media, examples: m.tour.examplesLabel, tabBar: m.tour.tabBar }}
-        />
+        <FeatureTour chapters={chapters} labels={{ ...m.media, examples: m.tour.examplesLabel }} />
       </Section>
 
       <PluginsSection lang={lang} plugins={plugins} media={install} market={market} />

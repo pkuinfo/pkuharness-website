@@ -24,7 +24,6 @@ export const en = {
     title: 'The four tabs of the app',
     lead: 'The app has four tabs: Chat, Dashboard, Schedule and Settings. Anything you can do by tapping on a page, the assistant can also do for you from the chat.',
     examplesLabel: 'Examples of what you can say',
-    tabBar: 'Tabs of the app',
     chapters: {
       chat: {
         name: 'Chat',
@@ -80,18 +79,9 @@ export const en = {
       },
     ],
     browse: 'Browse the marketplace',
-    orbit: {
-      label:
-        'Diagram: every plugin in the marketplace as a point on a ring around the app. The inner ring holds features of the app itself, the outer ring campus services, and the third ring remote plugins.',
-      hint: 'Drag to turn the rings',
+    wall: {
       countLabel: 'plugins in the marketplace',
       groups: { campus: 'Campus services', core: 'App features', remote: 'Remote plugins' },
-      groupBody: {
-        campus: 'Connects to a university website or service.',
-        core: 'Part of the app itself, for example reminders, the dashboard or the AI provider.',
-        remote: 'Runs on a server and connects to the app through the Model Context Protocol (MCP).',
-      },
-      open: 'Open in the marketplace',
     },
   },
   trust: {
@@ -214,7 +204,6 @@ export const zh: typeof en = {
     title: 'App 的四个标签页',
     lead: 'App 有四个标签页：对话、看板、日程和设置。凡是你能在页面上点按完成的操作，助手都可以在对话中替你完成。',
     examplesLabel: '你可以这样说',
-    tabBar: 'App 的标签栏',
     chapters: {
       chat: {
         name: '对话',
@@ -260,18 +249,9 @@ export const zh: typeof en = {
       },
     ],
     browse: '浏览插件市场',
-    orbit: {
-      label:
-        '示意图：插件市场中的每个插件都是 App 周围圆环上的一个点。内圈是 App 自身的功能，外圈是校园服务，第三个圆环是远程插件。',
-      hint: '拖动可以旋转圆环',
+    wall: {
       countLabel: '个插件在插件市场中',
       groups: { campus: '校园服务', core: 'App 功能', remote: '远程插件' },
-      groupBody: {
-        campus: '连接学校的某个网站或服务。',
-        core: 'App 自身的功能，例如提醒、看板或模型服务。',
-        remote: '运行在服务器上，通过 MCP（Model Context Protocol）与 App 连接。',
-      },
-      open: '在插件市场中查看',
     },
   },
   trust: {

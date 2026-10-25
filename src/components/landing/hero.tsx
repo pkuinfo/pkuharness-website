@@ -1,88 +1,46 @@
-import { ArrowDownToLine, BookOpen } from 'lucide-react';
-import Link from 'next/link';
-import type { CSSProperties } from 'react';
-import { ShimmerLink } from '@/components/ui/shimmer-link';
-import { cn } from '@/lib/cn';
 import { type Lang, localePath } from '@/lib/i18n';
 import { t } from '@/lib/messages';
 import type { Release } from '@/lib/releases';
 import { github, repos } from '@/lib/shared';
-import { button, GitHubIcon } from './bits';
-import { HeroBackdrop } from './hero-backdrop';
-import { HeroStage } from './hero-stage';
+import { HeroSequence } from './hero-sequence';
+import type { BeadKind } from './phone-scene';
 import type { MediaPair } from './showcase/device-media';
 
-const delay = (s: number) => ({ '--lp-delay': `${s}s` }) as CSSProperties;
+/**
+ * Plays the long intro once per browser session; later visits in the same session get a short
+ * one. Runs before the hero is parsed, so the first paint already has the right state.
+ */
+const INTRO_SCRIPT = `try{var d=document.documentElement,k='lp-intro';d.dataset.lpIntro=sessionStorage.getItem(k)?'quick':'full';sessionStorage.setItem(k,'1')}catch(e){}`;
 
 export function Hero({
   lang,
   latest,
-  stage,
+  media,
+  beads,
 }: {
   lang: Lang;
   latest?: Release;
-  stage: { center?: MediaPair; left?: MediaPair; right?: MediaPair };
+  media?: MediaPair;
+  beads: BeadKind[];
 }) {
   const m = t(lang);
   const h = m.home.hero;
   return (
-    <section aria-labelledby="hero-title" className="relative isolate -mt-14 overflow-hidden pt-14 pb-12 md:pb-16">
-      <HeroBackdrop />
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center px-4 pt-12 text-center md:px-8 md:pt-20">
-        <h1
-          id="hero-title"
-          className="lp-display font-bold text-[2.6rem] leading-[1.1] sm:text-6xl md:text-7xl lg:text-[5.25rem]"
-        >
-          {/* each line rises out of its own slot; the text is laid out (and counted for LCP) at once */}
-          {h.title.map((line, i) => (
-            <span key={line} className="lp-line" style={delay(i * 0.09)}>
-              <span>{line}</span>
-            </span>
-          ))}
-        </h1>
-        <p
-          className="lp-rise mt-7 max-w-[36rem] text-pretty text-[17px] text-fd-muted-foreground leading-[1.75] md:text-xl md:leading-[1.7]"
-          style={delay(0.2)}
-        >
-          {h.lead}
-        </p>
-        <div className="lp-rise mt-9 flex flex-wrap items-center justify-center gap-3" style={delay(0.28)}>
-          <ShimmerLink href={localePath(lang, '/download')}>
-            <ArrowDownToLine className="size-[18px]" aria-hidden="true" />
-            {h.download}
-          </ShimmerLink>
-          <Link href={localePath(lang, '/docs')} className={button.glass}>
-            <BookOpen className="size-[18px]" aria-hidden="true" />
-            {h.docs}
-          </Link>
-          <a href={github(repos.app)} className={cn(button.ghost, 'max-sm:hidden')}>
-            <GitHubIcon className="size-[18px]" />
-            {h.source}
-          </a>
-        </div>
-        <ul
-          className="lp-rise mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-fd-muted-foreground text-sm"
-          style={delay(0.36)}
-        >
-          {latest && (
-            <li>
-              <a
-                href={latest.htmlUrl}
-                className="inline-flex items-center gap-2 rounded-full underline-offset-4 hover:text-fd-foreground hover:underline focus-visible:outline-2 focus-visible:outline-fd-ring"
-              >
-                <span className="relative flex size-2" aria-hidden="true">
-                  <span className="absolute inset-0 animate-ping rounded-full bg-up opacity-60 [animation-iteration-count:3]" />
-                  <span className="relative size-2 rounded-full bg-up" />
-                </span>
-                {h.released(latest.tag)}
-              </a>
-            </li>
-          )}
-          <li>{h.android}</li>
-          <li>{h.license}</li>
-        </ul>
-      </div>
-      {stage.center && <HeroStage center={stage.center} left={stage.left} right={stage.right} labels={m.home.media} />}
-    </section>
+    <>
+      {/* biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed inline script, no user input */}
+      <script dangerouslySetInnerHTML={{ __html: INTRO_SCRIPT }} />
+      <HeroSequence
+        lang={lang}
+        title={h.title.join(' ')}
+        lead={h.lead}
+        download={{ href: localePath(lang, '/download'), label: h.download }}
+        docs={{ href: localePath(lang, '/docs'), label: h.docs }}
+        source={{ href: github(repos.app), label: h.source }}
+        meta={[latest ? { href: latest.htmlUrl, label: h.released(latest.tag) } : null, h.android, h.license]}
+        media={media}
+        labels={m.home.media}
+        beads={beads}
+      />
+    </>
   );
 }
