@@ -156,10 +156,7 @@ async function LatestRelease({ release, lang, m }: { release: Release; lang: Lan
                     {m.latest.download}
                   </a>
                 ) : (
-                  <a
-                    href={a.url}
-                    className="inline-flex h-11 items-center gap-2 rounded-xl border border-fd-border px-4 font-semibold transition-[transform,background-color] duration-150 hover:bg-fd-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring active:scale-[0.97]"
-                  >
+                  <a href={a.url} className="lp-pill lp-pill-secondary">
                     <ArrowDownToLine className="size-[18px]" aria-hidden="true" />
                     {m.latest.download}
                   </a>
@@ -297,17 +294,11 @@ function ComingSoon({ unreachable, m }: { unreachable: boolean; m: M }) {
         {unreachable ? m.soon.bodyUnreachable : m.soon.body}
       </p>
       <div className="mt-8 flex flex-wrap gap-3">
-        <a
-          href={RELEASES_URL}
-          className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-5 font-semibold text-white transition-[transform,background-color] hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring active:scale-[0.97]"
-        >
+        <a href={RELEASES_URL} className="lp-pill lp-pill-primary">
           <GitHubIcon className="size-[18px]" />
           {m.soon.watch}
         </a>
-        <a
-          href="#build"
-          className="inline-flex h-12 items-center rounded-xl border border-fd-border px-5 font-medium transition-colors hover:bg-fd-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring"
-        >
+        <a href="#build" className="lp-pill lp-pill-secondary">
           {m.soon.build}
         </a>
       </div>

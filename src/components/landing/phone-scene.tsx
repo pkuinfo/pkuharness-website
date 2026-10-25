@@ -16,7 +16,7 @@
  *   plus soft rectangular light panels. The panel rig is adapted from sanidhyy/apple-clone
  *   (`src/components/Lights.jsx`; MIT License, Copyright (c) 2024 Sanidhya Kumar Verma): three
  *   large rect Lightformers and a narrow top spotlight. We added a 北大红 panel behind the phone,
- *   which gives the frame its red rim.
+ *   which gives the frame a faint red rim.
  * - The orbit: see `Orbit` below. Colours mirror the tokens in `app/global.css` (three.js needs
  *   them as values).
  *
@@ -68,10 +68,10 @@ function Lights() {
         <Lightformer form="rect" intensity={6} position={[-1, 0, -10]} scale={10} color="#495057" />
         <Lightformer form="rect" intensity={5} position={[-10, 2, 1]} scale={10} rotation-y={Math.PI / 2} />
         <Lightformer form="rect" intensity={5} position={[10, 0, 1]} scale={10} rotation-y={-Math.PI / 2} />
-        <Lightformer form="rect" intensity={9} position={[3, 1, -6]} scale={[3, 10, 1]} color="#c42236" />
+        <Lightformer form="rect" intensity={3} position={[3, 1, -6]} scale={[3, 10, 1]} color="#c42236" />
       </Environment>
       <spotLight position={[0, 15, 5]} angle={0.15} penumbra={1} decay={0.1} intensity={Math.PI * 2.4} />
-      <directionalLight position={[4, 2, -4]} intensity={2.2} color="#ff5a6a" />
+      <directionalLight position={[4, 2, -4]} intensity={0.8} color="#ff5a6a" />
     </>
   );
 }
@@ -288,14 +288,17 @@ function Phone({ progress, narrow, videoId, poster, onReady, beads, tone }: Phon
 
 /* ---- The orbit ----------------------------------------------------------------------------
  * The logo's idea in 3D: an open orbit (the arc of the "P", 312°, gap where the stem would be)
- * circles the phone, and the agent travels it as a bead of 北大红 light that lights the frame as
- * it passes. As you scroll, one bead per plugin in the marketplace joins the orbit.
+ * circles the phone. The agent, a small bead of 北大红 light, follows the arc as it draws and then
+ * rests on the right, beside the phone. As you scroll, one bead per plugin in the marketplace joins the orbit.
  */
 
 const ORBIT_R = 1.32;
 const ARC = (312 * Math.PI) / 180;
 const ARC_START = Math.PI + (24 * Math.PI) / 180; // gap centred on the left, as in the mark
 const BEAD_COLOR: Record<BeadKind, string> = { campus: '#ff5a6a', core: '#ba9570', remote: '#9fb3dc' };
+
+/** Where the agent rests once the arc is drawn: on the right, a little behind the phone, away from the headline. */
+const REST_T = 0.42;
 
 function arcPoint(t: number, out = new THREE.Vector3()) {
   const a = ARC_START + t * ARC;
@@ -308,8 +311,8 @@ function haloTexture() {
   const g = c.getContext('2d');
   if (g) {
     const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    grd.addColorStop(0, 'rgba(255,255,255,1)');
-    grd.addColorStop(0.25, 'rgba(255,120,135,0.55)');
+    grd.addColorStop(0, 'rgba(255,150,160,0.7)');
+    grd.addColorStop(0.3, 'rgba(230,70,90,0.28)');
     grd.addColorStop(1, 'rgba(196,34,54,0)');
     g.fillStyle = grd;
     g.fillRect(0, 0, 64, 64);
@@ -364,9 +367,9 @@ function Orbit({
     born.current = Math.min(1, born.current + dt / 1.4);
     const e = 1 - (1 - born.current) ** 3;
     line.geometry.setDrawRange(0, Math.floor(e * (SEG + 1)));
-    // the agent rides the tip of the arc as it draws, then rests at its end
+    // the agent rides the tip of the arc as it draws, then stays at its resting place
     if (bead.current) {
-      arcPoint(e, tmp);
+      arcPoint(Math.min(e, REST_T), tmp);
       bead.current.position.copy(tmp);
       bead.current.scale.setScalar(e);
     }
@@ -385,19 +388,19 @@ function Orbit({
     <group rotation={[0.42, 0, -0.32]}>
       <primitive object={line} />
       <group ref={bead} scale={0.0001}>
-        <mesh geometry={beadGeo} scale={0.05}>
-          <meshBasicMaterial color={tone === 'dark' ? '#ffffff' : '#c42236'} toneMapped={false} />
+        <mesh geometry={beadGeo} scale={0.032}>
+          <meshBasicMaterial color={tone === 'dark' ? '#ff6b78' : '#c42236'} toneMapped={false} />
         </mesh>
-        <sprite scale={tone === 'dark' ? 0.5 : 0.36}>
+        <sprite scale={tone === 'dark' ? 0.24 : 0.18}>
           <spriteMaterial
             map={halo}
             transparent
-            opacity={tone === 'dark' ? 1 : 0.7}
+            opacity={tone === 'dark' ? 0.6 : 0.4}
             depthWrite={false}
             blending={tone === 'dark' ? THREE.AdditiveBlending : THREE.NormalBlending}
           />
         </sprite>
-        <pointLight color="#ff4d5e" intensity={2.4} distance={2.2} decay={2} />
+        <pointLight color="#ff4d5e" intensity={1.1} distance={1.8} decay={2} />
       </group>
       <group ref={plugins}>
         {beads.map((kind, i) => {

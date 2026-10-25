@@ -33,18 +33,12 @@ export function MarketplaceHero({
             {m.stats(stats.plugins, stats.repos, date)}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <Link
-            href={localePath(lang, '/marketplace/submit')}
-            className="group inline-flex h-10 items-center gap-1.5 rounded-lg bg-fd-primary px-4 text-sm font-medium text-fd-primary-foreground transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring active:scale-[0.98]"
-          >
+        <div className="flex shrink-0 flex-wrap gap-3">
+          <Link href={localePath(lang, '/marketplace/submit')} className="group lp-pill lp-pill-primary">
             {m.publish}
             <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
           </Link>
-          <Link
-            href={localePath(lang, '/docs/marketplace')}
-            className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-fd-border px-4 text-sm transition-colors hover:bg-fd-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fd-ring"
-          >
+          <Link href={localePath(lang, '/docs/marketplace')} className="lp-pill lp-pill-secondary">
             <BookOpen className="size-3.5" aria-hidden="true" />
             {m.rules}
           </Link>
