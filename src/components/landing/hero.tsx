@@ -1,3 +1,4 @@
+import { preload } from 'react-dom';
 import { type Lang, localePath } from '@/lib/i18n';
 import { t } from '@/lib/messages';
 import type { Release } from '@/lib/releases';
@@ -25,6 +26,10 @@ export function Hero({
 }) {
   const m = t(lang);
   const h = m.home.hero;
+  // The recording's poster is the first screen's largest image: fetch it with the HTML.
+  const dark = media?.dark;
+  const poster = dark?.kind === 'video' ? dark.poster : dark?.src;
+  if (poster) preload(poster, { as: 'image', fetchPriority: 'high' });
   return (
     <>
       {/* biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed inline script, no user input */}

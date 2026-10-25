@@ -22,7 +22,7 @@ export async function DownloadCta({ lang = 'zh' }: { lang?: Lang } = {}) {
   const m = t(lang).home.cta;
   const latest = pickLatest((await getReleases()).releases);
   return (
-    <Section labelledBy="cta-title" className="py-28 text-center md:py-40">
+    <Section labelledBy="cta-title" className="pt-16 pb-28 text-center md:pt-20 md:pb-40">
       <Reveal>
         <Logo size={64} className="mx-auto" />
         <h2 id="cta-title" className="lp-display mt-8 text-[3rem] leading-[1.02] md:text-[6rem]">

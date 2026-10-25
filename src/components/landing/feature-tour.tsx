@@ -45,7 +45,7 @@ export function FeatureTour({
           <article
             key={c.id}
             id={`tour-${c.id}`}
-            className="grid scroll-mt-16 grid-cols-1 items-center gap-14 py-16 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] md:gap-12 md:py-28 lg:gap-20"
+            className="grid scroll-mt-16 grid-cols-1 items-center gap-14 py-14 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] md:gap-12 md:py-20 lg:gap-20"
           >
             <Reveal className={cn('max-w-[38rem]', flip && 'md:order-2')}>
               <p className="lp-eyebrow flex items-center gap-2">
