@@ -62,7 +62,7 @@ export default async function HomePage({ params }: PageProps<'/[lang]'>) {
         <SectionHeading id="tour-title" title={m.tour.title} align="center">
           <p>{m.tour.lead}</p>
         </SectionHeading>
-        <FeatureTour chapters={chapters} labels={{ ...m.media, examples: m.tour.examplesLabel }} />
+        <FeatureTour chapters={chapters} labels={{ examples: m.tour.examplesLabel, hint: m.tour.hint }} />
       </Section>
 
       <PluginsSection lang={lang} plugins={plugins} media={install} market={market} />

@@ -61,14 +61,14 @@ export function SectionHeading({
       <h2
         id={id}
         className={cn(
-          'lp-display text-balance text-[2.5rem] leading-[1.06]',
-          size === 'lg' ? 'md:text-[4rem] lg:text-[4.5rem]' : 'md:text-[3rem] lg:text-[3.25rem]',
+          'lp-display text-balance text-[2rem] leading-[1.1]',
+          size === 'lg' ? 'md:text-[2.75rem]' : 'md:text-[2.25rem]',
         )}
       >
         {typeof title === 'string' ? lines(title) : title}
       </h2>
       {children && (
-        <div className="mt-6 max-w-[40rem] text-pretty text-[19px] text-[var(--color-lp-ink-2)] leading-[1.55] md:text-[21px] [.text-center_&]:mx-auto">
+        <div className="mt-4 max-w-[38rem] text-pretty text-[17px] text-[var(--color-lp-ink-2)] leading-[1.6] [.text-center_&]:mx-auto">
           {children}
         </div>
       )}

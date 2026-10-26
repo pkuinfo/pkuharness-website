@@ -24,6 +24,7 @@ export const en = {
     title: 'The four tabs of the app',
     lead: 'The app has four tabs: Chat, Dashboard, Schedule and Settings. Anything you can do by tapping on a page, the assistant can also do for you from the chat.',
     examplesLabel: 'Examples of what you can say',
+    hint: 'Tap the tab bar on the phone, or swipe, to switch tabs.',
     chapters: {
       chat: {
         name: 'Chat',
@@ -204,6 +205,7 @@ export const zh: typeof en = {
     title: 'App 的四个标签页',
     lead: 'App 有四个标签页：对话、看板、日程和设置。凡是你能在页面上点按完成的操作，助手都可以在对话中替你完成。',
     examplesLabel: '你可以这样说',
+    hint: '点手机底部的标签栏，或左右滑动，可以切换标签页。',
     chapters: {
       chat: {
         name: '对话',

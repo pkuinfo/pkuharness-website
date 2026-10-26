@@ -23,8 +23,8 @@ export function Trust({ lang }: { lang: Lang }) {
           return (
             <Reveal as="li" key={p.title} delay={(i % 3) * 90}>
               <Icon className="size-6 text-fd-primary" aria-hidden="true" />
-              <h3 className="mt-3 font-semibold text-[21px] tracking-[-0.016em]">{p.title}</h3>
-              <p className="mt-2 text-pretty text-[17px] text-[var(--color-lp-ink-2)] leading-[1.6]">{p.body}</p>
+              <h3 className="mt-3 font-semibold text-[17px] tracking-[-0.01em]">{p.title}</h3>
+              <p className="mt-2 text-pretty text-[15px] text-[var(--color-lp-ink-2)] leading-[1.6]">{p.body}</p>
             </Reveal>
           );
         })}

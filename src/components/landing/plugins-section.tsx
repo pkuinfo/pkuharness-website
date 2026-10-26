@@ -81,8 +81,8 @@ export function PluginsSection({
               return (
                 <Reveal as="li" key={pt.title} delay={i * 90}>
                   <Icon className="size-6 text-fd-primary" aria-hidden="true" />
-                  <h3 className="mt-3 font-semibold text-[21px] tracking-[-0.016em]">{pt.title}</h3>
-                  <p className="mt-2 text-pretty text-[17px] text-[var(--color-lp-ink-2)] leading-[1.6]">{pt.body}</p>
+                  <h3 className="mt-3 font-semibold text-[17px] tracking-[-0.01em]">{pt.title}</h3>
+                  <p className="mt-1.5 text-pretty text-[15px] text-[var(--color-lp-ink-2)] leading-[1.6]">{pt.body}</p>
                 </Reveal>
               );
             })}
@@ -92,10 +92,10 @@ export function PluginsSection({
         {/* the wall */}
         <div className="mt-28 md:mt-40">
           <Reveal className="flex flex-col items-center text-center">
-            <p className="lp-display text-[5rem] leading-none tabular-nums md:text-[8rem]">
+            <p className="lp-display text-[3.5rem] leading-none tabular-nums md:text-[5rem]">
               <NumberTicker value={plugins.length} />
             </p>
-            <p className="mt-3 text-[19px] text-[var(--color-lp-ink-2)] md:text-[21px]">{p.wall.countLabel}</p>
+            <p className="mt-2 text-[16px] text-[var(--color-lp-ink-2)]">{p.wall.countLabel}</p>
           </Reveal>
           <div className="mt-14 flex flex-col gap-12">
             {ORDER.map((g) => {
@@ -116,7 +116,7 @@ export function PluginsSection({
                             className="size-[18px] shrink-0 text-fd-foreground/55 transition-colors duration-300 group-hover:text-fd-primary"
                             aria-hidden="true"
                           />
-                          <span className="min-w-0 font-medium text-[15px] leading-snug">{x.name}</span>
+                          <span className="min-w-0 font-medium text-[14px] leading-snug">{x.name}</span>
                         </>
                       );
                       const cls =

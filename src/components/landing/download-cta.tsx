@@ -25,10 +25,10 @@ export async function DownloadCta({ lang = 'zh' }: { lang?: Lang } = {}) {
     <Section labelledBy="cta-title" className="pt-16 pb-28 text-center md:pt-20 md:pb-40">
       <Reveal>
         <Logo size={64} className="mx-auto" />
-        <h2 id="cta-title" className="lp-display mt-8 text-[3rem] leading-[1.02] md:text-[6rem]">
+        <h2 id="cta-title" className="lp-display mt-6 text-[2.25rem] leading-[1.05] md:text-[3.25rem]">
           {m.title}
         </h2>
-        <p className="mx-auto mt-6 max-w-xl text-pretty text-[19px] text-[var(--color-lp-ink-2)] leading-[1.55] md:text-[21px]">
+        <p className="mx-auto mt-4 max-w-xl text-pretty text-[17px] text-[var(--color-lp-ink-2)] leading-[1.6]">
           {latest ? m.latest(latest.tag, formatDay(latest.publishedAt, lang)) : m.none}
         </p>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">

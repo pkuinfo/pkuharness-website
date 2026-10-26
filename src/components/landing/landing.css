@@ -7,8 +7,8 @@
   font-family:
     var(--font-inter), "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Noto Sans CJK SC", "Noto Sans SC",
     "Source Han Sans SC", "Microsoft YaHei", sans-serif;
-  font-size: 17px;
-  line-height: 1.47;
+  font-size: 16px;
+  line-height: 1.55;
   letter-spacing: -0.011em;
 }
 
@@ -32,7 +32,7 @@
 
 /* Small grey line above a heading (the product name, the tab name). */
 .lp-eyebrow {
-  font-size: clamp(17px, 1.6vw, 21px);
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--color-lp-ink-2);
@@ -234,7 +234,7 @@
   text-align: center;
 }
 .lp-hero-kicker {
-  font-size: clamp(19px, 1.8vw, 26px);
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.012em;
   animation: lp-fade-up 0.9s var(--ease-apple) 0.05s both;
@@ -242,7 +242,7 @@
 .lp-hero-title {
   margin: 0.18em auto 0;
   max-width: 15ch;
-  font-size: clamp(2.75rem, 5.6vw, 5.25rem);
+  font-size: clamp(2.25rem, 4.2vw, 3.5rem);
   font-weight: 650;
   line-height: 1.04;
   letter-spacing: -0.04em;
@@ -312,7 +312,7 @@
   }
   .lp-hero-copy .lp-hero-title {
     margin-inline: 0;
-    font-size: clamp(2.75rem, 5vw, 5.5rem);
+    font-size: clamp(2.5rem, 3.6vw, 3.75rem);
   }
   .lp-hero-copy :is(.lp-hero-actions, .lp-hero-meta) {
     justify-content: flex-start;
@@ -342,7 +342,7 @@
     top: 50%;
     translate: 0 -50%;
     max-width: 30rem;
-    font-size: clamp(19px, 1.55vw, 24px);
+    font-size: clamp(17px, 1.25vw, 19px);
     line-height: 1.5;
     text-align: left;
   }
@@ -422,6 +422,23 @@
     padding: 3rem 1.5rem 0;
     opacity: 1;
     text-align: center;
+  }
+}
+
+/* ---- Feature tour progress (feature-tour.tsx) ----------------------------------------------- */
+
+.lp-tour-progress {
+  transform-origin: left;
+  animation-name: lp-tour-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+@keyframes lp-tour-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
   }
 }
 

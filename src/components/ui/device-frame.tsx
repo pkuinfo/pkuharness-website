@@ -3,9 +3,9 @@
  * ruixen.ui/phone-scroll-hero (its `PhoneFrame` chassis: side keys, inset screen, camera that
  * stays black in both themes) and magicui/android (Android proportions, punch-hole camera).
  * Changes: sizes in container units so one frame works from 200 to 400 px wide, a 9:20 screen to
- * match the captures exactly (no cropping), a soft offset shadow instead of a glow, no theme
- * swap of the hardware: a phone is a dark object in a light room too. The graphite frame and black
- * glass match the hero's 3D phone (`landing/phone-scene.tsx`).
+ * match the captures exactly (no cropping), a soft offset shadow instead of a glow. The frame is
+ * silver on the light page and graphite on the dark one (`--lp-device-metal`), with black glass in
+ * both, like the hero's 3D phone (`landing/phone-scene.tsx`).
  */
 
 import type { ReactNode } from 'react';

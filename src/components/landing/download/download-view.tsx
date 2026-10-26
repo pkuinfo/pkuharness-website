@@ -86,8 +86,8 @@ export async function DownloadView({ data, lang, preview }: { data: ReleasesResu
               {m.previewBanner}
             </p>
           )}
-          <h1 className="lp-display text-5xl leading-[1.05] md:text-8xl">{m.title}</h1>
-          <p className="mt-5 max-w-2xl text-xl text-[var(--color-lp-ink-2)] md:text-2xl">{m.lede}</p>
+          <h1 className="lp-display text-4xl leading-[1.08] md:text-6xl">{m.title}</h1>
+          <p className="mt-4 max-w-2xl text-[17px] text-[var(--color-lp-ink-2)]">{m.lede}</p>
         </div>
       </header>
 
