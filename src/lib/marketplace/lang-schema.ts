@@ -155,6 +155,14 @@ export const langManifest = z.strictObject({
         .refine((c) => !!c.prompt !== !!c.screen, 'a command has either prompt or screen'),
     )
     .default({}),
+  /** Old ids a merged official plugin serves (the app honours it for verified plugins only). */
+  legacy: z
+    .strictObject({
+      pluginIds: z.array(pluginId).optional(),
+      tools: z.record(z.string(), z.string()).optional(),
+      widgets: z.record(z.string(), z.string()).optional(),
+    })
+    .optional(),
   defaultModes: z
     .object({ read: permissionMode, write: permissionMode, money: permissionMode, public: permissionMode })
     .partial()
