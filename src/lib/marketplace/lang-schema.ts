@@ -78,6 +78,7 @@ export const langTool = z.strictObject({
   effect: toolEffect,
   untrusted: z.boolean().optional(),
   userOnly: z.boolean().optional(),
+  dayScoped: z.boolean().optional(),
   input: z.record(z.string(), z.unknown()).optional(),
   constants: z.record(z.string(), z.unknown()).optional(),
   functions: z.record(z.string(), z.string()).optional(),
