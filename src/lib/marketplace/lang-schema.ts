@@ -83,6 +83,13 @@ export const langTool = z.strictObject({
   functions: z.record(z.string(), z.string()).optional(),
   steps: z.array(z.record(z.string(), z.unknown())).max(100).optional(),
   return: z.unknown().optional(),
+  /** A larger run budget than 60 requests / 60 s (§6.5). */
+  limits: z
+    .strictObject({
+      requests: z.number().int().min(1).max(200).optional(),
+      seconds: z.number().int().min(1).max(120).optional(),
+    })
+    .optional(),
 });
 
 /**
@@ -136,12 +143,16 @@ export const langManifest = z.strictObject({
   commands: z
     .record(
       z.string().regex(/^[a-z][a-z0-9-]*$/),
-      z.strictObject({
-        description: z.string().min(1).max(80),
-        prompt: z.string().min(1).max(2000),
-        aliases: z.array(z.string()).optional(),
-        argHint: z.string().optional(),
-      }),
+      z
+        .strictObject({
+          description: z.string().min(1).max(80),
+          /** Sent to the agent, or `screen`: opens one of the plugin's screens. */
+          prompt: z.string().min(1).max(2000).optional(),
+          screen: z.string().optional(),
+          aliases: z.array(z.string()).optional(),
+          argHint: z.string().optional(),
+        })
+        .refine((c) => !!c.prompt !== !!c.screen, 'a command has either prompt or screen'),
     )
     .default({}),
   defaultModes: z
