@@ -1,6 +1,21 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { revalidatePath, revalidateTag } from 'next/cache';
+import { after } from 'next/server';
 import { RELEASES_TAG } from '@/lib/releases';
+
+/**
+ * GitHub's REST API serves anonymous responses from a cache for up to 60 s
+ * (`Cache-Control: public, s-maxage=60`), so a refetch right after the webhook can still return
+ * the list without the new release, and the page would keep that for another 10 minutes.
+ * Expire once more after GitHub's cache has turned over.
+ */
+const GITHUB_CACHE_MS = 65_000;
+
+function expireReleases() {
+  revalidateTag(RELEASES_TAG, { expire: 0 });
+  revalidatePath('/download');
+  revalidatePath('/');
+}
 
 /**
  * GitHub webhook for pkuinfo/pku-harness (event: release). When a release is published, edited or
@@ -23,8 +38,11 @@ export async function POST(req: Request): Promise<Response> {
   if (event === 'ping') return Response.json({ ok: true });
   if (event !== 'release') return new Response(null, { status: 204 });
 
-  revalidateTag(RELEASES_TAG, { expire: 0 });
-  revalidatePath('/download');
-  revalidatePath('/');
+  expireReleases();
+  // The site is a long-running Node server (output: 'standalone'), so this outlives the response.
+  after(async () => {
+    await new Promise((resolve) => setTimeout(resolve, GITHUB_CACHE_MS));
+    expireReleases();
+  });
   return Response.json({ revalidated: ['/download', '/'] });
 }
