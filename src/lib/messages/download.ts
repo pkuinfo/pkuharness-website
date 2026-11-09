@@ -49,7 +49,7 @@ export const en = {
     items: [
       {
         title: 'Android 7.0 or later',
-        body: 'API level 24 or higher, on a phone with an arm64 processor. An iOS version is planned.',
+        body: 'API level 24 or higher. Most phones need the arm64-v8a APK; armeabi-v7a is for older 32-bit phones and x86_64 for emulators. An iOS version is planned.',
       },
       {
         title: 'A PKU account',
@@ -188,7 +188,10 @@ export const zh: typeof en = {
   needs: {
     title: '运行要求',
     items: [
-      { title: 'Android 7.0 或更高版本', body: 'API 级别 24 及以上，处理器为 arm64 的手机。iOS 版在计划中。' },
+      {
+        title: 'Android 7.0 或更高版本',
+        body: 'API 级别 24 及以上。大多数手机选 arm64-v8a 版；armeabi-v7a 适用于较老的 32 位手机，x86_64 适用于模拟器。iOS 版在计划中。',
+      },
       {
         title: '北大账号',
         body: '即登录统一身份认证（IAAA）时使用的学号和密码。它们只保存在手机的安全存储中。',
