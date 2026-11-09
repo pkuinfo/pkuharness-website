@@ -130,7 +130,7 @@ export function HeroSequence({
     }
     // first time: fetch the recording only once the page is idle, so it never delays first paint
     const start = () => v.play().catch(() => setPlaying(false));
-    if (v.src && v.src.endsWith(rec.src)) {
+    if (v.src?.endsWith(rec.src)) {
       start();
       return;
     }
