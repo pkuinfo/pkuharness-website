@@ -7,7 +7,7 @@ import { Section, SectionHeading } from './bits';
 export function HomeFaq({ lang }: { lang: Lang }) {
   const m = t(lang).home.faq;
   return (
-    <Section labelledBy="faq-title" className="py-24 md:py-36">
+    <Section labelledBy="faq-title" className="border-fd-border border-t py-16 md:py-20">
       <Faq
         header={
           <SectionHeading id="faq-title" title={m.title} size="md">

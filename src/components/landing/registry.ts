@@ -33,6 +33,7 @@ const EN_NAMES: Record<string, string> = {
   elective: 'Elective (选课网)',
   finance: 'Finance',
   grades: 'Grades',
+  ledger: 'Ledger',
   library: 'Library',
   memory: 'AI memory',
   notices: 'Campus notices',

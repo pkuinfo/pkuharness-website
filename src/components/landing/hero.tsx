@@ -1,53 +1,51 @@
-import { preload } from 'react-dom';
+import Link from 'next/link';
 import { type Lang, localePath } from '@/lib/i18n';
 import { t } from '@/lib/messages';
 import type { Release } from '@/lib/releases';
-import { github, repos } from '@/lib/shared';
-import { HeroSequence } from './hero-sequence';
-import type { BeadKind } from './phone-scene';
-import type { MediaPair } from './showcase/device-media';
+import { button } from './bits';
+import { DeviceMedia, type MediaPair } from './showcase/device-media';
 
-/**
- * Plays the long intro once per browser session; later visits in the same session get a short
- * one. Runs before the hero is parsed, so the first paint already has the right state.
- */
-const INTRO_SCRIPT = `try{var d=document.documentElement,k='lp-intro';d.dataset.lpIntro=sessionStorage.getItem(k)?'quick':'full';sessionStorage.setItem(k,'1')}catch(e){}`;
-
-export function Hero({
-  lang,
-  latest,
-  media,
-  beads,
-}: {
-  lang: Lang;
-  latest?: Release;
-  media?: MediaPair;
-  beads: BeadKind[];
-}) {
-  const m = t(lang);
-  const h = m.home.hero;
-  // The recording's poster is the first screen's largest image: fetch it with the HTML. Both
-  // themes, since the theme is only known in the browser.
-  for (const x of [media?.dark, media?.light]) {
-    const poster = x?.kind === 'video' ? x.poster : x?.src;
-    if (poster) preload(poster, { as: 'image', fetchPriority: 'high' });
-  }
+/** First screen: what the app is, how to get it, and one real screen of it. */
+export function Hero({ lang, latest, media }: { lang: Lang; latest?: Release; media?: MediaPair }) {
+  const m = t(lang).home;
+  const h = m.hero;
+  const facts = [latest ? h.released(latest.tag) : null, h.android, h.license].filter(Boolean);
   return (
-    <>
-      {/* biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed inline script, no user input */}
-      <script dangerouslySetInnerHTML={{ __html: INTRO_SCRIPT }} />
-      <HeroSequence
-        lang={lang}
-        title={h.title.join(' ')}
-        lead={h.lead}
-        download={{ href: localePath(lang, '/download'), label: h.download }}
-        docs={{ href: localePath(lang, '/docs'), label: h.docs }}
-        source={{ href: github(repos.app), label: h.source }}
-        meta={[latest ? { href: latest.htmlUrl, label: h.released(latest.tag) } : null, h.android, h.license]}
-        media={media}
-        labels={m.home.media}
-        beads={beads}
-      />
-    </>
+    <section
+      aria-labelledby="hero-title"
+      className="mx-auto grid w-full max-w-[1200px] items-center gap-12 px-4 pt-12 pb-16 md:grid-cols-[1.1fr_1fr] md:px-8 md:pt-20 md:pb-20"
+    >
+      <div>
+        <h1 id="hero-title" className="lp-display text-[2.75rem] leading-[1.05] md:text-[3.5rem]">
+          {h.title}
+        </h1>
+        <p className="mt-6 max-w-[34rem] text-pretty text-[17px] text-[var(--color-lp-ink-2)] leading-[1.7]">
+          {h.lead}
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link href={localePath(lang, '/download')} className={button.primary}>
+            {h.download}
+          </Link>
+          <Link href={localePath(lang, '/docs/manual')} className={button.glass}>
+            {h.manual}
+          </Link>
+        </div>
+        <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-1 text-fd-muted-foreground text-sm">
+          {facts.map((f) => (
+            <li key={f}>{f}</li>
+          ))}
+        </ul>
+      </div>
+      {media && (
+        <DeviceMedia
+          media={media}
+          sizes="(min-width: 768px) 300px, 70vw"
+          labels={m.media}
+          caption={false}
+          eager
+          className="mx-auto w-full max-w-[300px]"
+        />
+      )}
+    </section>
   );
 }

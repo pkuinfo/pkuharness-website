@@ -6,7 +6,6 @@ import { t } from '@/lib/messages';
 import { getReleases, pickLatest } from '@/lib/releases';
 import { github, repos } from '@/lib/shared';
 import { GitHubIcon, Section } from './bits';
-import { Reveal } from './reveal';
 
 function formatDay(iso: string, lang: Lang) {
   return new Intl.DateTimeFormat(htmlLang[lang], {
@@ -22,8 +21,8 @@ export async function DownloadCta({ lang = 'zh' }: { lang?: Lang } = {}) {
   const m = t(lang).home.cta;
   const latest = pickLatest((await getReleases()).releases);
   return (
-    <Section labelledBy="cta-title" className="pt-16 pb-28 text-center md:pt-20 md:pb-40">
-      <Reveal>
+    <Section labelledBy="cta-title" className="border-fd-border border-t py-16 text-center md:py-20">
+      <div>
         <Logo size={64} className="mx-auto" />
         <h2 id="cta-title" className="lp-display mt-6 text-[2.25rem] leading-[1.05] md:text-[3.25rem]">
           {m.title}
@@ -41,7 +40,7 @@ export async function DownloadCta({ lang = 'zh' }: { lang?: Lang } = {}) {
             <ChevronRight className="size-4" aria-hidden="true" />
           </a>
         </div>
-      </Reveal>
+      </div>
     </Section>
   );
 }

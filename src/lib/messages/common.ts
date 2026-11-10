@@ -16,6 +16,8 @@ export const en = {
     contributing: 'Contributing',
     security: 'Security',
     thisSite: 'This website',
+    terms: 'Terms of Service',
+    privacy: 'Privacy Policy',
     license: 'Released under the MIT license. Developed and maintained by the pkuinfo community.',
     disclaimer:
       'PKU Harness is a student community project. It is not an official product of Peking University. The name and emblem of Peking University belong to the university.',
@@ -39,6 +41,8 @@ export const zh: typeof en = {
     contributing: '参与贡献',
     security: '安全问题',
     thisSite: '本网站',
+    terms: '用户协议',
+    privacy: '隐私政策',
     license: '以 MIT 协议发布，由 pkuinfo 社区开发和维护。',
     disclaimer: 'PKU Harness 是学生社区的开源项目，不是北京大学的官方产品。「北京大学」的名称和标识归北京大学所有。',
   },

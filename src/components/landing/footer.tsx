@@ -14,6 +14,8 @@ function columns(lang: Lang): { title: string; links: { label: string; href: str
         { label: m.nav.download, href: localePath(lang, '/download') },
         { label: m.nav.marketplace, href: localePath(lang, '/marketplace') },
         { label: m.nav.docs, href: localePath(lang, '/docs') },
+        { label: m.footer.terms, href: localePath(lang, '/terms') },
+        { label: m.footer.privacy, href: localePath(lang, '/privacy') },
       ],
     },
     {
