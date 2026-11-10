@@ -8,6 +8,13 @@ export default function config(phase) {
   const dev = phase === PHASE_DEVELOPMENT_SERVER;
   return withMDX({
     reactStrictMode: true,
+    // The "Getting started" pages moved into the user manual.
+    async redirects() {
+      return ['', '/en', '/zh'].flatMap((prefix) => [
+        { source: `${prefix}/docs/getting-started`, destination: `${prefix}/docs/manual`, permanent: true },
+        { source: `${prefix}/docs/getting-started/:slug`, destination: `${prefix}/docs/manual/:slug`, permanent: true },
+      ]);
+    },
     // Self-contained server bundle for the Docker image (see Dockerfile).
     output: 'standalone',
     experimental: {

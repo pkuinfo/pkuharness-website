@@ -486,7 +486,7 @@ function BuildFromSource({ lang, m, collapsed }: { lang: Lang; m: M; collapsed: 
         </a>
         {m.build.and}
         <Link
-          href={localePath(lang, '/docs/getting-started/install')}
+          href={localePath(lang, '/docs/manual/install')}
           className="text-fd-primary underline-offset-4 hover:underline"
         >
           {m.build.docs}
