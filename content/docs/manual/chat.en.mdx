@@ -1,0 +1,150 @@
+---
+title: Chat
+description: Talk to the assistant in the Chat tab — send messages and attachments, use / commands, manage your chats, confirm the assistant's actions, edit and copy messages, and stop a reply.
+icon: MessageSquare
+---
+
+The Chat tab is where you talk to the assistant. It uses the tools of the plugins you have turned on
+to look things up or act for you, and it can show forms, pickers and data cards in the chat. This
+page covers what you can do on this tab.
+
+You need to connect an AI provider before you can chat. Until you do, the tab shows a
+**Connect AI service** button that opens **Settings → AI provider**.
+
+## Send a message
+
+1. Type in the message box at the bottom. For longer text, tap the expand button at the top right
+   of the box to open the full-screen editor.
+2. Tap the send button.
+
+A new, empty chat lists a few example questions, such as "What classes do I have today?". Tapping
+one sends it right away.
+
+While the assistant replies, it shows what it is doing, for example **Thinking** or **Using** a
+tool. When the reply is finished:
+
+- If the model produced reasoning, "Thought for Ns" appears above the reply. Tap it to show or hide
+  the thinking.
+- If the assistant used tools, it shows "Used N tools" and their names.
+- Below the reply is a copy button. The latest reply also has a regenerate button. Tap the small
+  icon on the left to show the reply's stats: model, time taken and tokens.
+
+If you switch to another app while a reply is running, the app sends a "Reply ready" notification
+when it finishes.
+
+## Stop and queue
+
+While the assistant is replying, a stop button appears next to the send button. Tap it to stop the
+reply; the reply is marked **Stopped**.
+
+You can still type your next message during a reply and tap **Send after this reply**. Queued
+messages are sent in order when the current reply ends. If the reply is stopped or fails, the queue
+pauses and a banner reads "Reply interrupted, queued messages are paused"; tap **Resume** to carry
+on. Tap a queued message to move it back into the message box.
+
+Each reply has a limit on the number of steps. When the assistant reaches it, the chat says
+"Reached the step limit for one reply". Reply "continue" to let it keep going.
+
+## Attachments
+
+Tap **+** at the bottom left of the message box to open **Add to message**.
+
+| Option | What it adds |
+| --- | --- |
+| Camera | A photo you take now |
+| Photos | Images from your gallery |
+| Files | Text files: txt, md, csv, json or log, up to 200 KB each |
+| Command | Types `/` to open the command menu |
+
+A message can carry up to 8 attachments. Images only work with models that accept them. If the
+current model doesn't, the sheet says so and offers **Switch** when another model can. For example,
+DeepSeek-V4.1-Flash accepts images and DeepSeek-V4-Pro doesn't.
+
+When you paste very long text, the box says it is too long to send as a message. Tap
+**Make attachment** to send it as an attachment.
+
+## Commands
+
+Type `/` at the start of the message box to open the command menu. Keep typing to filter it, and
+tap a command to run it. Commands also accept Chinese aliases, such as `/新对话`.
+
+| Command | What it does |
+| --- | --- |
+| `/new` | Start a new chat |
+| `/sessions` | See all chats |
+| `/rename new title` | Rename this chat |
+| `/retry` | Regenerate the last reply |
+| `/copy` | Copy the last reply |
+| `/export` | Share this chat as Markdown |
+| `/compact` | Compact older messages to free up context |
+| `/context` | See what's using the context |
+| `/model` | Switch model |
+| `/memory` | See what the AI remembers |
+| `/usage` | See token usage |
+| `/tasks` | See scheduled tasks and reminders |
+| `/plugins` | Manage plugins |
+| `/help` | List all commands |
+
+Plugins add their own commands too, for example `/balance` (Campus Card balance), `/canteen` (where
+to eat right now), `/homework` (unsubmitted Blackboard assignments) and `/share` (share your payment
+code with a friend). Type `/help` to see every command available now.
+
+## Model and context
+
+The model label below the message box shows the current model. Tap it to choose another one. The
+new model is used in this chat from your next message, and becomes the default for new chats.
+
+The ring next to the model label shows how much of the context budget this chat uses. Tap it to see
+what takes up the context and how often the chat has been compacted. When a chat goes over the
+budget, older messages are summarized automatically; the chat shows "Compacted N messages", which
+you can tap to read the summary. Set the budget in **Settings → AI provider → Context budget**.
+
+## Edit and copy messages
+
+- **Edit a message you sent**: long-press it and tap **Edit**. The text goes back into the message
+  box with the banner "Editing · sending replaces this message and everything after it". Send it to
+  replace the rest of the chat from that point. Tap the close button on the banner to cancel.
+- **Copy a message you sent**: long-press it and tap **Copy**.
+- **Copy a reply**: tap the copy button below it, or type `/copy` for the last reply.
+
+## Chats
+
+Tap the menu button at the top left of the Chat tab to open your chats. They are grouped as
+**Pinned**, **Today**, **Yesterday**, **Previous 7 days** and **Earlier**, with a search box at the
+top.
+
+- Tap a chat to open it.
+- Long-press a chat to **Rename**, **Pin** or delete it.
+- Swipe a chat to the left to delete it. You can tap **Undo** within 5 seconds.
+
+The app titles new chats from their content. Tap the title at the top of the Chat tab to change it.
+The **+** at the top right starts a new chat.
+
+## What the assistant can do
+
+What the assistant can do depends on the plugins you have turned on. For example, it can:
+
+- Check your Campus Card balance, network fee, grades, free classrooms, canteen crowds and campus
+  notices.
+- Sync your timetable from the university and create to-dos, reminders and scheduled checks.
+- Put numbers on your dashboard.
+- Show a form or picker in the chat for you to fill in and **Submit**.
+
+Some actions can only be done by you in the app, never by the assistant. Examples are showing your
+Campus Card payment code, and choosing and submitting files for a Blackboard assignment.
+
+**Settings → Plugins** lists every plugin; see [Plugins and permissions](/en/docs/manual/plugins).
+
+## Confirm the assistant's actions
+
+Each kind of action in each plugin has a permission: **Allow**, **Ask first** or **Never**. Before
+an action set to **Ask first**, the assistant shows a confirmation sheet titled "AI wants to run",
+which names the plugin.
+
+- Tap **Allow** to run it this once.
+- Tap **Deny** to refuse; the assistant is told it was refused.
+- Tap **Allow, and don't ask again for this kind of action** to run it and switch that kind of
+  action in this plugin to **Allow**. The confirmation for Copilot's actions in phone apps doesn't
+  have this option.
+
+See [Plugins and permissions](/en/docs/manual/plugins#permissions) for how to set permissions.

@@ -1,0 +1,173 @@
+---
+title: Schedule and reminders
+description: The timetable, to-dos, reminders and scheduled tasks on the Schedule tab — adding and changing them, the repeat options for reminders, and the settings that make notifications arrive on time.
+icon: CalendarClock
+---
+
+The Schedule tab brings together your timetable, to-dos, reminders and scheduled tasks. This page
+explains how to add and change them, and how to make sure reminders arrive on time. You can also
+ask the assistant in chat to create any of them, for example "Remind me to hand in my homework at 8
+tomorrow morning".
+
+The tab has two views at the top: **Agenda** and **Timetable**. Once a semester is set, the title
+shows the current teaching week.
+
+## Agenda
+
+The Agenda view shows one day.
+
+1. Pick a day in the week strip at the top. Days with classes are marked.
+2. The three buttons below, **To-do**, **Reminder** and **Class**, each create a new item.
+3. The page lists that day's classes (**Today's classes** for today), your **To-do** list, and
+   **Reminders and scheduled tasks**.
+
+Tap any item to open its edit page. The edit page has a **Delete** button at the bottom.
+
+## Timetable
+
+The Timetable view shows the whole week's classes. Use the arrows to move to the previous or next
+week.
+
+### Set the semester
+
+Teaching weeks, odd/even-week classes and class reminders all depend on the semester. The academic
+calendar syncs on its own once you sign in to your campus account. You can also set it yourself.
+
+1. Under **Timetable settings** below the timetable, tap **Semester**.
+2. Fill in **Name**, **First day of week 1** and **Teaching weeks**.
+3. Tap **Save**.
+
+### Sync from the university
+
+This comes from the **Official timetable** plugin and needs your campus sign-in.
+
+1. Under **Timetable settings**, tap **Sync timetable from the university**.
+2. Tap **Sync timetable**.
+3. If the page says **Verification needed**, choose **Authenticator** or **SMS**. For SMS, tap
+   **Send SMS code** first. Enter the code and tap **Verify and sync**. If the app is your
+   authenticator, the code is filled in for you.
+
+Syncing replaces the classes from the last sync. Classes you added yourself stay as they are. Tap
+**Sync again** later to update.
+
+### Add a class
+
+1. Tap **Add class** under **Timetable settings**, or **Class** at the top of the Agenda view.
+2. Fill in **Class name**, **Day**, **Starts** and **Ends**, and optionally **Room** and
+   **Teacher**.
+3. In **Weeks**, enter the weeks the class meets, for example `1-16`, `1-15 odd`, `2-16 even` or
+   `1,3,5`. Leave it empty for every week.
+4. Tap **Save**.
+
+### Class reminders
+
+At the bottom of the Timetable view, under **Class reminders (in advance)**, choose **Off**,
+**5 min**, **10 min**, **15 min** or **30 min**. Every class in your timetable then reminds you
+that long before it starts.
+
+## To-dos
+
+Type in the box at the bottom of the **To-do** list and press return to add a to-do. For more
+fields, tap **More options** next to the box, or the **To-do** button at the top.
+
+The to-do edit page has these fields.
+
+- **To-do** and **Notes**.
+- **Due**.
+- **Reminder**: **None**, **When due**, **15 min before** or **1 h before**. You need a due time to
+  get a reminder. A to-do the assistant created may have another reminder time, shown as
+  **Custom**.
+- **Important**: flags the to-do and lists it under **Today** even without a due date.
+- **Repeat**: **Never**, **Daily** or **Weekly**. Completing a repeating to-do creates the next
+  one, and its reminder moves along.
+
+To-dos are grouped as **Overdue**, **Today**, **Later** and **No date**. Check the box on the left to
+complete one. Completed to-dos are folded at the bottom of the list; tap **Show completed** to see
+them.
+
+## Reminders
+
+Tap **Reminder** at the top of the Agenda view to create a reminder.
+
+1. Fill in **Title** and, optionally, **Message**. The message appears in the notification.
+2. Choose **Once** or **Repeat**.
+3. For **Once**, set the date and time.
+4. For **Repeat**, set the repeat rule (see the next section).
+5. Tap **Save**.
+
+Each reminder in the list has a switch. Turning it off pauses the reminder without deleting it. The
+list shows when each reminder fires next; one that has ended shows **Ended** and how many times it
+ran.
+
+### Repeat options
+
+A repeating reminder uses one of four units: **Daily**, **Weekly**, **Hourly** or **Minutes**.
+
+- **Interval**: the number after **Every**, such as every 3 days or every 2 weeks.
+- For **Weekly**, choose the days of the week.
+- For **Daily** and **Weekly**, you can set several times of day; tap **Add time** to add one.
+- For **Hourly** and **Minutes**, set the moment it starts **From**.
+
+**Ends** has three choices.
+
+| Choice | Meaning |
+| --- | --- |
+| Never ends | It doesn't stop by itself |
+| After | It stops after a set number of times, for example 16 |
+| On date | It runs up to and including that day |
+
+For example, "every 3 days, 16 times" is: **Daily**, interval 3, **Ends** set to **After**, and 16.
+
+## Scheduled tasks
+
+Besides reminders, the assistant can create two kinds of scheduled task in chat. They appear in the
+**Reminders and scheduled tasks** list as well.
+
+A **scheduled check** looks up a value on a schedule and notifies you when a condition is met, for
+example "Check my balance every morning at 8 and remind me if it's under ¥100".
+
+- A check runs at most once every 15 minutes.
+- It can only use read-only tools, so it never changes anything.
+- Its edit page shows the condition, **Recent runs** and a **Check now** button. The AI set up the
+  condition; to change it, tell the assistant in chat.
+- After 10 failures in a row, the check pauses itself and notifies you. Once the cause is fixed,
+  turn its switch back on in the list.
+
+An **AI task** has the assistant do a task at set times in a fresh session, for example summarizing
+the notices once a day.
+
+- The assistant can only use read-only tools for it, and stays quiet when there's nothing worth
+  telling you.
+- It runs at most once an hour, and at most 10 can be on at the same time.
+- Tools set to **Ask first** can't be used by scheduled tasks.
+- Its edit page has a **Run now** button.
+
+At most 50 reminders and scheduled tasks can be on at the same time.
+
+## On-time delivery
+
+Reminders and scheduled checks run on your phone and are woken by the system alarm, with no server
+involved. To have them arrive on time, the app needs these permissions.
+
+1. Open **Settings → Reminders and alerts**.
+2. **Notifications**: tap **Allow**. If they are blocked, tap **Settings** and turn them on in
+   Android's settings.
+3. **Exact alarms**: tap **Turn on** and allow PKU Harness in Android's "Alarms & reminders"
+   setting. Without it, reminders may arrive a few minutes late.
+4. **Unrestricted battery**: tap **Turn on**, then **Allow** in the system dialog. This lets
+   scheduled checks run on time in the background.
+
+The same page shows whether **Background checks** are available, the number of
+**Scheduled notifications**, and a **Send a test reminder** button. The test reminder arrives in 10
+seconds; go to the home screen or lock your phone to see it.
+
+If notifications or exact alarms are missing, the Schedule tab shows a banner at the top. Tap
+**Turn on** or **Open settings** to fix it.
+
+In Android's notification settings, PKU Harness has three categories: **Reminders** (schedule,
+to-do and timed reminders), **Check results** (alerts from background checks) and
+**Background checks** (shown briefly while a check runs).
+
+If the phone was off or Android held the app back, so that a scheduled check or AI task would run
+more than 2 hours after its time, that run is recorded as **Missed (too late)** and sends no
+notification.

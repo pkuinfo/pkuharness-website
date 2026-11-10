@@ -1,0 +1,116 @@
+---
+title: Campus Card and payment-code sharing
+description: Your Campus Card balance, payment code, top-ups, network fee and bath card in the Campus wallet plugin, and lending your payment code to a friend with Share payment code.
+icon: CreditCard
+---
+
+The **Campus wallet** plugin covers the Campus Card, network fee, bath card and dorm electricity. The
+**Share payment code** plugin lends your Campus Card payment code to a friend for a while. Both
+need your campus sign-in.
+
+## Open the campus wallet
+
+Any of these works:
+
+- Open **Settings → Plugins → Campus wallet** and, under **Open**, tap **Campus wallet** or
+  **Campus Card payment code**.
+- Put the **Campus Card balance** widget on your dashboard and tap **Top up** or **Pay** on it.
+- Ask the assistant in chat, for example "How much is left on my campus card?", or type
+  `/balance`.
+
+The **Campus wallet** screen shows:
+
+- **Campus Card**: the balance, today's spending and the daily limit. It says so if the card is
+  reported lost or frozen.
+- **Network fee**: your network account balance and this month's usage. **Pay network fee** opens
+  the university's payment platform, where you pay with WeChat or Alipay.
+- **Bath card**: your latest online top-ups. The bath card balance lives on the card's chip and
+  can't be checked online.
+- **Dorm electricity**: how to check and pay. Dorm electricity can only be paid in the WeChat
+  account 动力中心收费服务号 for now; the app can't read your meter or pay for you.
+
+## Payment code
+
+The payment code is for scan-to-pay in canteens and shops.
+
+1. Open **Campus Card payment code**, or tap **Pay** on the **Campus Card balance** widget.
+2. Show the code to the cashier.
+
+The code refreshes every 30 seconds. While the screen is open, brightness goes to maximum and
+screenshots are blocked.
+
+Payment codes only work in digital card mode (数字卡). If your card is in another mode, the screen
+says **Switch to digital card**; tap the button with that name. After switching, your physical card
+or phone NFC may stop working. To switch back, tap **Card mode** on the payment code screen and
+choose another mode.
+
+The payment code is only shown on the screen you open. It is never given to the assistant, and the
+assistant can't show it for you.
+
+## Top up
+
+1. Tap **Top up** on the **Campus wallet** screen or the **Campus Card balance** widget.
+2. Choose an amount, or enter a whole number from 1 to 1000 in **Other amount (¥)**.
+3. The app creates a top-up order at the university's cashier and opens it in the browser. Pay with
+   WeChat or Alipay there.
+4. After paying, tap your card once on a canteen POS for the balance to update.
+
+The app never handles the money; you make every payment yourself in WeChat or Alipay. You can also
+ask the assistant to top up: it creates the order and opens the cashier, and you still pay. Top-ups
+are a Money action, which you can set to **Ask first** in the plugin's permissions; see
+[Plugins and permissions](/en/docs/manual/plugins#permissions).
+
+Bath card top-ups are 10 to 100 yuan and are paid under "我的订单" (My orders) on the university's
+payment platform. After paying, tap the bath card on a top-up kiosk for the money to go onto the
+card.
+
+## Share your payment code
+
+**Share payment code** lends your payment code to a friend for a while: they scan to pay, and the
+money comes from your Campus Card. Codes are made on your phone and relayed to your friend encrypted
+through the cloud service, which can't read them. The server can see when a share starts and ends,
+and the viewer's IP address.
+
+Follow the Peking University Campus Card rules (北京大学一卡通管理办法), and share only with people
+you trust.
+
+### Before you start
+
+1. Sign in to your campus account.
+2. Choose a server in **Settings → Cloud**; see
+   [Settings and your data → Cloud](/en/docs/manual/settings#cloud).
+3. Allow **Share payment code** to use the cloud. The first time, the app asks
+   "“Share payment code” wants to use the cloud"; tap **Allow**. You can also turn on
+   **Allow cloud** under **Cloud** in **Settings → Plugins → Share payment code**.
+4. Switch your card to digital card mode.
+
+### Create a share
+
+1. On the payment code screen, tap **Share with a friend**, or type `/share`.
+2. Read **Before you share**.
+3. Choose **Valid for**: **10 min**, **30 min**, **2 hours** or **Today**.
+4. Choose a **Spend cap**: ¥20, ¥50, ¥100, ¥200 or **No cap**.
+5. Optionally, under **Check the viewer**, set a **Name check** (tap characters of your name to hide
+   them; your friend fills in the blanks) or a **PIN** (4 to 8 digits). Tell your friend the PIN in
+   person or separately, not with the link.
+6. Tap **Create share link**.
+7. Tap **Send to a friend** to send the link, or let your friend scan the QR code on the screen.
+
+Your friend opens the link in a browser; they don't need the app. Only the first person who opens
+the link can use it. Five wrong answers close the share.
+
+### While sharing
+
+Stay online while sharing. A "Sharing payment code" notification stays up on your phone. The
+**Share payment code** screen (**Settings → Plugins → Share payment code → Share payment code**)
+shows whether your friend is viewing, how many codes were shown and how much was spent. From there
+you can:
+
+- **Stop sharing** right away.
+- **Add 30 min**.
+- **Reset viewer**, so the next person who opens the link can view it.
+- **Send link again**.
+
+A share also ends by itself when it expires, reaches the spend cap, or gets too many wrong answers.
+The cap is checked after each payment, so the last one can go slightly over. Your own spending
+during the share counts too, and your card's own daily limit still applies.

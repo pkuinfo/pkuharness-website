@@ -1,0 +1,130 @@
+---
+title: Troubleshooting
+description: Common problems with PKU Harness and how to solve them — the campus network, verification codes at sign-in, AI provider errors, late reminders, app updates, the payment code and Copilot's accessibility setting.
+icon: LifeBuoy
+---
+
+This page lists common problems, with the cause of each and what to do.
+
+## Campus services and sign-in
+
+### Finance portal: campus network only
+
+The finance portal (cwfw.pku.edu.cn) only works on the PKU campus network. Connect to the campus
+network (PKU or PKU Secure) and try again. The app connects to campus services directly, without the
+system proxy. Every plugin marked **Campus network only** in the plugin list has this limit.
+
+### Can't reach a site
+
+The message names the site and the cause. The site may be under maintenance or not open yet, or it
+may only work on the campus network. Check your connection and try again later.
+
+### Asked for a code at sign-in
+
+The university's sign-in sometimes asks for an SMS code, an email code or an authenticator code.
+This is normal, and it can also happen when the app refreshes a session in the background. Enter the
+code when asked; see
+[Campus account and authenticator → Verification codes](/en/docs/manual/campus-account#verification-codes).
+
+If a code is needed during a background refresh, the app says the campus sign-in needs a code and
+asks you to open the app. Open it and enter the code.
+
+Treehole asks for its own SMS check from time to time. Reading your timetable and grades may also
+need an authenticator or SMS code.
+
+### Authenticator required but not set up
+
+Your account uses the mobile authenticator, but this app isn't your authenticator. Enter the code
+from the authenticator app you use now, or make this app your authenticator; see
+[Authenticator](/en/docs/manual/campus-account#authenticator). Note that your old authenticator
+stops working once you do.
+
+### Plugin shows Needs sign-in
+
+The plugin needs your campus account. Sign in under **Settings → Campus account**.
+
+## AI provider
+
+### Connect AI service on the Chat tab
+
+No AI provider is set up yet. Tap the button or open **Settings → AI provider**; see
+[AI provider](/en/docs/manual/ai-model).
+
+### Errors when testing the connection
+
+| Message | What to do |
+| --- | --- |
+| The API key is invalid or has been disabled | Check that the key is complete and still active on the provider's website |
+| Your account balance is too low | Top up on the provider's website first |
+| That address doesn't look right | Check the base URL; it usually ends in `/v1` |
+| Too many requests | Wait a moment and try again |
+| The connection timed out / Can't reach the service | Check your network and the base URL |
+
+### Can't send images
+
+The current model doesn't accept images. For example, DeepSeek-V4-Pro doesn't and
+DeepSeek-V4.1-Flash does. The attachment sheet says so and offers **Switch** when another model can.
+
+### Step limit reached
+
+Each reply has a limit on the number of steps. Reply "continue" and the assistant carries on.
+
+## Reminders and scheduled tasks
+
+### Reminders are late or missing
+
+1. Open **Settings → Reminders and alerts**.
+2. Check that **Notifications** says **Allowed** and **Exact alarms** says "Reminders arrive on time".
+3. For **Unrestricted battery**, tap **Turn on**, then **Allow** in the system dialog.
+4. Tap **Send a test reminder**, go to the home screen and wait 10 seconds to check that it arrives.
+
+### Scheduled check paused
+
+A scheduled check pauses itself after 10 failures in a row. Common causes are an expired sign-in, a
+service that needs the campus network, or a site under maintenance. Once the cause is fixed, turn
+its switch back on under **Reminders and scheduled tasks** on the Schedule tab.
+
+## Updates
+
+### Can't install an update
+
+The first time you update through the app, Android asks you to allow PKU Harness to install apps.
+Turn that switch on and go back to the app; the installer continues. If you didn't see the request,
+find PKU Harness in Android's app info and allow it under "Install unknown apps".
+
+### Download failed
+
+Check your connection, then tap "Version X.Y.Z is available" at the top of Settings to try again, or
+check again in **Settings → About → Check for updates**. You can also download the APK from the
+[download page](/en/download) and install it over the app; your data stays.
+
+## Campus Card
+
+### Payment code needs digital card
+
+Payment codes only work in digital card mode (数字卡). Tap **Switch to digital card**. Your physical
+card or phone NFC may stop working afterwards; you can switch back under **Card mode**.
+
+### Balance unchanged after top-up
+
+After paying at the cashier, tap your card once on a canteen POS for the balance to update. After a
+bath card top-up, tap the bath card on a top-up kiosk.
+
+## Copilot
+
+### Can't turn on Copilot accessibility
+
+For apps installed from an APK, Android treats turning on an accessibility service as a restricted
+setting. There are two ways around it:
+
+- Connect the **Phone helper** first, then tap **Enable Copilot accessibility** on the Copilot
+  screen.
+- On the Copilot screen, tap **Open App info**, tap ⋮ in the top corner, choose
+  **Allow restricted settings**, then turn on **Copilot** in Android's accessibility settings.
+
+See [Copilot](/en/docs/manual/copilot#enable-accessibility).
+
+### Enable Copilot switch is disabled
+
+All of these must be true: the phone helper is connected, the accessibility service is on, at least
+one app is allowed, and any **Unavailable apps** have been removed.

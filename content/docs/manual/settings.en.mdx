@@ -1,0 +1,99 @@
+---
+title: Settings and your data
+description: Everything on the Settings tab — account, AI provider, cloud, usage, plugins, reminders and alerts, appearance, language, time zone, exporting and erasing data, checking for updates, and the terms and privacy policy.
+icon: Settings
+---
+
+This page goes through the Settings tab from top to bottom and explains each item.
+
+## The Settings tab
+
+| Group | Item | What it's for |
+| --- | --- | --- |
+| (when there is a new version) | Version X.Y.Z is available | Download and install the new version; see [Install and update](/en/docs/manual/install#updates) |
+| Account | Campus account | Sign in to or out of your PKU account; see [Campus account and authenticator](/en/docs/manual/campus-account) |
+| | AI provider | Choose a model provider and enter an API key; see [AI provider](/en/docs/manual/ai-model) |
+| | Cloud | Choose a cloud server; see below |
+| | Usage | Tokens, active hours and top tools; see below |
+| | Plugins | Turn plugins on and off and set permissions; see [Plugins and permissions](/en/docs/manual/plugins) |
+| Notifications | Reminders and alerts | Notification, exact alarm and background permissions; see [Schedule and reminders](/en/docs/manual/schedule#on-time-delivery) |
+| Appearance | System / Dark / Light | The app's colors |
+| Language | System / 简体中文 / English | The app's language |
+| | Time zone | See below |
+| Data | Export data, Erase all data | See below |
+| About | Check for updates, Terms of Service, Privacy Policy | See below |
+
+## Cloud
+
+The cloud is an optional server that only relays and stores encrypted data for plugins. The feature
+that uses it today is [payment-code sharing](/en/docs/manual/campus-card#share-your-payment-code).
+Your campus account and password never leave the phone; the server only knows an anonymous key for
+this device.
+
+The cloud is off by default. To turn it on:
+
+1. Open **Settings → Cloud**.
+2. Choose a server:
+   - **Off**: no server at all; features that need the cloud are unavailable.
+   - **Official**: the instance run by the PKU Harness community.
+   - **Self-hosted**: an open-source server run by you or someone you trust. Enter an address that
+     starts with `https://` in **Server URL**.
+3. Tap **Save and test**. When it connects, the screen shows the operator, the services it supports
+   and its limits.
+
+Each plugin also needs your permission to use the cloud. The first time a plugin needs it, the app
+asks "“Plugin name” wants to use the cloud" and lists what would leave the phone; tap **Allow** or
+**Not now**. You can change this later under **Cloud** in **Settings → Plugins → plugin name**, or
+tap **Clear this plugin's cloud data** there.
+
+**This device** shows the device fingerprint. It belongs to a key pair made on this phone and has
+nothing to do with your campus account.
+
+- **Reset identity** deletes this device's data on the server first, then makes new keys. Ongoing
+  shares end.
+- **Delete cloud data** deletes everything this device stored on the current server. Ongoing shares
+  end, and this can't be undone.
+
+## Usage
+
+**Settings → Usage** shows statistics on your use of the AI provider, for **7 days**, **30 days** or
+**All time**. It includes:
+
+- Token usage today and this month, and the estimated cost this month.
+- The prompt cache hit rate. Cached input is billed at a lower price.
+- Tokens per day, active hours, and chat activity over the last 20 weeks.
+- The plugins and tools used, with call counts and success rates.
+- The models used.
+
+Costs are estimated from the providers' public prices. Your provider's bill is what counts.
+
+## Time zone
+
+Reminders, Schedule, the ledger and the assistant all keep time in this zone.
+
+The default is **System**: the zone follows your phone's system setting, so it changes when you
+travel. To use a fixed zone, open **Settings → Time zone**, search for a city, country or zone name,
+and tap it.
+
+## Export data
+
+Tap **Settings → Export data**. The app makes a JSON file and opens Android's share sheet, where you
+can save it or send it somewhere. The file holds your reminders, to-dos, timetable, dashboard and
+settings. It never includes passwords or API keys.
+
+## Erase all data
+
+1. Tap **Settings → Erase all data**.
+2. Tap **Erase** in the confirmation dialog.
+
+Your reminders, to-dos, timetable, dashboard, chats and saved keys (including your campus password
+and API keys) are deleted from the phone. This can't be undone. The app then returns to the
+first-run intro.
+
+## About
+
+- **Check for updates**: shows the installed version below it. Tap it to check GitHub for a new APK;
+  see [Install and update](/en/docs/manual/install#updates).
+- **Terms of Service** and **Privacy Policy**: read them in full in the app. The website versions
+  are at [Terms of Service](/en/terms) and [Privacy Policy](/en/privacy). The privacy policy explains
+  what is sent to your AI provider, the university's systems and the cloud.

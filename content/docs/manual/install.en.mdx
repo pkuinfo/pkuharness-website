@@ -1,0 +1,83 @@
+---
+title: Install and update
+description: Download and install PKU Harness for Android, check the APK, and how new versions reach your phone.
+icon: Download
+---
+
+This page explains how to install PKU Harness and the two ways the app is updated. The app is
+available for Android only.
+
+## Requirements
+
+- Android 7.0 or later (API level 24 or higher).
+- A PKU account: the student (or staff) ID and password you use for the portal.
+- An API key for an AI model service. DeepSeek is the default; see
+  [AI provider](/en/docs/manual/ai-model).
+
+## Download
+
+The APKs are on the [download page](/en/download). They come from the latest release of the GitHub
+repository [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness/releases). Each release
+has three APKs, one per processor architecture.
+
+| File | For |
+| --- | --- |
+| `arm64-v8a` | Most phones |
+| `armeabi-v7a` | Older 32-bit phones |
+| `x86_64` | Android emulators on a computer |
+
+## Install the APK
+
+1. Download the APK on your phone.
+2. Open the downloaded file.
+3. If Android says it can't install apps from this source, follow its prompt to allow your browser
+   (or file manager) to install apps, then go back.
+4. Tap **Install**. When it finishes, open the app and follow
+   [First-run setup](/en/docs/manual/first-run).
+
+## Verify the APK
+
+Every release APK is built by GitHub Actions from a tagged commit and signed with the same release
+key. The release notes list the SHA-256 of each APK, the SHA-256 of the signing certificate and
+the commit. You can use them to check the file you downloaded.
+
+<Callout type="warn" title="Install only official builds">
+  The app keeps your campus password on your phone. Install only APKs from the official releases,
+  or build the app yourself from source.
+</Callout>
+
+## Updates
+
+The app is updated in two ways.
+
+**Over-the-air (OTA) updates** deliver small fixes that only change the app's internal code. The
+app checks for one every time it opens. If there is one, the app downloads it in the background
+and it takes effect the next time you open the app. Each OTA update is signed by the maintainers,
+and the app rejects any update without a valid signature. You don't need to do anything.
+
+**A new APK** is needed for versions that change native code. When the app opens, it checks the
+latest release on GitHub, at most once every 12 hours. When there is a newer version, it shows
+"PKU Harness X.Y.Z is available".
+
+1. Tap **Update**. The app downloads the APK for your phone and shows the progress. You can tap
+   **Cancel** while it downloads.
+2. When the download finishes, the app opens Android's installer. The first time you update this
+   way, Android asks you to allow PKU Harness to install apps. Turn that switch on and go back.
+3. Confirm the install in Android's installer.
+
+The new version installs over the old one. Your sign-in, chats, settings and other data stay.
+
+If you tap **Later**, the app doesn't show the prompt for that version again for 3 days. In the
+meantime, once the app has found the new version, the top of the Settings tab shows "Version X.Y.Z
+is available"; tap it to update. You can also check by hand in **Settings → About → Check for updates**.
+
+<Callout title="The update prompt in 1.0.6">
+  In 1.0.6, tapping **Update** opens the download link in the browser instead of downloading in the
+  app. Download the APK and install it over the old app as described above; your data stays. From
+  1.0.7 on, the app downloads the APK itself and opens Android's installer.
+</Callout>
+
+## Build from source
+
+To build the app yourself, see the app repository's `README.md` and
+[Bundled plugins → Run it in the app](/en/docs/build/bundled-plugin#run-it-in-the-app).

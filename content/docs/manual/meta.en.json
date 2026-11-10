@@ -1,0 +1,20 @@
+{
+  "title": "User manual",
+  "icon": "BookOpen",
+  "defaultOpen": true,
+  "pages": [
+    "index",
+    "install",
+    "first-run",
+    "chat",
+    "dashboard",
+    "schedule",
+    "plugins",
+    "campus-account",
+    "ai-model",
+    "campus-card",
+    "copilot",
+    "settings",
+    "troubleshooting"
+  ]
+}

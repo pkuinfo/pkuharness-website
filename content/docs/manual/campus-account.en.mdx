@@ -1,0 +1,107 @@
+---
+title: Campus account and authenticator
+description: Sign in to and out of your PKU account, enter verification codes, make the app your mobile authenticator, and the services that only work on the campus network.
+icon: KeyRound
+---
+
+The app signs in to campus services with your PKU account (IAAA, the university's unified sign-in).
+This page covers signing in, verification codes, the authenticator and signing out.
+
+## Sign in
+
+You can sign in during [first-run setup](/en/docs/manual/first-run#step-2-sign-in-to-pku) or later
+in Settings.
+
+1. Open **Settings → Campus account**.
+2. Enter the ID and password you use for the portal in **Student or staff ID** and **Password**.
+3. Tap **Sign in**.
+4. If the university asks for a code, enter it as described in the next section.
+
+Once you are signed in, the **Campus account** row in Settings shows your name, ID and "Signed in".
+
+## Where your password is kept
+
+Your ID and password are stored in the phone's secure storage and are only sent to the university's
+sign-in service. They are never sent to any server this project runs, and no plugin receives them.
+
+The app signs in to IAAA first, and then to each service when it is needed, such as the Campus Card,
+Treehole, Blackboard and the library. Plugins only use the signed-in sessions of these services and
+never see your password.
+
+## Verification codes
+
+IAAA usually only needs your password, but sometimes it asks for an extra check. This can also
+happen when the app refreshes a session in the background. The app then shows a prompt with one of
+these titles.
+
+| Title | What to enter |
+| --- | --- |
+| Enter the SMS code | The code sent to the phone on your account. When the SMS arrives, tap **Allow** in the system dialog and the code fills in by itself. The app can read only that one message |
+| Enter the email code | The code sent to your email |
+| Enter the authenticator code | The 6-digit code your authenticator app shows now. If this app is your authenticator, it is filled in for you |
+
+Then tap **Verify**. If no SMS arrives, wait for the countdown and tap **Resend code**.
+
+Some services have their own checks on top of IAAA. For example, Treehole asks for an SMS code from
+time to time, and reading your timetable and grades needs an authenticator or SMS code. You complete
+these on the plugin's own screen, or tell the code to the assistant in chat.
+
+## Test the connection
+
+In **Settings → Campus account**, tap **Test connection**. If everything works, the screen shows
+"Connected. Campus Card balance: ¥…".
+
+## Authenticator
+
+The **Authenticator** plugin makes this app your IAAA mobile authenticator (手机令牌), a 6-digit
+code that changes every 30 seconds. After you set it up:
+
+- When the app signs in to university systems, it fills in the authenticator code itself.
+- To sign in on another device, open the app's **Authenticator** screen to see the current code.
+- You can put an **Authenticator** widget on the dashboard. It shows the current code; tap it to
+  copy.
+
+<Callout type="warn" title="Setting it up replaces your old authenticator">
+  IAAA creates a new authenticator key and gives it to this app. Any authenticator you set up before
+  in another app (FreeOTP, Google Authenticator or the one the university recommends) stops
+  working. From then on, every sign-in that asks for the authenticator, including iaaa.pku.edu.cn
+  on the web, needs the code this app shows.
+</Callout>
+
+To set it up, you need to be signed in to your campus account.
+
+1. Open **Settings → Plugins → Authenticator** and, under **Open**, tap **Authenticator**.
+2. Read **Before you set up** and check
+   **I understand that any authenticator I set up before will stop working**.
+3. Tap **Send setup code**. The app verifies you with IAAA using your saved account and sends an SMS
+   to the phone on your account.
+4. Enter the 6 digits in **SMS code** and tap **Finish setup**.
+
+When it is done, the screen shows the current code and a countdown to the next one. Tap the code to
+copy it.
+
+The key stays in this phone's secure storage. It is never uploaded or given to the AI. Uninstalling
+the app, clearing its data or changing phones loses the key; you can then set it up again by SMS.
+
+To delete the key from this phone, tap **Remove from this device**. The university keeps the
+binding, so sign-ins that ask for the authenticator then need another authenticator, or you can set
+it up here again.
+
+## Services that need the campus network
+
+Some services only work on the PKU campus network, such as the finance portal (cwfw.pku.edu.cn) that
+the **Finance** plugin uses. Such plugins show **Campus network only** in the plugin list.
+
+To use them, connect to the campus network (PKU or PKU Secure). The app connects to campus services
+directly, without the system proxy.
+
+## Sign out
+
+1. Open **Settings → Campus account**.
+2. Tap **Sign out**, then **Sign out** again in the confirmation dialog.
+
+The app deletes the saved password and every campus session from this phone. Plugins that need your
+campus account stop working until you sign in again.
+
+To delete all of the app's data, see
+[Settings and your data → Erase all data](/en/docs/manual/settings#erase-all-data).

@@ -1,0 +1,122 @@
+---
+title: Plugins and permissions
+description: Turn plugins on and off in Settings → Plugins, set a permission for each kind of action, install plugins from a link, and update or remove them.
+icon: Puzzle
+---
+
+Each feature in the app that connects to a campus service is provided by a plugin, such as
+**Campus wallet**, **Course (教学网)** or **Treehole**. This page explains how to manage plugins and how
+to control what the assistant may do for you.
+
+## The plugin list
+
+Open **Settings → Plugins**. There is a search box at the top, and the plugins are listed in four
+groups.
+
+| Group | What's in it |
+| --- | --- |
+| Campus services | Plugins for campus services and other features; each can be turned on or off |
+| System | Parts of the app itself, such as the dashboard, schedule and reminders; always on |
+| AI providers | Model providers such as DeepSeek; switch between them in Settings → AI provider |
+| Remote plugins | Third-party services connected over MCP |
+
+Each plugin shows its state: **On**, **Off**, **Needs sign-in** (sign in to your campus account
+first), **Campus network only**, or **Not available** (this device lacks something it needs).
+
+Plugins come from two places. **Built-in plugins** ship with the app; you can turn them off but not
+remove them. **Community plugins** are ones you install yourself from a link; you can remove them.
+
+## A plugin's page
+
+Tap a plugin in the list to open its page. It has these sections, in this order (some plugins don't
+have all of them).
+
+- **Enable plugin**: a switch. While it's off, neither the assistant nor the dashboard can use the
+  plugin.
+- **Open**: the plugin's own screens, such as **Campus Card payment code** in **Campus wallet**, or
+  **Authenticator** in **Authenticator**.
+- **What the AI may do**: permissions for four kinds of action; see the next section.
+- **Cloud**: whether the plugin may use the cloud service; see
+  [Settings and your data](/en/docs/manual/settings#cloud).
+- **Dashboard widgets**: the widgets this plugin provides.
+- **Tools**: every tool the plugin provides, and which kind of action each one is.
+- **Access**: the campus services and websites the plugin can reach.
+- **Source**: for plugins installed from a link and built-in plugin documents, the version, updates
+  and removal.
+
+## Permissions
+
+Every tool in a plugin is one of four kinds of action.
+
+| Action | Examples |
+| --- | --- |
+| Read | Check balances, timetables, notices and more |
+| Change | Create reminders, change settings, submit forms |
+| Money | Top-ups, payments, payment codes |
+| Public | Posts, comments and anything others can see |
+
+Under **What the AI may do** on a plugin's page, choose a permission for each kind of action.
+
+| Permission | Meaning |
+| --- | --- |
+| Allow | The assistant just does it |
+| Ask first | The assistant asks you to confirm each time; see [Chat → Confirm the assistant's actions](/en/docs/manual/chat#confirm-the-assistants-actions) |
+| Never | The assistant can't do this |
+
+These limits only apply to the assistant. Anything you tap yourself is not limited.
+
+The defaults are:
+
+- Built-in plugins and plugins from the official repository `pkuinfo/pku-harness-plugins` default to
+  **Allow** for everything. A few plugins set their own defaults. For example, **Copilot** asks
+  first for Change, Money and Public actions, and **Share payment code** asks first for Money
+  actions.
+- Community and remote plugins default to at least **Ask first** for Change, Money and Public
+  actions.
+
+Scheduled tasks can only use Read tools, and never tools set to **Ask first**.
+
+## Install from a link
+
+A community plugin is a GitHub folder with a `PLUGIN.md` file. There are two ways to install one.
+
+**Tap an install link.** Install links in the website's [marketplace](/en/marketplace) start with
+`pkuharness://plugin?src=`. Tap one on your phone, and the app opens **Add a plugin** with the link
+filled in.
+
+**Paste the link.**
+
+1. Open **Settings → Plugins** and, in the **Remote plugins** group, tap **Add a remote plugin**.
+2. Paste the plugin's GitHub folder link into **Link**, for example
+   `github.com/owner/repo/tree/main/my-plugin`. You can also enter an MCP server URL here.
+3. Tap **Check**. The app reads the plugin but doesn't install it yet.
+4. Review it: the author and version, the **Official** or **Community** label, **What it can reach**
+   (campus services, websites and app features) and **What it can do** (every tool).
+5. If it looks right, tap **Install**.
+
+Whatever a community plugin's tools return reaches the assistant as data, never as instructions.
+
+## Update a plugin
+
+Plugins installed from a link update automatically by default. In the **Source** section of the
+plugin's page:
+
+- **Check for updates** checks right away.
+- The **Update automatically** switch turns automatic updates off.
+- A new version that asks for more access is not installed automatically. The page shows
+  "Version X asks for more access"; tap **Review and update** to look at it and decide.
+- **Back to version X** returns to the previous version.
+
+Built-in plugins ship with the app and update from their official link.
+
+## Remove a plugin
+
+Tap **Remove plugin** at the bottom of the plugin's page. Only plugins you installed from a link and
+remote plugins can be removed. Built-in plugins can only be turned off.
+
+## Marketplace
+
+In the **Remote plugins** group of **Settings → Plugins**, tap **Marketplace** to browse plugins and
+filter them by **All**, **Built-in** and **Remote**. Plugins that ship with the app show
+**Included**; tap one to open its page. You can also browse the full
+[marketplace](/en/marketplace) on the website.

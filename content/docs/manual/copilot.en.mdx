@@ -1,0 +1,112 @@
+---
+title: Copilot
+description: Copilot lets the assistant operate the phone apps you choose on a separate screen. This page covers connecting the phone helper, turning on the accessibility service, choosing allowed apps, and pausing, taking over and stopping.
+icon: Smartphone
+---
+
+The **Copilot** plugin lets the assistant operate other apps on your phone. It opens and operates
+them on a separate virtual screen, so you can keep using your phone at the same time. It can only
+operate the apps you allow. This page explains how to set it up and use it.
+
+Copilot is available on Android only. It needs two things to be ready: the **Phone helper**
+(connected through Android's wireless debugging) and the Copilot accessibility service.
+
+## Open the Copilot screen
+
+Type `/copilot` in chat, or open **Settings → Plugins → Copilot** and, under **Open**, tap
+**Copilot**.
+
+## Connect the phone helper
+
+The phone helper is a small program the app starts through Android's wireless debugging. Your phone
+needs to be on Wi-Fi.
+
+1. On the Copilot screen, expand **Device connection** and choose **Pair device**.
+2. Show PKU Harness and Android's Settings in split screen.
+3. Tap **Open developer options**. In Developer options, turn on **Wireless debugging**, then open
+   **Pair device with pairing code**. If your phone doesn't have Developer options yet, turn them on
+   in Android's settings first.
+4. Keep the pairing dialog open, and enter the port and six-digit code it shows in
+   **Pairing port** and **Pairing code**.
+5. Tap **Pair phone**.
+
+When it is connected, the **Phone helper** row shows **Connected**.
+
+If the phone helper disconnects, for example because wireless debugging was turned off, a phone that
+was paired before doesn't need to pair again. Check that wireless debugging is on, choose
+**Reconnect** and tap **Reconnect**. If the app can't find the port, enter the port shown on the
+main Wireless debugging screen in **Connection port**.
+
+If the screen says the code is wrong, expired or its dialog closed, open the pairing dialog again
+and retry with the new code.
+
+## Enable accessibility
+
+With the phone helper connected, tap **Enable Copilot accessibility**. The app turns the service on
+directly, without a trip to Android's settings.
+
+Without the phone helper, find **Copilot** in Android's accessibility settings and turn it on
+yourself. For apps installed from an APK, Android may say this is a restricted setting and refuse.
+In that case:
+
+1. On the Copilot screen, tap **Open App info**.
+2. Tap ⋮ in the top corner and choose **Allow restricted settings**.
+3. Go back to Android's accessibility settings and turn on **Copilot**.
+
+When both are ready, **Device connection** says "Phone helper and accessibility are ready".
+
+## Choose allowed apps
+
+Copilot only operates the apps you allow.
+
+1. Under **App access**, choose **All apps**. Use **Search apps** to find one.
+2. Turn on the switch next to each app you want to allow. You can choose up to 20 apps.
+3. Your choices save automatically. The **Allowed apps** tab lists the apps you chose.
+
+Entries marked "System dialogs · opened by another app" are system screens, such as a settings
+screen another app opens. Allow them only if Copilot needs to work in those screens.
+
+If an app you allowed has been uninstalled, the screen lists it under **Unavailable apps**. Tap
+**Remove unavailable apps** before enabling Copilot again.
+
+## Enable Copilot
+
+Turn on the **Enable Copilot** switch at the top of the screen. It can be turned on once the device
+connection is ready and at least one app is allowed.
+
+After that, describe a task in chat, for example "Search for the PKU library in the browser". You
+don't need to start each task by hand. The assistant opens the allowed apps on the separate screen
+and operates them, and a floating window shows its progress.
+
+## Confirm, pause and take over
+
+Copilot's read actions run directly. Tapping, typing, submitting and other actions ask for your
+confirmation each time by default.
+
+- While the app is in the foreground, the confirmation appears in the app.
+- While the app is in the background, it appears in the floating window. Tap **Allow once** or
+  **Deny**.
+
+The floating window can also **Pause** and **Resume**, preview the current screen, **Stop**, and
+take over.
+
+For passwords, protected screens and payment confirmations, the assistant hands the app over to you
+on your main screen. You can also tap **Take over** on the Copilot screen at any time. When you are
+done, tap **Return control to Copilot** on the Copilot screen.
+
+The assistant works by reading the text and controls on the app's screen, and that content is sent
+to your AI provider as part of the chat. The preview images in the floating window and on the
+Copilot screen are only shown on your phone and are never sent to the AI model.
+
+## Stop
+
+Any of these ends the current phone task right away:
+
+- Tap **Stop** in the floating window.
+- Tap **Stop Copilot** under **Current task** on the Copilot screen.
+- Turn off **Enable Copilot**. Your list of allowed apps is kept.
+
+After you stop it, the current reply can't start the task again by itself. Send a new message to
+start a new task.
+
+Scheduled tasks can't use Copilot.

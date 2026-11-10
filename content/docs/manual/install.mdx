@@ -1,0 +1,62 @@
+---
+title: 安装与更新
+description: 下载并安装 Android 版 PKU Harness，核对安装包，以及新版本怎样送到你的手机上。
+icon: Download
+---
+
+本页说明怎样安装 PKU Harness，以及 App 更新的两种方式。App 目前只有 Android 版。
+
+## 系统要求 [#requirements]
+
+- Android 7.0 或更高版本（API 24 及以上）。
+- 一个北大校园账号，也就是登录门户用的学号（或职工号）和密码。
+- 一个 AI 模型服务的 API Key。默认使用 DeepSeek，详见 [AI 服务](/docs/manual/ai-model)。
+
+## 下载 [#download]
+
+安装包在[下载页](/download)上，来自 GitHub 仓库 [`pkuinfo/pku-harness`](https://github.com/pkuinfo/pku-harness/releases) 的最新 Release。每个版本有三个 APK，按手机的处理器架构区分。
+
+| 文件 | 适用于 |
+| --- | --- |
+| `arm64-v8a` | 大多数手机 |
+| `armeabi-v7a` | 较旧的 32 位手机 |
+| `x86_64` | 电脑上的 Android 模拟器 |
+
+## 安装 [#install-the-apk]
+
+1. 在手机上下载 APK。
+2. 打开下载好的文件。
+3. 如果 Android 提示不允许安装未知来源的应用，按提示允许浏览器（或文件管理器）安装应用，再返回继续。
+4. 点「安装」。安装完成后打开 App，按[首次设置](/docs/manual/first-run)的步骤操作。
+
+## 核对安装包 [#verify-the-apk]
+
+每个正式版 APK 都由 GitHub Actions 从打了标签的提交自动构建，并用同一把发布密钥签名。Release 说明里列出了每个 APK 的 SHA-256、签名证书的 SHA-256 和对应的提交。你可以用这些值核对下载的文件。
+
+<Callout type="warn" title="只安装官方构建">
+  App 会在手机里保存你的校园账号密码。请只安装官方 Release 中的 APK，或者自己从源码构建。
+</Callout>
+
+## 更新 [#updates]
+
+App 有两种更新方式。
+
+**空中更新（over-the-air update，简称 OTA）** 用于只改动 App 内部代码的小修复。App 每次打开时自动检查。有更新时，App 在后台下载，下次打开 App 时生效。每个空中更新都带有维护者的签名，App 拒绝没有有效签名的更新。这个过程不需要你做任何操作。
+
+**新的 APK** 用于涉及原生代码的版本。App 打开时会检查 GitHub 上的最新 Release，最多每 12 小时检查一次。发现新版本后，App 会弹出「PKU Harness X.Y.Z 已发布」的提示。
+
+1. 点「更新」。App 会下载适合这台手机的 APK，并显示下载进度。下载过程中可以点「取消」。
+2. 下载完成后，App 会打开系统安装器。第一次通过 App 更新时，Android 会请你允许 PKU Harness 安装应用。打开这个开关后返回。
+3. 在系统安装器里确认安装。
+
+新版本会直接覆盖安装。登录状态、对话、设置和其他数据都会保留。
+
+如果点了「稍后」，App 在 3 天内不会再为这个版本弹出提示。App 检查到新版本后，「设置」页最上方会显示一行「新版本 X.Y.Z 可用」，点按它可以更新。你也可以在「设置 → 关于 → 检查更新」里手动检查。
+
+<Callout title="1.0.6 版本的更新提示">
+  在 1.0.6 中，点「更新」会在浏览器里打开下载链接，不会在 App 内下载。请下载 APK 后按上面的「安装」步骤覆盖安装，数据同样会保留。从 1.0.7 起，App 会自己下载 APK 并打开系统安装器。
+</Callout>
+
+## 从源码构建 [#build-from-source]
+
+如果你想自己构建 App，请看 App 仓库的 `README.md`，以及[内置插件 → 在 App 里运行](/docs/build/bundled-plugin#run-it-in-the-app)。

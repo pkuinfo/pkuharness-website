@@ -1,0 +1,132 @@
+---
+title: First-run setup
+description: The intro pages and the five setup steps the first time you open the app — AI provider, PKU sign-in, authenticator, plugins and reminder permissions — and what "Set up later" does.
+icon: Rocket
+---
+
+The first time you open PKU Harness, the app shows a few intro pages, asks you to accept the terms,
+and then takes you through five setup steps. This page describes each step in order.
+
+Your progress is saved after every step. If you leave the app halfway, it opens on the same step
+next time. To go back one step, tap the back arrow at the top left or press Android's back button.
+The progress bar at the top shows which step you are on.
+
+## Intro and terms
+
+There are five intro pages. Swipe or tap **Continue** to move on, or tap **Skip intro** to jump to
+the last page.
+
+The last page has a checkbox: "I agree to the Terms of Service and Privacy Policy…". Tap **Terms of
+Service** or **Privacy Policy** below to read them in full. **Agree and continue** becomes
+available once the box is checked.
+
+After you agree, the AI can act on campus services for you within the permissions you grant. You
+can change each plugin's permissions later; see
+[Plugins and permissions](/en/docs/manual/plugins#permissions).
+
+## Step 1: Connect an AI provider
+
+The assistant needs a large language model to work.
+
+1. If there is more than one AI provider plugin, pick one at the top: **DeepSeek** or
+   **OpenAI-compatible**.
+2. For **OpenAI-compatible**, fill in the **Base URL**. It usually ends in `/v1`.
+3. Paste your key into **API key**. The buttons on the right paste from the clipboard and show or
+   hide the key.
+4. Tap **Verify and connect**. The app sends one request to the provider with this key. On success
+   it shows "Connected · N models available". On failure it says why, for example that the key is
+   invalid or the account balance is too low.
+5. Under **Model**, pick a model. If the provider returned no model list, type the model's name in
+   **Model ID**.
+6. Tap **Continue**.
+
+The key stays on this phone and is only sent to the provider you chose. See
+[AI provider](/en/docs/manual/ai-model) for details on each provider.
+
+## Step 2: Sign in to PKU
+
+1. Enter your IAAA account, the one you use for the portal, in **Student or staff ID** and
+   **Password**.
+2. Tap **Sign in**.
+3. If the university asks for an SMS code or an authenticator code, the app shows a prompt. Enter
+   the code and tap **Verify**.
+4. When you are signed in, the page greets you by name. Tap **Continue**.
+
+If you see a network error, a service that needs the campus network may be out of reach. See
+[Troubleshooting](/en/docs/manual/troubleshooting).
+
+## Step 3: Authenticator
+
+This step makes the app your IAAA mobile authenticator (手机令牌). After that, when a university
+sign-in asks for an authenticator code, the app fills it in, and an **Authenticator** widget with
+the current code appears on your dashboard.
+
+This step needs your PKU sign-in. If you didn't sign in during step 2, it only shows an explanation
+and a **Continue** button.
+
+1. Read the notes on the page. Setting this up makes any authenticator you set up before in another
+   app (such as FreeOTP or Google Authenticator) stop working.
+2. Check **I understand my old authenticator will stop working**.
+3. Tap **Send SMS code**. The code goes to the phone number on your account.
+4. Enter it in **SMS code** and tap **Bind**.
+
+If you don't want to set it up now, tap **Not now**. You can do it later under
+**Settings → Plugins → Authenticator**; see
+[Campus account and authenticator](/en/docs/manual/campus-account#authenticator).
+
+## Step 4: Choose plugins
+
+The page lists the built-in plugins in three groups: **Campus services**, **Productivity** and
+**System**. Use the switch on each row to turn a plugin on or off. Changes apply right away.
+
+- Some plugins carry labels. **Needs sign-in** means you need to sign in to your PKU account first,
+  **On campus only** means it only works on the campus network, and **Notifications** and
+  **Background** mean it sends notifications or runs in the background.
+- Plugins in **System** are part of the app and always on.
+
+Tap **Continue** when you are done. You can change this any time in **Settings → Plugins**.
+
+## Step 5: Get reminders on time
+
+Reminders and scheduled checks run on your phone and are woken by the system alarm. This step has
+three items.
+
+| Item | Label | What to do |
+| --- | --- | --- |
+| **Notifications** | Required | Tap **Allow** and allow notifications in the system dialog. If they were blocked, the button reads **Open settings** |
+| **Alarms & reminders** | Required | Tap **Turn on** and allow PKU Harness in Android's "Alarms & reminders" setting |
+| **Unrestricted battery** | Recommended | Tap **Allow**, then **Allow** in the system dialog that opens |
+
+Without notifications, reminders and alerts don't show up. Without alarms & reminders, Android may
+deliver reminders minutes late or more. Unrestricted battery lets scheduled checks, such as a
+morning balance check, run on time in the background.
+
+Tap **Continue** to reach the last page. You can change these permissions later in
+**Settings → Reminders and alerts**.
+
+## Finish
+
+The last page summarizes the setup: whether an **AI** provider is connected, whether your
+**Account** is signed in, how many **Services** are turned on, and whether **Reminders** arrive on
+time.
+
+If an AI provider is connected, **Try asking** lists a few questions, such as "How much is left on
+my campus card?". Tapping one puts it in the chat's message box; you decide whether to send it. Tap
+**Get started** to open the Chat tab.
+
+## What "Set up later" does
+
+Steps 1, 2, 4 and 5 have a **Set up later** button at the bottom; step 3 has **Not now**. Tapping
+it moves to the next step without saving anything you entered on this one. You can finish skipped
+items later.
+
+| Step | Where to set it up later |
+| --- | --- |
+| Connect an AI provider | Settings → AI provider |
+| Sign in to PKU | Settings → Campus account |
+| Authenticator | Settings → Plugins → Authenticator |
+| Choose plugins | Settings → Plugins |
+| Reminder permissions | Settings → Reminders and alerts |
+
+You can enter the app without an AI provider, but chat won't work; the Chat tab shows a
+**Connect AI service** button.

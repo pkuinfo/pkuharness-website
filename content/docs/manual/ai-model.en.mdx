@@ -1,0 +1,69 @@
+---
+title: AI provider
+description: Connect a model service in Settings → AI provider — DeepSeek or any service with an OpenAI-compatible API — enter an API key, choose a model and set the context budget.
+icon: Sparkles
+---
+
+The assistant needs a large language model to work. PKU Harness doesn't provide a model service, so
+you use your own API key. This page explains how to connect and switch model services.
+
+Your API key is stored in the phone's secure storage and only sent to the provider you choose. Chat
+requests go straight from your phone to the provider.
+
+## Providers
+
+Model providers are plugins too. The app comes with two.
+
+| Provider | Base URL | Where to get an API key |
+| --- | --- | --- |
+| **DeepSeek** (default) | `https://api.deepseek.com`, fixed | Create one under API Keys at [platform.deepseek.com](https://platform.deepseek.com) |
+| **OpenAI-compatible** | `https://api.openai.com/v1` by default, editable | From the provider you use |
+
+DeepSeek offers two models.
+
+| Model | Description |
+| --- | --- |
+| DeepSeek-V4.1-Flash (default) | Fast and affordable, for everyday tasks. Accepts images |
+| DeepSeek-V4-Pro | Stronger reasoning for complex tasks. Doesn't accept images |
+
+**OpenAI-compatible** connects any service that supports the OpenAI Chat Completions API. It has no
+fixed model list; the app reads the list the provider returns.
+
+## Set it up
+
+You can connect a provider during
+[first-run setup](/en/docs/manual/first-run#step-1-connect-an-ai-provider) or change it later in
+Settings.
+
+1. Open **Settings → AI provider**.
+2. Tap a provider.
+3. For **OpenAI-compatible**, fill in **Base URL**. It usually ends in `/v1`.
+4. Enter your key in **API Key**. A saved key is marked "Saved in secure storage".
+5. Pick a model under **Model**, or type its name in **Model ID**.
+6. Tap **Save and test**. The app sends a very short test message and, on success, shows
+   "Connected" with the model's reply. To save without testing, tap **Save only**.
+
+With DeepSeek selected and a key saved, **Account balance** appears below the provider list,
+including granted and topped-up amounts. Tap **Refresh balance** to fetch it again.
+
+## Switch models in a chat
+
+On the Chat tab, tap the model label below the message box, or type `/model`, to choose another
+model. The new model is used in this chat from your next message, and becomes the default for new
+chats. See [Chat → Model and context](/en/docs/manual/chat#model-and-context).
+
+## Context budget
+
+**Context budget** at the bottom of **Settings → AI provider** can be **32k**, **64k**, **128k**,
+**256k** or **No limit**. The default is 128k.
+
+When a chat goes over the budget (or 80% of the model's context), the app summarizes the older
+messages. A smaller budget means faster, cheaper replies, but the assistant sees less of the chat
+directly.
+
+## Usage and cost
+
+**Settings → Usage** shows token usage, active hours and top tools, for **7 days**, **30 days** or
+**All time**. For models with public prices, such as DeepSeek's, it estimates the cost from those prices.
+The estimate is only a guide; your provider's bill is what counts. See
+[Settings and your data → Usage](/en/docs/manual/settings#usage).
