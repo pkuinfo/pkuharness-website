@@ -2,7 +2,14 @@ name: Docker image
 on:
   push:
     branches: [main]
+    # Root-level notes (README, AGENTS, STYLE…) aren't part of the site.
+    paths-ignore: ["*.md"]
   workflow_dispatch:
+
+# Only the newest image matters; a newer push supersedes a build still in progress.
+concurrency:
+  group: docker-image
+  cancel-in-progress: true
 
 permissions:
   contents: read
