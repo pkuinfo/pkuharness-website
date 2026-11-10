@@ -18,42 +18,47 @@ Type `/copilot` in chat, or open **Settings → Plugins → Copilot** and, under
 
 ## Connect the phone helper
 
-The phone helper is a small program the app starts through Android's wireless debugging. Your phone
-needs to be on Wi-Fi.
+The **Phone helper** is a helper program that the app starts on this phone through Android's
+wireless debugging. It connects only to this phone itself, never to a computer or server. The
+phone must be on Wi-Fi.
 
-1. On the Copilot screen, expand **Device connection** and choose **Pair device**.
-2. Show PKU Harness and Android's Settings in split screen.
-3. Tap **Open developer options**. In Developer options, turn on **Wireless debugging**, then open
-   **Pair device with pairing code**. If your phone doesn't have Developer options yet, turn them on
-   in Android's settings first.
-4. Keep the pairing dialog open, and enter the port and six-digit code it shows in
-   **Pairing port** and **Pairing code**.
-5. Tap **Pair phone**.
+**Before you start**, at the top of the Copilot screen, lists the steps in order and shows which
+are done.
 
-When it is connected, the **Phone helper** row shows **Connected**.
+1. Tap **Turn on Wireless debugging**. The first time, Android asks whether PKU Harness may send
+   notifications: choose **Allow**, because you enter the pairing code in a notification. The app
+   then opens **Wireless debugging** in Developer options. If Developer options are not on yet, the
+   button reads **Open About phone**: tap **Build number** seven times, then go back and open
+   **Developer options** (usually under **System**).
+2. Turn on **Wireless debugging**. If asked, allow the current network.
+3. Tap **Wireless debugging**, then **Pair device with pairing code**, and keep that dialog open.
+4. Pull down the notification shade. In the Copilot notification, tap **Enter code**, type the six
+   digits shown in the dialog and send. You don't need to enter a port or use split screen.
 
-If the phone helper disconnects, for example because wireless debugging was turned off, a phone that
-was paired before doesn't need to pair again. Check that wireless debugging is on, choose
-**Reconnect** and tap **Reconnect**. If the app can't find the port, enter the port shown on the
-main Wireless debugging screen in **Connection port**.
+When the notification says the phone helper is connected, pairing is done.
 
-If the screen says the code is wrong, expired or its dialog closed, open the pairing dialog again
-and retry with the new code.
+If the notification says the code was wrong or the dialog closed, tap **Pair device with pairing
+code** again and enter the new code in the same notification.
+
+If you don't allow notifications, or the notification doesn't appear, tap **Enter code manually**
+and enter the code on the Copilot screen. You can leave **IP address & Port** empty and the app
+finds it, or paste the address shown in the pairing dialog, for example `192.168.1.5:37145`.
+
+A phone that has paired once doesn't need to pair again after a disconnect. The next time you
+open PKU Harness, the phone helper turns Wireless debugging back on and reconnects by itself.
 
 ## Enable accessibility
 
-With the phone helper connected, tap **Enable Copilot accessibility**. The app turns the service on
-directly, without a trip to Android's settings.
+Once the phone helper is connected, the app turns on the Copilot accessibility service by itself;
+you don't need to open system settings. It also allows Android 13's restricted settings for itself
+and adds itself to the battery optimization allowlist so it can keep running in the background.
 
-Without the phone helper, find **Copilot** in Android's accessibility settings and turn it on
-yourself. For apps installed from an APK, Android may say this is a restricted setting and refuse.
-In that case:
+If Android force-stops PKU Harness, it also turns off its accessibility service. While Copilot is
+on and the phone helper is connected, the app turns it back on when you start the next task or
+open the Copilot screen.
 
-1. On the Copilot screen, tap **Open App info**.
-2. Tap ⋮ in the top corner and choose **Allow restricted settings**.
-3. Go back to Android's accessibility settings and turn on **Copilot**.
-
-When both are ready, **Device connection** says "Phone helper and accessibility are ready".
+If you turn the accessibility service off yourself in system settings, the **Turn on
+accessibility** step shows a **Turn on** button.
 
 ## Choose allowed apps
 
@@ -71,8 +76,9 @@ If an app you allowed has been uninstalled, the screen lists it under **Unavaila
 
 ## Enable Copilot
 
-Turn on the **Enable Copilot** switch at the top of the screen. It can be turned on once the device
-connection is ready and at least one app is allowed.
+Once the phone helper is connected, accessibility is on and at least one app is allowed, tap **Turn
+on Copilot** in the last step. The screen shows **Copilot is ready**; tap **Go to chat** to start.
+Afterwards you can turn Copilot off or on again with the **Enable Copilot** switch at the top.
 
 After that, describe a task in chat, for example "Search for the PKU library in the browser". You
 don't need to start each task by hand. The assistant opens the allowed apps on the separate screen
