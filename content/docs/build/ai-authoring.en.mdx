@@ -59,8 +59,9 @@ never see your password.
 
 ### The assistant drafts and validates [#the-agent-drafts-and-validates]
 
-The assistant reads `plugins.reference`, then writes `PLUGIN.md` and the tool files. It calls
-`plugins.validate` after each change and keeps fixing the draft until no issues are left.
+These tools are not offered when a chat starts: the assistant first loads the authoring tools of the
+`plugins` plugin with `plugins.use`. Then it reads `plugins.reference`, writes `PLUGIN.md` and the
+tool files. It calls `plugins.validate` after each change and keeps fixing the draft until no issues are left.
 
 </Step>
 <Step>

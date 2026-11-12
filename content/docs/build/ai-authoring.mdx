@@ -40,7 +40,7 @@ Plugins 插件默认在运行 `write` 工具之前询问你。所以只要你没
 
 ### 助手起草并校验 [#the-agent-drafts-and-validates]
 
-助手先读取 `plugins.reference`，再编写 `PLUGIN.md` 和各个工具文件。每次修改后，它都会调用 `plugins.validate`，并持续修正草稿，直到没有问题为止。
+这些工具不在对话开始时提供：助手先用 `plugins.use` 加载 `plugins` 插件的编写工具。然后它读取 `plugins.reference`，再编写 `PLUGIN.md` 和各个工具文件。每次修改后，它都会调用 `plugins.validate`，并持续修正草稿，直到没有问题为止。
 
 </Step>
 <Step>

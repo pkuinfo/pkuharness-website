@@ -262,15 +262,19 @@ The floating window shows the current step and a live preview. It has **Pause** 
 
 - Tap **Minimize** to shrink the window to a small round icon. A red dot means Copilot is working,
   orange means it needs you, and grey means it is paused or you have control. Drag the icon to move
-  it; tap it to open the window again. When Copilot needs a confirmation, the window opens by itself.
+  it; tap it to open the window again. Pulling down the notification shade or opening Recents doesn't
+  open it; it opens by itself only when Copilot needs a confirmation or hands control to you. Inside
+  PKU harness there is no floating window: the chat already shows the task.
 - Drag the corner of the preview to resize it.
 
-**Payments and passwords are always yours.** Copilot does every step of an order itself, up to the
-final pay button. Then it hands the app to you on your main screen with a note such as "Pay ¥23.5
-with your fingerprint, then tap Done". Pay with your fingerprint, face or password, then tap
-**Done · continue** in the floating window. Copilot checks the result and finishes the task. It does
+**You only pay.** Copilot picks items, address, options and coupons and taps **Submit order** or
+**Pay now** itself (it says the amount and merchant first). When the payment sheet opens (choosing
+Alipay or WeChat Pay, the cashier, a password or fingerprint prompt), Copilot can't tap on it: it
+hands the app to you on your main screen with a note such as "Pay ¥23.5, then tap Done". Pay with
+your fingerprint, face or password, then tap **Done · continue** in the floating window. Copilot checks the result and finishes the task. It does
 the same for passwords and sign-in checks. You can also tap **Take over** on the Copilot screen at
-any time, and **Return control to Copilot** when you are done.
+any time, and **Return control to Copilot** when you are done. If password-free payment is on,
+an order may be charged without a payment sheet; Copilot then checks the result and tells you.
 
 ## WeChat
 
@@ -290,7 +294,8 @@ of a screen reader. Some keyboards, such as Samsung Keyboard, switch to screen-r
 such a service is on, and each key then needs two taps.
 
 To avoid this, Copilot switches its accessibility service off between tasks and back on when the
-next task starts. It also checks the service before every action and turns it back on if Android or
+next task starts. During a task, while you type in PKU harness (its keyboard is open), the service
+is also off between steps and comes back before the next one. It also checks the service before every action and turns it back on if Android or
 you switched it off. This needs the phone helper to be connected; without it, the service stays on and
 the keyboard problem can come back. If your keyboard still needs two taps after a task has ended,
 open the Copilot screen so the helper reconnects. The service is then switched off within about

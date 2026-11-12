@@ -52,7 +52,7 @@ icon: Bot
 
 **内置插件**只在需要设备能力，或者需要插件语言做不到的原生界面时才写。它是 `pku-harness-plugins` 里的一个 TypeScript 模块，随 App 一起发布，修复则通过签名的空中更新（OTA）推送。所以写内置插件之前，请告诉用户先开一个 issue。另一种做法是提议新增一项宿主能力（ability），让插件文档也能完成这件事。
 
-在 App 里，助手用 `plugins` 插件提供的工具来写插件文档：`plugins.reference`、`validate`、`tryTool`、`source` 和 `install`。详见[让 AI 写插件](/docs/build/ai-authoring)。
+在 App 里，助手先用 `plugins.use` 加载 `plugins` 插件的编写工具，再用它们来写插件文档：`plugins.reference`、`validate`、`tryTool`、`source` 和 `install`。详见[让 AI 写插件](/docs/build/ai-authoring)。
 
 ## 2. 插件文档检查清单 [#2-plugin-document-checklist]
 

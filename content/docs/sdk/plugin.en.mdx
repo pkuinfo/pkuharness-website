@@ -93,6 +93,7 @@ interface ToolDef<I extends z.ZodType = z.ZodType, O = unknown> {
   resolveEffect?: (input: z.infer<I>, services: HostServices) => Promise<ToolEffect | ToolAssessment>;
   untrusted?: boolean;
   userOnly?: boolean;
+  onDemand?: boolean;
   grant?: boolean;
   alwaysAsk?: boolean;
   serial?: boolean;
@@ -115,6 +116,7 @@ type ToolAssessment = {
     effect: { type: 'ToolEffect', required: true, description: "'read' | 'write' | 'money' | 'public'." },
     untrusted: { type: 'boolean', description: "The tool returns text written by third parties. Calling it marks the agent's turn as tainted. Tools of remote plugins always count as untrusted." },
     userOnly: { type: 'boolean', description: 'Only the user can run it from a screen: not offered to the model; agent and scheduler calls are refused.' },
+    onDemand: { type: 'boolean', description: "A rarely needed tool (plugin authoring, for example): not offered when a chat starts, even for a core plugin, until the agent loads the plugin with `plugins.use`. Keeps every request smaller." },
     resolveEffect: { type: '(input, services) => Promise<ToolEffect | ToolAssessment>', description: 'An extra effect judged from current external state (for example what a Copilot tap would hit), checked alongside `effect`. A returned `target` is shown as the headline of the approval prompt.' },
     grant: { type: 'boolean', description: "The tool gives the agent access it doesn't have yet. Every agent call waits for the user's tap whatever the modes say (`auto` never skips it, `off` still blocks); scheduled calls are refused. The prompt offers Allow once / Always allow, and the answer arrives as `ctx.grant`." },
     alwaysAsk: { type: 'boolean', description: 'Every agent call waits for approval whatever the modes say; scheduled calls are refused. For actions the host cannot judge from an observed target. `resolveEffect` should name what will happen.' },
@@ -379,6 +381,8 @@ interface ProviderDef {
   editableBaseURL?: boolean;
   models: ProviderModel[];
   defaultModel: string;
+  /** Thinking-effort levels the API takes, low to high, e.g. DeepSeek's ['low', 'high', 'max']. The user picks Auto or one of them in the model picker. */
+  efforts?: readonly ('minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max')[];
   credentialHint?: string;
   listModels?: (config: ProviderConfig) => Promise<ProviderModel[]>;
   signIn?: () => Promise<string>;

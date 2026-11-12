@@ -88,6 +88,7 @@ interface ToolDef<I extends z.ZodType = z.ZodType, O = unknown> {
   resolveEffect?: (input: z.infer<I>, services: HostServices) => Promise<ToolEffect | ToolAssessment>;
   untrusted?: boolean;
   userOnly?: boolean;
+  onDemand?: boolean;
   grant?: boolean;
   alwaysAsk?: boolean;
   serial?: boolean;
@@ -110,6 +111,7 @@ type ToolAssessment = {
     effect: { type: 'ToolEffect', required: true, description: "'read' | 'write' | 'money' | 'public'." },
     untrusted: { type: 'boolean', description: "工具会返回第三方写的文本。调用后，这一轮 Agent 对话会被标记为受污染（tainted）。远程插件的工具一律算作此类。" },
     userOnly: { type: 'boolean', description: '只能由用户在页面里运行：不提供给模型，助手和调度器的调用都会被拒绝。' },
+    onDemand: { type: 'boolean', description: '很少用到的工具（例如写插件用的工具）：即使属于核心插件，也不在对话开始时提供给模型，等助手用 `plugins.use` 加载这个插件后才提供。这样每次请求都更小。' },
     resolveEffect: { type: '(input, services) => Promise<ToolEffect | ToolAssessment>', description: '根据当前的外部状态判断出的额外效果（例如 Copilot 的一次点按会点到什么），和 `effect` 一起检查。返回的 `target` 会作为审批提示的标题。' },
     grant: { type: 'boolean', description: '这个工具会给助手它原本没有的访问权限。助手的每次调用都要等用户点按，不受授权方式影响（`auto` 不会跳过，`off` 照样拒绝）；定时任务的调用会被拒绝。提示提供「仅本次允许」和「始终允许」，用户的回答以 `ctx.grant` 传入。' },
     alwaysAsk: { type: 'boolean', description: '助手的每次调用都要经过审批，不受授权方式影响；定时任务的调用会被拒绝。用于宿主无法根据观察到的目标来判断的操作。`resolveEffect` 应说明将要发生什么。' },
@@ -356,6 +358,8 @@ interface ProviderDef {
   editableBaseURL?: boolean;
   models: ProviderModel[];
   defaultModel: string;
+  /** API 支持的思考强度，从低到高，例如 DeepSeek 的 ['low', 'high', 'max']。用户在模型选择里选「自动」或其中一档。 */
+  efforts?: readonly ('minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max')[];
   credentialHint?: string;
   listModels?: (config: ProviderConfig) => Promise<ProviderModel[]>;
   signIn?: () => Promise<string>;

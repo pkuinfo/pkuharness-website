@@ -101,7 +101,8 @@ such as posts or notices. Calling it marks the rest of the assistant's turn as _
 lasting writes in a tainted turn wait for the user (see [Security](/en/docs/concepts/security)).
 Set `userOnly: true` on an action that only the user may start, such as approving or unlocking
 something. The tool is then hidden from the model, and calls from the assistant or the scheduler are
-refused.
+refused. Set `onDemand: true` on a rarely needed tool: it is not offered when a chat starts, only
+after the assistant loads the plugin with `plugins.use`, which keeps every request smaller.
 
 ## Results
 

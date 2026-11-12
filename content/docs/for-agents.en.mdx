@@ -73,7 +73,8 @@ app, and its fixes reach users through the app's signed over-the-air (OTA) updat
 reason, tell the user to open an issue before you start one. The alternative is to propose a new
 host ability, so that plugin documents can do the job.
 
-Inside the app, the agent writes plugin documents with the tools of the `plugins` plugin:
+Inside the app, the agent first loads the authoring tools of the `plugins` plugin with
+`plugins.use`, then writes plugin documents with them:
 `plugins.reference`, `validate`, `tryTool`, `source` and `install`. See
 [Write a plugin with the AI](/en/docs/build/ai-authoring).
 
