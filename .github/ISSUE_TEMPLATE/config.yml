@@ -1,5 +1,11 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Questions and ideas (Discussions)
+    url: https://github.com/pkuinfo/pku-harness/discussions
+    about: Ask how something works, suggest a guide, or show what you built.
+  - name: Documentation
+    url: https://harness.novadiffusion.com/en/docs
+    about: Read the docs first (中文 at /docs); every page links to its source file.
   - name: Submit a plugin to the marketplace
     url: https://harness.novadiffusion.com/marketplace/submit
     about: Scan your repo and submit it from the website. This opens a prefilled "Plugin submission" issue.

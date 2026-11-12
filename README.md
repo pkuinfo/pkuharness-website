@@ -4,13 +4,14 @@
 
 # PKU Harness website
 
-The official website of [PKU Harness](https://github.com/pkuinfo/pku-harness), the open-source,
-AI-native app for campus life at Peking University: download page, developer documentation, and the
-plugin marketplace.
+The official website of [PKU Harness](https://github.com/pkuinfo/pku-harness), _a pluggable, keyless,
+unified agent harness on your phone_: the open-source, AI-native app for campus life at Peking
+University. Download page, developer documentation, and the plugin marketplace.
 
 [![CI](https://github.com/pkuinfo/pkuharness-website/actions/workflows/ci.yml/badge.svg)](https://github.com/pkuinfo/pkuharness-website/actions/workflows/ci.yml)
 [![Docker image](https://github.com/pkuinfo/pkuharness-website/actions/workflows/docker.yml/badge.svg)](https://github.com/pkuinfo/pkuharness-website/actions/workflows/docker.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8B0012.svg)](LICENSE)
+[![Discussions](https://img.shields.io/github/discussions/pkuinfo/pku-harness)](https://github.com/pkuinfo/pku-harness/discussions)
 
 **[harness.novadiffusion.com](https://harness.novadiffusion.com)** ·
 [Docs](https://harness.novadiffusion.com/docs) ·
@@ -105,9 +106,18 @@ Caddy. Details, first-time setup and rollback are in [deploy/README.md](deploy/R
 
 ## Contributing
 
-Contributions are welcome: docs fixes, new guides, UI polish, marketplace features. Read
-[CONTRIBUTING.md](CONTRIBUTING.md) first. By participating you agree to the
-[Code of Conduct](CODE_OF_CONDUCT.md). To report a vulnerability, see [SECURITY.md](SECURITY.md).
+Contributions are welcome: docs fixes, new guides, translations, UI polish, marketplace features.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first; good starting points are labelled
+[`good first issue`](https://github.com/pkuinfo/pkuharness-website/labels/good%20first%20issue) and
+[`help wanted`](https://github.com/pkuinfo/pkuharness-website/labels/help%20wanted). By participating
+you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). To report a vulnerability, see
+[SECURITY.md](SECURITY.md).
+
+## Community
+
+- Questions and ideas: [GitHub Discussions](https://github.com/pkuinfo/pku-harness/discussions)
+- Website, docs or marketplace problems: [issues](https://github.com/pkuinfo/pkuharness-website/issues/new/choose)
+- Where to ask what: [SUPPORT.md](SUPPORT.md)
 
 ## Related repositories
 

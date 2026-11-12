@@ -14,8 +14,15 @@ By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 - **Write a guide.** Open an issue first with the outline, so we can agree on where it fits.
 - **Improve the site.** UI, accessibility, performance, marketplace features. For anything larger
   than a small fix, open an issue first.
+- **Translate.** Every docs page has a Chinese and an English file; a page that only exists in
+  English, or reads like a translation, is a welcome fix.
 - **List a plugin.** Use the [submit page](https://harness.novadiffusion.com/marketplace/submit). You
   don't need a pull request here.
+
+Look for issues labelled
+[`good first issue`](https://github.com/pkuinfo/pkuharness-website/labels/good%20first%20issue) or
+[`help wanted`](https://github.com/pkuinfo/pkuharness-website/labels/help%20wanted), and bring
+questions and ideas to [Discussions](https://github.com/pkuinfo/pku-harness/discussions).
 
 ## Development setup
 
