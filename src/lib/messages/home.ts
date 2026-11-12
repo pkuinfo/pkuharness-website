@@ -3,10 +3,11 @@ export const en = {
   meta: {
     title: 'PKU Harness: an Android app for PKU campus services',
     description:
-      'PKU Harness is a free, open-source Android app for Peking University students. It signs in to campus services with your PKU account and has an AI assistant that can use them for you.',
+      'A pluggable, keyless, unified agent harness on your phone. PKU Harness is a free, open-source Android app for Peking University students. It signs in to campus services with your PKU account and has an AI assistant that can use them for you.',
   },
   hero: {
     title: 'PKU Harness',
+    tagline: 'A pluggable, keyless, unified agent harness on your phone.',
     lead: 'An open-source Android app for Peking University students. It signs in to campus services with your PKU account, and an AI assistant uses them for you: your timetable, campus card, free classrooms, Treehole, course website and more.',
     download: 'Download for Android',
     manual: 'User manual',
@@ -108,10 +109,11 @@ export const zh: typeof en = {
   meta: {
     title: 'PKU Harness：北大校园服务 Android 应用',
     description:
-      'PKU Harness 是面向北京大学学生的免费开源 Android 应用。它用你的北大账号登录校园服务，并由 AI 助手代你使用这些服务。',
+      '装在手机上的可插拔、免密钥、一体化智能体。PKU Harness 是面向北京大学学生的免费开源 Android 应用。它用你的北大账号登录校园服务，并由 AI 助手代你使用这些服务。',
   },
   hero: {
     title: 'PKU Harness',
+    tagline: '装在手机上的可插拔、免密钥、一体化智能体。',
     lead: '面向北京大学学生的开源 Android 应用。它用你的北大账号登录校园服务，再由 AI 助手代你使用：课表、校园卡、空闲教室、树洞、教学网等。',
     download: '下载 Android 版',
     manual: '使用手册',

@@ -19,6 +19,7 @@ export function Hero({ lang, latest, media }: { lang: Lang; latest?: Release; me
         <h1 id="hero-title" className="lp-display text-[2.75rem] leading-[1.05] md:text-[3.5rem]">
           {h.title}
         </h1>
+        <p className="mt-4 text-pretty font-medium text-[19px] leading-[1.5]">{h.tagline}</p>
         <p className="mt-6 max-w-[34rem] text-pretty text-[17px] text-[var(--color-lp-ink-2)] leading-[1.7]">
           {h.lead}
         </p>
