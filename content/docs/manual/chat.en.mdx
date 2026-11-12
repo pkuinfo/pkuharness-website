@@ -1,6 +1,6 @@
 ---
 title: Chat
-description: Talk to the assistant in the Chat tab — send messages and attachments, use / commands, manage your chats, confirm the assistant's actions, edit and copy messages, and stop a reply.
+description: Talk to the assistant in the Chat tab — type or speak messages, attach photos and documents, use / commands, manage your chats, confirm the assistant's actions, edit and copy messages, and stop a reply.
 icon: MessageSquare
 ---
 
@@ -14,8 +14,11 @@ You need to connect an AI provider before you can chat. Until you do, the tab sh
 ## Send a message
 
 1. Type in the message box at the bottom. For longer text, tap the expand button at the top right
-   of the box to open the full-screen editor.
+   of the box to open the full-screen editor. To speak instead, tap the microphone; see
+   [Voice input](/en/docs/manual/voice-input).
 2. Tap the send button.
+
+The assistant replies in the language you write in.
 
 A new, empty chat lists a few example questions, such as "What classes do I have today?". Tapping
 one sends it right away.
@@ -25,7 +28,8 @@ tool. When the reply is finished:
 
 - If the model produced reasoning, "Thought for Ns" appears above the reply. Tap it to show or hide
   the thinking.
-- If the assistant used tools, it shows "Used N tools" and their names.
+- If the assistant used tools, it shows "Used N tools" and their names. The list folds away once
+  the answer's text starts; tap it to see it again.
 - Below the reply is a copy button. The latest reply also has a regenerate button. Tap the small
   icon on the left to show the reply's stats: model, time taken and tokens.
 
@@ -42,8 +46,9 @@ messages are sent in order when the current reply ends. If the reply is stopped 
 pauses and a banner reads "Reply interrupted, queued messages are paused"; tap **Resume** to carry
 on. Tap a queued message to move it back into the message box.
 
-Each reply has a limit on the number of steps. When the assistant reaches it, the chat says
-"Reached the step limit for one reply". Reply "continue" to let it keep going.
+There is no limit on the number of steps in one reply. The assistant keeps going until the task is
+done or you stop it. In a long task, such as a Copilot order, the older steps are summarized as the
+context fills up, and the task continues.
 
 ## Attachments
 
@@ -53,12 +58,32 @@ Tap **+** at the bottom left of the message box to open **Add to message**.
 | --- | --- |
 | Camera | A photo you take now |
 | Photos | Images from your gallery |
-| Files | Text files: txt, md, csv, json or log, up to 200 KB each |
+| Files | PDF, Word, Excel, PowerPoint, audio and text files |
 | Command | Types `/` to open the command menu |
 
-A message can carry up to 8 attachments. Images only work with models that accept them. If the
+A message can carry up to 8 attachments. Text files can be up to 200 KB, documents up to 30 MB and
+audio files up to 50 MB. Images only work with models that accept them. If the
 current model doesn't, the sheet says so and offers **Switch** when another model can. For example,
 DeepSeek-V4.1-Flash accepts images and DeepSeek-V4-Pro doesn't.
+
+### Documents and audio [#documents-and-audio]
+
+PDF, Word, Excel and PowerPoint files are read into text on your phone. The file itself is not
+uploaded; the assistant gets the text. The beginning of a long document goes with your message, and
+the assistant reads further pages or searches the document when it needs to. It quotes numbers,
+dates and amounts as written. Tap an attachment to preview the text the assistant sees.
+
+Some files can't be read, and the app says why: a scanned PDF that holds only images (take photos of
+the pages instead), a file with a password, or a damaged file.
+
+Audio files are transcribed by your [voice input](/en/docs/manual/voice-input#transcribe-an-audio-file)
+service, and the assistant reads the transcript. Alibaba Cloud Bailian (live) only handles live
+speech, so choose SiliconFlow for audio files.
+
+The text of a document is treated as data. If a file contains instructions, the assistant doesn't
+follow them.
+
+### Long pasted text [#long-pasted-text]
 
 When you paste very long text, the box says it is too long to send as a message. Tap
 **Make attachment** to send it as an attachment.
@@ -96,8 +121,10 @@ new model is used in this chat from your next message, and becomes the default f
 
 The ring next to the model label shows how much of the context budget this chat uses. Tap it to see
 what takes up the context and how often the chat has been compacted. When a chat goes over the
-budget, older messages are summarized automatically; the chat shows "Compacted N messages", which
-you can tap to read the summary. Set the budget in **Settings → AI provider → Context budget**.
+budget, older messages are summarized automatically, also in the middle of a long task; the chat
+shows "Compacted N messages", which you can tap to read the summary. Set the budget in
+**Settings → AI provider → Context budget**. By default it is the model's whole context; see
+[AI provider → Context budget](/en/docs/manual/ai-model#context-budget).
 
 ## Edit and copy messages
 
@@ -128,10 +155,15 @@ What the assistant can do depends on the plugins you have turned on. For example
   notices.
 - Sync your timetable from the university and create to-dos, reminders and scheduled checks.
 - Put numbers on your dashboard.
+- Read and search documents you attach.
+- Change the app's settings, such as the theme, language, time zone, model, or a plugin's switch and
+  permissions; see [Settings → Changing settings in chat](/en/docs/manual/settings#changing-settings-in-chat).
+- Operate other apps on your phone with [Copilot](/en/docs/manual/copilot), once you have set it up.
 - Show a form or picker in the chat for you to fill in and **Submit**.
 
 Some actions can only be done by you in the app, never by the assistant. Examples are showing your
-Campus Card payment code, and choosing and submitting files for a Blackboard assignment.
+Campus Card payment code, choosing and submitting files for a Blackboard assignment, and entering
+passwords and API keys.
 
 **Settings → Plugins** lists every plugin; see [Plugins and permissions](/en/docs/manual/plugins).
 

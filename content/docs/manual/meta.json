@@ -12,6 +12,7 @@
     "plugins",
     "campus-account",
     "ai-model",
+    "voice-input",
     "campus-card",
     "copilot",
     "settings",

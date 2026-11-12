@@ -1,54 +1,186 @@
 ---
 title: AI 服务
-description: 在「设置 → AI 服务」里接入模型服务：DeepSeek 或任何兼容 OpenAI 接口的服务，填写 API Key、选择模型、设置上下文预算。
+description: 先设置好 AI 模型：在中国大陆选择哪家服务商（DeepSeek、阿里云百炼、百度千帆），怎样一步一步申请 API Key、在哪里填写，以及账户余额、上下文预算和费用。
 icon: Sparkles
 ---
 
-助手需要一个大模型才能工作。PKU Harness 不提供模型服务，你需要使用自己的 API Key。本页说明怎样接入和切换模型服务。
+PKU Harness 的助手需要一个大模型来理解你的话并替你操作。App 不附带模型，我们也不运营模型服务。你需要在模型服务商那里开一个账户，创建一个 **API Key**，再把它填进 App。API Key 是一串很长的字符，通常以 `sk-` 开头，作用相当于服务商那边的密码。
 
-API Key 保存在手机的系统安全存储中，只发给你选择的服务商。对话请求从你的手机直接发往服务商。
+密钥保存在手机的安全存储中，只会发送给你选择的服务商。你的对话内容从手机直接发给这家服务商。服务商按用量收费：你先给账户充值，每次回复花掉一小笔钱。
 
-## 可用的服务商 [#providers]
+## 推荐的服务商 [#recommended-providers]
 
-模型服务商也由插件提供。App 内置两个。
+任何提供 OpenAI 兼容接口的服务都可以使用。对中国大陆的同学来说，下面三家付款方便，不需要代理也能访问。
 
-| 服务商 | 接口地址 | API Key 从哪里获得 |
-| --- | --- | --- |
-| **DeepSeek**（默认） | `https://api.deepseek.com`，不可修改 | 在 [platform.deepseek.com](https://platform.deepseek.com) 的 API Keys 页面创建 |
-| **OpenAI 兼容** | 默认 `https://api.openai.com/v1`，可以修改 | 你使用的服务商提供 |
+| 服务商 | 在 App 中怎样接入 | 接口地址（Base URL） | 模型示例 |
+| --- | --- | --- | --- |
+| **DeepSeek** | 「DeepSeek」（内置，默认） | `https://api.deepseek.com`，固定 | DeepSeek-V4.1-Flash、DeepSeek-V4-Pro |
+| **阿里云百炼**（千问模型） | 「OpenAI 兼容」 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen3.7-plus`、`qwen3.8-flash` |
+| **百度千帆**（文心模型） | 「OpenAI 兼容」 | `https://qianfan.baidubce.com/v2` | `ernie-5.1`、`ernie-4.5-turbo-128k` |
 
-DeepSeek 提供两个模型。
+模型名称经常更新，请以服务商的模型列表为准：[百炼模型列表](https://help.aliyun.com/zh/model-studio/models)、[千帆模型列表](https://cloud.baidu.com/doc/qianfan/s/rmh4stp0j)。
 
-| 模型 | 说明 |
-| --- | --- |
-| DeepSeek-V4.1-Flash（默认） | 快速、经济，适合日常任务。可以接收图片 |
-| DeepSeek-V4-Pro | 推理能力更强，适合复杂任务。不接收图片 |
+### 怎样选择 [#which-one-to-choose]
 
-「OpenAI 兼容」可以连接任何支持 OpenAI Chat Completions 接口的服务。它没有固定的模型列表，App 会读取服务商返回的列表。
+**DeepSeek** 最简单，也是我们首先推荐的。App 认识它的模型，所以：
 
-## 接入或修改 [#set-it-up]
+- 不需要填写接口地址和模型名称。
+- App 知道每个模型的上下文长度（100 万 token），也知道它能不能看图片。DeepSeek-V4.1-Flash 支持图片，可以发送照片，Copilot 也能使用截图；DeepSeek-V4-Pro 不支持。
+- 「设置 → 用量」按 DeepSeek 公开的价格估算花费，「设置 → AI 服务」可以显示账户余额。
 
-你可以在[首次设置](/docs/manual/first-run#step-1-connect-an-ai-provider)中接入，也可以之后在设置里修改。
+**阿里云百炼**和**百度千帆**通过「OpenAI 兼容」接入。如果你已经有这两家的账户，或者更喜欢它们的模型，可以选择它们。百炼还有一个好处：同一个账户也能申请[语音输入](/docs/manual/voice-input)用的 Key。用这种方式接入的模型，App 了解得少一些：
+
+- App 按 128k token 估计上下文长度，并据此压缩对话。
+- App 不为这些模型提供图片附件，所以不能发送照片，Copilot 也不能用截图。
+- 「设置 → 用量」会统计它们的 token，但无法估算花费，App 也不能显示余额。这两项请在服务商的控制台查看。
+
+## 申请 DeepSeek API Key [#get-a-deepseek-api-key]
+
+<Steps>
+
+<Step>
+
+### 注册账户 [#deepseek-account]
+
+用浏览器打开 [platform.deepseek.com](https://platform.deepseek.com)，例如用手机号注册。充值前，平台可能要求你完成实名认证。
+
+</Step>
+
+<Step>
+
+### 充值 [#deepseek-top-up]
+
+打开「充值」页面，用微信或支付宝充一小笔钱，例如 10 元。余额为零时，调用会失败，并提示「账户余额不足」。
+
+</Step>
+
+<Step>
+
+### 创建 Key [#deepseek-create-key]
+
+点左侧菜单的「API keys」，再点「创建 API key」。起一个容易认出的名字，例如 `PKU Harness`，然后创建。立刻复制这个 Key：完整的 Key 只显示一次。
+
+</Step>
+
+<Step>
+
+### 填进 App [#deepseek-enter]
+
+打开「设置 → AI 服务」，点「DeepSeek」，把 Key 粘贴到「API Key」，点「保存并测试连接」。详见[在 App 中填写](#enter-the-key-in-the-app)。
+
+</Step>
+
+</Steps>
+
+## 申请阿里云百炼 API Key [#get-an-alibaba-cloud-bailian-api-key]
+
+<Steps>
+
+<Step>
+
+### 注册账户 [#bailian-account]
+
+在 [aliyun.com](https://www.aliyun.com) 注册阿里云账号。使用付费服务前，阿里云通常要求完成实名认证，按控制台的提示操作即可。
+
+</Step>
+
+<Step>
+
+### 打开北京地域的百炼 [#bailian-region]
+
+打开[百炼控制台](https://bailian.console.aliyun.com)。如果提示开通服务，同意开通。确认右上角的地域是「华北2（北京）」。Key 只能在创建它的地域使用。
+
+</Step>
+
+<Step>
+
+### 创建 Key [#bailian-create-key]
+
+打开 [API Key 页面](https://bailian.console.aliyun.com/cn-beijing/model/settings/api-key)，点「创建 API Key」，保持默认设置并确定。立刻复制这个 Key：完整的 Key 只显示一次。
+
+</Step>
+
+<Step>
+
+### 填进 App [#bailian-enter]
+
+打开「设置 → AI 服务」，点「OpenAI 兼容」。把「Base URL」设为 `https://dashscope.aliyuncs.com/compatible-mode/v1`，把 Key 粘贴到「API Key」，在「模型 ID」里填写模型名称，例如 `qwen3.7-plus`。点「保存并测试连接」。
+
+</Step>
+
+</Steps>
+
+百炼的每次调用都计入你的阿里云账户。新账户有时会获得部分模型的免费额度，具体以控制台显示为准。
+
+上面的接口地址是百炼 [API Key 文档](https://help.aliyun.com/zh/model-studio/get-api-key)中北京地域的地址。百炼的 [OpenAI 兼容说明](https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope)还列出了一个业务空间地址 `https://<WorkspaceId>.cn-beijing.maas.aliyuncs.com/compatible-mode/v1`，并建议使用它以获得更好的稳定性。两个地址都可以使用。
+
+## 申请百度千帆 API Key [#get-a-baidu-qianfan-api-key]
+
+<Steps>
+
+<Step>
+
+### 注册账户 [#qianfan-account]
+
+在 [cloud.baidu.com](https://cloud.baidu.com) 注册百度智能云账号。如果控制台要求实名认证，请先完成。
+
+</Step>
+
+<Step>
+
+### 创建 Key [#qianfan-create-key]
+
+在控制台打开[「安全认证 → API Key」](https://console.bce.baidu.com/iam/#/iam/apikey/list)，点「创建 API Key」。Key 的样子类似 `bce-v3/ALTAK-…/…`，复制时要包括开头的 `bce-v3/`。
+
+</Step>
+
+<Step>
+
+### 填进 App [#qianfan-enter]
+
+打开「设置 → AI 服务」，点「OpenAI 兼容」。把「Base URL」设为 `https://qianfan.baidubce.com/v2`，把 Key 粘贴到「API Key」，在「模型 ID」里填写模型名称，例如 `ernie-5.1`。点「保存并测试连接」。
+
+</Step>
+
+</Steps>
+
+接口地址和 Key 的格式来自千帆的[快速开始](https://cloud.baidu.com/doc/qianfan-docs/s/qm8qxemze)。调用费用计入你的百度智能云账户。
+
+## 在 App 中填写 [#enter-the-key-in-the-app]
+
+可以在[首次设置](/docs/manual/first-run#step-1-connect-an-ai-provider)中连接，也可以之后在设置里修改。设置页的选项最完整。
 
 1. 打开「设置 → AI 服务」。
-2. 点选一个服务商。
-3. 使用「OpenAI 兼容」时，填写「Base URL」，通常以 `/v1` 结尾。
-4. 在「API Key」里填写密钥。已保存的密钥旁显示「已保存在本机安全存储」。
-5. 在「模型」列表中选择一个模型，或在「模型 ID」里直接填写模型名称。
-6. 点「保存并测试连接」。App 会发一条很短的测试消息，成功时显示「连接成功」和模型的回复。只想保存、不测试时，点「仅保存」。
+2. 点一个服务商：「DeepSeek」或「OpenAI 兼容」。
+3. 在「模型」下点选一个模型，或在「模型 ID」里填写模型名称。「OpenAI 兼容」需要手动填写；测试成功后，App 也会列出服务商返回的模型。
+4. 选择「OpenAI 兼容」时，填写「Base URL」。DeepSeek 的地址是固定的，页面上显示为「接口地址：https://api.deepseek.com」。
+5. 在「API Key」里粘贴密钥。已保存的密钥会标注「已保存在本机安全存储」。
+6. 点「保存并测试连接」。App 会发送一条很短的测试消息，成功后显示「连接成功：」和模型的回复。只想保存、不测试，点「仅保存」。
 
-选择 DeepSeek 并保存密钥后，服务商列表下方会显示「账户余额」，包括赠送和充值的金额。点「刷新余额」可以重新获取。
+测试失败时，提示会说明原因，见[常见问题 → AI 服务](/docs/manual/troubleshooting#ai-provider)。
 
-## 在对话中切换模型 [#switch-models-in-a-chat]
+助手不能读取或填写 API Key。如果你在对话里让它改 Key，它会打开这个页面，由你自己填写。
+
+## 账户余额 [#account-balance]
+
+选择 DeepSeek 并保存 Key 后，「AI 服务」页面会出现「账户余额」，显示余额以及其中赠送和充值的部分（「赠送 … · 充值 …」）。点按可以刷新。如果服务商提示余额不足以发起请求，页面会说明；到服务商网站充值后即可继续使用。
+
+其他服务商的余额请在它们的控制台查看。
+
+## 切换模型 [#switch-models]
 
 在对话页点输入框下方的模型标签，或输入 `/model`，可以选择其他模型。新模型从下一条消息起用于这个对话，也会成为新对话的默认模型。详见[对话 → 模型和上下文](/docs/manual/chat#model-and-context)。
 
+也可以直接告诉助手，例如「切换到 DeepSeek-V4-Pro」。它会修改设置，并告诉你改了什么，见[设置 → 在对话中修改设置](/docs/manual/settings#changing-settings-in-chat)。
+
 ## 上下文预算 [#context-budget]
 
-「设置 → AI 服务」底部的「上下文预算」可以选择「32k」「64k」「128k」「256k」或「不限」，默认是 128k。
+模型看到的对话内容叫作「上下文」。「设置 → AI 服务」底部的「上下文预算」限制 App 每次发送多少上下文，可选「32k」「64k」「128k」「256k」和「模型上限」，默认是「模型上限」。
 
-对话超过预算（或模型上下文长度的 80%）时，App 会把较早的内容压缩成摘要。预算越小，回复越快、费用越低，但助手能直接看到的历史越短。
+选择「模型上限」时，App 使用模型的完整上下文，对话用到 90% 时把较早的内容压缩成摘要。DeepSeek 的上下文是 100 万 token，也就是大约 90 万时压缩。预算越小，回复越快、越省钱，但助手直接看到的对话也越少。长任务进行到一半时也会压缩，任务会接着做下去。
 
 ## 用量和费用 [#usage-and-cost]
 
-「设置 → 用量」显示 token 用量、活跃时段和常用工具，可以按「7 天」「30 天」或「全部」查看。对于公开了价格的模型（例如 DeepSeek），页面会按公开价格估算花费。估算值仅供参考，以服务商的账单为准。详见[设置与数据 → 用量](/docs/manual/settings#usage)。
+服务商按 token（文本片段）数量收费，发送和接收的内容都计入。对话越长、附件越多、Copilot 任务越长，用的 token 就越多。
+
+「设置 → 用量」显示 token 用量、活跃时段与常用工具，可以选择「7 天」「30 天」或「全部」。对于公布了价格的模型（例如 DeepSeek），页面会估算花费。估算仅供参考，以服务商的账单为准。详见[设置与数据 → 用量](/docs/manual/settings#usage)。

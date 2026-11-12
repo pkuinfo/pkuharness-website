@@ -1,148 +1,339 @@
 ---
 title: Copilot
-description: Copilot lets the assistant operate the phone apps you choose on a separate screen. This page covers connecting the phone helper, turning on the accessibility service, choosing allowed apps, and pausing, taking over and stopping.
+description: Copilot lets the assistant operate other apps on your phone on a separate screen. A step-by-step setup guide for non-technical users — Developer options, Wireless debugging and the pairing code, accessibility, allowed apps and screenshots — with notes for each phone brand, and how to pause, stop and turn it all off again.
 icon: Smartphone
 ---
 
-The **Copilot** plugin lets the assistant operate other apps on your phone. It opens and operates
-them on a separate virtual screen, so you can keep using your phone at the same time. It can only
-operate the apps you allow. This page explains how to set it up and use it.
+**Copilot** lets the assistant use other apps on your phone for you. For example, you can say "Use
+Copilot to set a 7:30 alarm" or "Order my usual coffee". The assistant opens the app on a separate,
+invisible screen and taps and types there, while you keep using your phone. A small floating window
+shows each step, and you can pause or stop it at any time.
 
-Copilot is available on Android only. It needs two things to be ready: the **Phone helper**
-(connected through Android's wireless debugging) and the Copilot accessibility service.
+Copilot only works on Android 12 or later. It can only use the apps you allow, and it asks you before
+it uses any other app.
+
+## Why Copilot needs these permissions
+
+Android doesn't normally let one app operate another. Copilot gets around this with tools that
+Android provides for app developers and for screen readers. Each one has a clear job.
+
+| What | Why Copilot needs it |
+| --- | --- |
+| **Phone helper** (through Wireless debugging) | A small helper program that PKU Harness starts on your phone. It creates Copilot's separate screen, opens apps there, and performs every tap, swipe and keystroke. It connects only to your own phone, never to a computer or a server |
+| **Accessibility** | Lets Copilot read what is on the screen of the app it operates (buttons, text, lists), and show its floating window. Since version 1.0.20 it is only used to read, never to tap or type |
+| **Allowed apps** | The list of apps Copilot may open. Up to 20 |
+| **Notifications** (optional) | During setup you type the pairing code into a notification. While a task runs, a notification lets you stop it |
+| **Screenshots** (on by default) | For apps that hide their contents from accessibility, such as Taobao and WeChat |
+
+You can revoke each of these in Android's settings at any time; see
+[Turn Copilot off](#turn-copilot-off).
+
+## Before you start
+
+- Connect to **Wi-Fi**. Wireless debugging only works on Wi-Fi. Campus Wi-Fi (PKU, PKU Secure) is
+  fine.
+- Have your **lock screen password** ready. Android asks for it when you turn on Developer options.
+- Set aside about five minutes. You only do this once.
+- Copilot is a plugin. If you turned it off during setup, turn it on in **Settings → Plugins**.
 
 ## Open the Copilot screen
 
 Type `/copilot` in chat, or open **Settings → Plugins → Copilot** and, under **Open**, tap
-**Copilot**.
+**Copilot**. During [first-run setup](/en/docs/manual/first-run#step-6-copilot),
+**Set up Copilot** opens the same screen.
 
-## Connect the phone helper
+Until everything is ready, the screen shows **Before you start**: a numbered list of five steps, each
+marked **Needed**, **Recommended**, **Automatic** or done. The first unfinished step is opened for
+you. Work through them from top to bottom.
 
-The **Phone helper** is a helper program that the app starts on this phone through Android's
-wireless debugging. It connects only to this phone itself, never to a computer or server. The
-phone must be on Wi-Fi.
+## Set up Copilot step by step
 
-**Before you start**, at the top of the Copilot screen, lists the steps in order and shows which
-are done.
+<Steps>
 
-1. Tap **Turn on Wireless debugging**. The first time, Android asks whether PKU Harness may send
-   notifications: choose **Allow**, because you enter the pairing code in a notification. The app
-   then opens **Wireless debugging** in Developer options. If Developer options are not on yet, the
-   button reads **Open About phone**: tap **Build number** seven times, then go back and open
-   **Developer options** (usually under **System**).
-2. Turn on **Wireless debugging**. If asked, allow the current network.
-3. Tap **Wireless debugging**, then **Pair device with pairing code**, and keep that dialog open.
-4. Pull down the notification shade. In the Copilot notification, tap **Enter code**, type the six
-   digits shown in the dialog and send. You don't need to enter a port or use split screen.
+<Step>
 
-When the notification says the phone helper is connected, pairing is done.
+### Allow notifications [#allow-notifications]
 
-If the notification says the code was wrong or the dialog closed, tap **Pair device with pairing
-code** again and enter the new code in the same notification.
+This step is marked **Optional**, but it makes pairing much easier.
 
-If you don't allow notifications, or the notification doesn't appear, tap **Enter code manually**
-and enter the code on the Copilot screen. You can leave **IP address & Port** empty and the app
-finds it, or paste the address shown in the pairing dialog, for example `192.168.1.5:37145`.
+Tap **Allow notifications**, then **Allow** in Android's dialog. If you blocked notifications before,
+the button reads **Open notification settings**; turn notifications on for PKU Harness there and come
+back.
 
-A phone that has paired once doesn't need to pair again after a disconnect. The next time you
-open PKU Harness, the phone helper turns Wireless debugging back on and reconnects by itself.
+</Step>
 
-## Enable accessibility
+<Step>
 
-Once the phone helper is connected, the app turns on the Copilot accessibility service by itself;
-you don't need to open system settings. It also allows Android 13's restricted settings for itself
-and adds itself to the battery optimization allowlist so it can keep running in the background.
+### Turn on Developer options [#turn-on-developer-options]
 
-If Android force-stops PKU Harness, it also turns off its accessibility service. While Copilot is
-on and the phone helper is connected, the app turns it back on when you start the next task or
-open the Copilot screen.
+_Developer options_ is a hidden page in Android's Settings, meant for people who build apps. Turning
+it on changes nothing by itself; it only shows the page. Copilot needs one switch on it, Wireless
+debugging.
 
-If you turn the accessibility service off yourself in system settings, the **Turn on
-accessibility** step shows a **Turn on** button.
+If Developer options are off, the phone helper step shows the button **Open About phone**. Tap it,
+then:
 
-## Choose allowed apps
+1. On the **About phone** screen, find **Build number** and tap it seven times in a row. On some
+   phones the item has another name, such as **OS version** or **Software version**; see
+   [the table below](#where-the-switches-are-on-your-phone).
+2. Android asks for your lock screen password. Enter it.
+3. A message says "You are now a developer" (or similar).
+4. Go back to Settings and open **Developer options**. On most phones it is under **System** or
+   **Additional settings**.
 
-Copilot only operates the apps you allow.
+If Developer options are already on, the button reads **Turn on Wireless debugging** and opens
+Developer options at the right place.
 
-1. Under **App access**, choose **All apps**. Use **Search apps** to find one.
-2. Turn on the switch next to each app you want to allow. You can choose up to 20 apps.
+</Step>
+
+<Step>
+
+### Turn on Wireless debugging [#turn-on-wireless-debugging]
+
+1. In PKU Harness, tap **Turn on Wireless debugging**. The app opens Android's Developer options
+   and waits for you there.
+2. Find **Wireless debugging** and turn its switch on. If Android asks "Allow wireless debugging on
+   this network?", tap **Allow**. Ticking "Always allow on this network" saves you this question
+   later.
+3. Tap the words **Wireless debugging** (not the switch) to open its page.
+4. Tap **Pair device with pairing code**. A dialog shows a six-digit **Wi-Fi pairing code**. Keep
+   this dialog open.
+
+Wireless debugging is meant for connecting a computer to the phone. Copilot uses it to start the
+phone helper on the phone itself; no computer is involved, and nothing outside your phone can
+connect through it without the pairing code.
+
+</Step>
+
+<Step>
+
+### Enter the pairing code [#enter-the-pairing-code]
+
+1. With the pairing dialog still open, pull down the notification shade.
+2. In the **Copilot pairing** notification ("Enter the pairing code"), tap **Enter code**.
+3. Type the six digits from the dialog and send.
+
+The notification shows "Pairing and starting the phone helper…", then **Phone helper connected**.
+You don't need to type a port number or use split screen.
+
+If the notification says the code was wrong or the dialog closed, tap
+**Pair device with pairing code** again and type the new code in the same notification.
+
+If you didn't allow notifications, or the notification doesn't appear, go back to PKU Harness and tap
+**Enter code manually**. Type the code in **Pairing code** and tap **Pair phone**. You can leave
+**IP address & Port** empty; the app finds it.
+
+You pair only once. A phone that has paired before shows a **Reconnect** tab instead, and normally
+reconnects by itself, even after a restart.
+
+</Step>
+
+<Step>
+
+### Accessibility [#enable-accessibility]
+
+Once the phone helper is connected, this step turns on by itself. The row shows **Turning on…** and
+then **Enabled**. The helper also does three things for Copilot, so you don't have to:
+
+- allows Android 13's _restricted settings_ for PKU Harness (see below);
+- adds PKU Harness to the battery optimization allowlist, so Copilot keeps running in the background;
+- gives PKU Harness permission to turn its own accessibility service back on.
+
+If the row still says **Needed**, tap **Turn on**. This happens, for example, when you turned the
+service off in Android's settings before.
+
+**Turning it on by hand.** If the phone helper can't connect, tap **Turn on in Settings instead**,
+then **Open accessibility settings**, find **Copilot** in the list (often under "Downloaded apps" or
+"Installed apps") and turn it on. Android may say this is a _restricted setting_: apps installed from
+a downloaded APK can't turn on accessibility until you allow it. Tap **Open App info**, tap **⋮** in
+the top corner, choose **Allow restricted settings**, confirm with your lock screen password, then go
+back and turn on **Copilot**.
+
+</Step>
+
+<Step>
+
+### Choose allowed apps [#choose-allowed-apps]
+
+1. Tap **Choose apps**. The list under **App access** shows **All apps**. Use **Search apps** or the
+   A–Z index on the right to find one.
+2. Turn on the switch next to each app you want Copilot to use, up to 20.
 3. Your choices save automatically. The **Allowed apps** tab lists the apps you chose.
 
 Entries marked "System dialogs · opened by another app" are system screens, such as a settings
 screen another app opens. Allow them only if Copilot needs to work in those screens.
 
-If an app you allowed has been uninstalled, the screen lists it under **Unavailable apps**. Tap
-**Remove unavailable apps** before enabling Copilot again.
+If an allowed app has been uninstalled, it appears under **Unavailable apps**. Tap
+**Remove unavailable apps**.
+
+</Step>
+
+<Step>
+
+### Turn on Copilot [#turn-on-copilot]
+
+Tap **Turn on Copilot**. The screen shows **Copilot is ready**; tap **Go to chat** to start.
+
+Afterwards the screen shows an **Enable Copilot** switch at the top, a **Permissions** row (which
+reads "All required access is granted" when nothing is missing) and the
+**Let the AI see screenshots** switch.
+
+</Step>
+
+</Steps>
+
+## Where the switches are on your phone [#where-the-switches-are-on-your-phone]
+
+Every phone maker renames and moves these menus. The quickest way is the search box at the top of
+Android's Settings: search for **build number** (版本号), then for **wireless debugging** (无线调试).
+The table lists the usual places. They may differ by model and system version.
+
+| Brand (system) | Tap seven times to turn on Developer options | Where Developer options are |
+| --- | --- | --- |
+| Google Pixel, most other phones (Android) | Settings → About phone → **Build number** | Settings → System → Developer options |
+| Samsung (One UI) | Settings → About phone → Software information → **Build number** | Settings → Developer options (at the bottom) |
+| Xiaomi, Redmi, POCO (HyperOS, MIUI) | Settings → My device (我的设备) → All specs (全部参数与信息) → **OS version** (HyperOS 版本 / MIUI 版本) | Settings → Additional settings (更多设置) → Developer options |
+| Huawei (HarmonyOS 4 or earlier) | Settings → About phone → **Build number** (版本号) | Settings → System & updates (系统和更新) → Developer options |
+| Honor (MagicOS) | Settings → About phone → **Build number** (版本号) | Settings → System & updates (系统和更新) → Developer options |
+| OPPO (ColorOS), OnePlus (ColorOS, OxygenOS) | Settings → About device (关于本机) → Version (版本信息) → **Build number** (版本号) | Settings → Additional settings (其他设置) → Developer options |
+| vivo, iQOO (OriginOS) | Settings → System management (系统管理) → About phone → **Software version** (软件版本号) | Settings → System management (系统管理) → Developer options |
+
+Google's general instructions are at
+[Configure on-device developer options](https://developer.android.com/studio/debug/dev-options).
+
+### Known blockers by brand [#known-blockers-by-brand]
+
+- **Xiaomi, Redmi, POCO.** If Copilot can read an app but its taps or typing do nothing, turn on
+  **USB debugging (Security settings)** (USB 调试（安全设置）) in Developer options. This is a
+  separate switch from USB debugging. Xiaomi asks you to sign in with a Xiaomi account to turn it on,
+  and may need a SIM card in the phone. Restart the phone afterwards. Also allow **Autostart** for
+  PKU Harness and set its battery saver to **No restrictions**, or the system may stop the helper in
+  the background.
+- **OPPO, OnePlus.** If setup can't turn on accessibility, or taps do nothing, turn on
+  **Disable permission monitoring** (禁止权限监控) in Developer options, then try again.
+- **Samsung.** Copilot sets up normally. If the keyboard needs two taps per key, see
+  [The keyboard needs two taps per key](#the-keyboard-needs-two-taps-per-key). If **Auto Blocker**
+  (Settings → Security and privacy) is on, it can block apps installed from an APK; turn it off if
+  setup fails.
+- **Huawei.** Phones on HarmonyOS NEXT (HarmonyOS 5 or later) can't install Android apps, so PKU
+  Harness doesn't run on them. Older HarmonyOS versions may not offer Wireless debugging, or may
+  report an Android version below 12; Copilot then says "Copilot needs Android 12 or later."
+- **All brands.** Battery savers can stop the phone helper. If Copilot keeps disconnecting, set PKU
+  Harness to unrestricted battery use in Android's app settings.
+
+## Screenshots
+
+Some apps, such as Taobao and WeChat, hide their contents from accessibility, so Copilot sees an
+almost empty screen. For these apps the assistant takes a screenshot instead, reads it, and taps at
+a point on it. **Let the AI see screenshots** on the Copilot screen controls this. It is **on by
+default**, and you can turn it off at any time.
+
+- Only the app Copilot is operating, on its separate screen, is captured. Never your own screen.
+- Protected screens, such as password and payment pages, are never captured.
+- Screenshots are sent to your AI provider for that one reply. They are not saved in the chat.
+- The model must read images. DeepSeek-V4.1-Flash does; DeepSeek-V4-Pro and models connected
+  through **OpenAI-compatible** don't. If the current model can't, the assistant says so.
+
+## Use Copilot
+
+Describe the task in chat, for example "Search for the PKU library in the browser". You don't start
+each task by hand. The assistant opens the allowed apps on the separate screen and works through
+the task until it is done or you stop it. There is no limit on the number of steps.
 
 If a task needs an app you haven't allowed, the assistant asks you first: “Copilot” wants to use,
-with the app's name. Choose **Allow once** (this task only, not saved), **Always allow** (saved to
-the allowed list) or **Don't allow** (the assistant stops, tells you, and doesn't ask again). Only
-your tap can grant access; the assistant can't widen it by itself. When you're not in PKU Harness,
-the request comes as a notification or in the floating window.
+with the app's name. Choose **Allow once** (this task only), **Always allow** (added to the allowed
+list) or **Don't allow** (the assistant stops and tells you). Only your tap can grant access. When
+you are not in PKU Harness, the request comes as a notification or in the floating window.
 
-## Screenshots (optional)
-
-Some apps, such as WeChat, hide their contents from Copilot. For those, you can turn on **Let the AI
-see screenshots** on the Copilot screen (off by default):
-
-- The assistant takes a screenshot of the app Copilot is operating, adds a grid with coordinate
-  labels, sends it to your AI provider, and then taps or types at a point. Every such tap or entry
-  asks for your confirmation.
-- Only Copilot's separate screen is captured, never the screen you are using, and never protected
-  screens such as passwords or payments. A screenshot is used for one reply only and is not saved
-  in the chat.
-- The selected model must read images, for example DeepSeek-V4.1-Flash.
-- WeChat's terms forbid automated operation, and Tencent may restrict accounts that use automation
-  tools. Judge the risk yourself.
-
-## Enable Copilot
-
-Once the phone helper is connected, accessibility is on and at least one app is allowed, tap **Turn
-on Copilot** in the last step. The screen shows **Copilot is ready**; tap **Go to chat** to start.
-Afterwards you can turn Copilot off or on again with the **Enable Copilot** switch at the top.
-
-After that, describe a task in chat, for example "Search for the PKU library in the browser". You
-don't need to start each task by hand. The assistant opens the allowed apps on the separate screen
-and operates them, and a floating window shows its progress.
+Scheduled tasks can't use Copilot.
 
 ## Confirm, pause and take over
 
-Copilot's read actions run directly. Tapping, typing, submitting and other actions ask for your
-confirmation each time by default.
+Copilot reads screens without asking. By default it asks you before each tap, typing or submission,
+because Copilot's **Change**, **Money** and **Public** permissions start as **Ask first**. To let it
+work without asking, set **Change** to **Allow** under
+**Settings → Plugins → Copilot → What the AI may do**.
 
-- While the app is in the foreground, the confirmation appears in the app.
-- While the app is in the background, it appears in the floating window. Tap **Allow once** or
-  **Deny**.
+- While PKU Harness is open, the confirmation appears in the app.
+- While you are in another app, it appears in the floating window. Tap **Allow once** or **Deny**.
 
-The floating window can also **Pause** and **Resume**, preview the current screen, **Stop**, and
-take over.
+The floating window shows the current step and a live preview. It has **Pause** / **Resume** and
+**Stop** buttons, and **Take over** and **Open Harness** in its **More options** menu.
 
-- Tap **Minimize** at the top right to shrink the floating window to a small round icon. The dot on
-  the icon shows what Copilot is doing: red while it works, orange when it needs your confirmation
-  or attention, grey while it is paused or you have control. Drag the icon to move it; it settles
-  against the nearer screen edge. Tap it to open the floating window again.
-- When Copilot needs your confirmation, the floating window opens by itself, so a minimized icon
-  never leaves a request unseen.
-- Drag the handle at the bottom right of the preview to make it larger or smaller. The app keeps the
-  size you choose.
+- Tap **Minimize** to shrink the window to a small round icon. A red dot means Copilot is working,
+  orange means it needs you, and grey means it is paused or you have control. Drag the icon to move
+  it; tap it to open the window again. When Copilot needs a confirmation, the window opens by itself.
+- Drag the corner of the preview to resize it.
 
-For passwords, protected screens and payment confirmations, the assistant hands the app over to you
-on your main screen. You can also tap **Take over** on the Copilot screen at any time. When you are
-done, tap **Return control to Copilot** on the Copilot screen.
+**Payments and passwords are always yours.** Copilot does every step of an order itself, up to the
+final pay button. Then it hands the app to you on your main screen with a note such as "Pay ¥23.5
+with your fingerprint, then tap Done". Pay with your fingerprint, face or password, then tap
+**Done · continue** in the floating window. Copilot checks the result and finishes the task. It does
+the same for passwords and sign-in checks. You can also tap **Take over** on the Copilot screen at
+any time, and **Return control to Copilot** when you are done.
 
-The assistant works by reading the text and controls on the app's screen, and that content is sent
-to your AI provider as part of the chat. The preview images in the floating window and on the
-Copilot screen are only shown on your phone and are never sent to the AI model.
+## WeChat
 
-## Stop
+WeChat runs its own anti-automation checks, controlled from Tencent's servers. When they flag
+Copilot, WeChat hides its screen, blocks screenshots and ignores typing. Copilot then tells you
+plainly that WeChat is blocking automated operation right now, and stops. Do that step yourself in
+WeChat. Copilot doesn't try to get around the block.
+
+WeChat's terms forbid automated operation, and Tencent may restrict accounts that use automation
+tools. The assistant mentions this the first time it uses WeChat in a chat. Decide for yourself
+whether to let Copilot use WeChat.
+
+## The keyboard needs two taps per key [#the-keyboard-needs-two-taps-per-key]
+
+To be readable in apps such as WeChat, Copilot's accessibility service is registered under the name
+of a screen reader. Some keyboards, such as Samsung Keyboard, switch to screen-reader typing while
+such a service is on, and each key then needs two taps.
+
+To avoid this, Copilot switches its accessibility service off between tasks and back on when the
+next task starts. It also checks the service before every action and turns it back on if Android or
+you switched it off. This needs the phone helper to be connected; without it, the service stays on and
+the keyboard problem can come back. If your keyboard still needs two taps after a task has ended,
+open the Copilot screen so the helper reconnects. The service is then switched off within about
+20 seconds.
+
+If Copilot can't turn accessibility back on, the assistant tells you to turn it on in
+**Settings → Accessibility** and stops.
+
+## Stop a task
 
 Any of these ends the current phone task right away:
 
-- Tap **Stop** in the floating window.
+- Tap **Stop** in the floating window or in the Copilot notification.
 - Tap **Stop Copilot** under **Current task** on the Copilot screen.
-- Turn off **Enable Copilot**. Your list of allowed apps is kept.
+- Turn off **Enable Copilot**.
 
-After you stop it, the current reply can't start the task again by itself. Send a new message to
-start a new task.
+After you stop it, the current reply can't start the task again. Send a new message to start a new
+task.
 
-Scheduled tasks can't use Copilot.
+## Turn Copilot off [#turn-copilot-off]
+
+**To stop using Copilot**, turn off **Enable Copilot** on the Copilot screen. Your allowed apps are
+kept, and no new task can start. You can also ask the assistant, for example "Turn off Copilot".
+
+**To remove the system access as well**, do these in Android's settings:
+
+1. Open **Developer options → Wireless debugging**. Under **Paired devices**, tap the device that
+   PKU Harness paired and tap **Forget**. The phone helper then can't reconnect until you pair
+   again.
+2. Turn off **Wireless debugging**, or turn off Developer options entirely with the switch at the top
+   of that page.
+3. In **Settings → Accessibility**, turn off **Copilot**.
+
+While Copilot is on and paired, PKU Harness turns Wireless debugging and the accessibility service
+back on when it needs them. That is why step 1 matters. The permission the helper gave PKU Harness to
+change these system settings stays with the app until you uninstall it; it is used only for
+Copilot's own accessibility service and Wireless debugging.
+
+## What stays on your phone
+
+- The phone helper connects only to your phone. It never connects to a computer or a server.
+- The assistant reads the text and controls on the operated app's screen. That content, and
+  screenshots when they are used, are sent to your AI provider as part of the chat, like any other
+  message.
+- The preview images in the floating window and on the Copilot screen are only shown on your phone.
+- Copilot never sees what you type in password fields, and never pays for you.

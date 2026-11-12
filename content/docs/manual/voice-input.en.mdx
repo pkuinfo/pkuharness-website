@@ -1,0 +1,82 @@
+---
+title: Voice input
+description: Speak instead of typing in the chat box. Set up a speech-to-text service with your own key — Alibaba Cloud Bailian (the default, text appears while you talk) or SiliconFlow — and transcribe audio files.
+icon: Mic
+---
+
+With voice input you tap the microphone in the chat box and speak. Your words turn into text in the
+message box, and you can edit them before you send. Like the AI model, speech recognition comes from
+a provider you choose, with your own API key.
+
+Your recordings go straight from the phone to that provider. They are deleted from the phone once
+transcribed, and PKU Harness never receives them.
+
+## The services you can choose
+
+Open **Settings → Voice input**. The screen lists the services provided by plugins, with the
+default first.
+
+| Service | How text appears | Models | Where to get a key |
+| --- | --- | --- | --- |
+| **Alibaba Cloud Bailian (live)** (default) | While you talk | **Fun-ASR** (default, ¥0.00033 per second), **Paraformer v2** (¥0.00024 per second) | The [Bailian console](https://bailian.console.aliyun.com/?tab=model#/api-key), Beijing region |
+| **SiliconFlow** (硅基流动) | In phrases, at each pause | **SenseVoice** (Mandarin, English, Cantonese, Japanese, Korean), **TeleSpeech** (better on Chinese dialects) | [cloud.siliconflow.cn](https://cloud.siliconflow.cn/account/ak) |
+| **OpenAI-compatible** | In phrases | You type the model ID | Any service with an `/audio/transcriptions` endpoint |
+
+The prices are the ones the app shows next to each model; the provider's price list is what counts.
+
+We recommend **Alibaba Cloud Bailian** with **Fun-ASR**: the text appears as you speak, and in our
+tests it recognised campus place names best. If you already use Bailian for the
+[AI model](/en/docs/manual/ai-model#get-an-alibaba-cloud-bailian-api-key), the same key works here.
+
+## Set up Alibaba Cloud Bailian
+
+1. Create a Bailian API key in the **China North 2 (Beijing)** region. The steps are the same as in
+   [AI provider → Get an Alibaba Cloud Bailian API key](/en/docs/manual/ai-model#get-an-alibaba-cloud-bailian-api-key).
+   A key from another region doesn't work.
+2. In the app, open **Settings → Voice input** and tap **Alibaba Cloud Bailian (live)**.
+3. Under **Model**, tap **Fun-ASR**.
+4. Paste the key into **API Key**. The **Get an API key** button opens the Bailian key page.
+5. Tap **Save**.
+
+The address is fixed (`wss://dashscope.aliyuncs.com/api-ws/v1/inference`) and shown under the model
+list.
+
+## Set up SiliconFlow
+
+1. Sign up at [cloud.siliconflow.cn](https://cloud.siliconflow.cn) and complete real-name
+   verification if it asks.
+2. Open [API keys](https://cloud.siliconflow.cn/account/ak) (API 密钥), create a key and copy it.
+3. In the app, open **Settings → Voice input** and tap **SiliconFlow**.
+4. Under **Model**, tap **SenseVoice**, or **TeleSpeech** if you speak a Chinese dialect.
+5. Paste the key into **API Key** and tap **Save**.
+
+## Speak a message
+
+1. On the Chat tab, tap the microphone in the message box. The first time, Android asks for
+   microphone access; allow it.
+2. Speak. The box shows **Listening…** and your words.
+3. When you finish, tap the check button (**Done, transcribe**). The text stays in the message box.
+4. Edit it if you like, and send.
+
+To throw the recording away, tap the close button (**Discard recording**).
+
+## Transcribe an audio file
+
+You can also attach an audio file in chat: tap **+**, then **Files**, and choose a recording (up to
+50 MB). The voice input service turns it into text, and the assistant reads the transcript.
+
+Alibaba Cloud Bailian (live) only transcribes live speech. For audio files, choose **SiliconFlow**
+or an **OpenAI-compatible** service in **Settings → Voice input**.
+
+## When voice input doesn't work
+
+| Message | What to do |
+| --- | --- |
+| Set up voice input first (Settings → Voice input). | Choose a service and save it |
+| Add an API key for voice input first (Settings → Voice input). | Paste a key and tap **Save** |
+| Microphone access is off… | Allow the microphone for PKU Harness in Android's app settings |
+| Nothing was heard… | Speak again, closer to the phone |
+| Voice input failed: … | The reason comes from the provider. For Bailian, check that the key is from the Beijing region and the account has a balance |
+
+You can also ask the assistant to switch the voice input service, for example "Use SiliconFlow for
+voice input". It can't enter the key; it opens this screen for you.

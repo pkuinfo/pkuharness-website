@@ -1,69 +1,250 @@
 ---
 title: AI provider
-description: Connect a model service in Settings → AI provider — DeepSeek or any service with an OpenAI-compatible API — enter an API key, choose a model and set the context budget.
+description: Set up the AI model first — which provider to choose in mainland China (DeepSeek, Alibaba Cloud Bailian, Baidu Qianfan), how to get an API key step by step, where to enter it, the account balance, the context budget and costs.
 icon: Sparkles
 ---
 
-The assistant needs a large language model to work. PKU Harness doesn't provide a model service, so
-you use your own API key. This page explains how to connect and switch model services.
+The assistant in PKU Harness needs a large language model to understand you and to act. The app
+doesn't include a model, and we don't run one. You open an account with a model provider, create an
+**API key** there, and enter it in the app. An API key is a long string, often starting with `sk-`,
+that works like a password for the provider's service.
 
-Your API key is stored in the phone's secure storage and only sent to the provider you choose. Chat
-requests go straight from your phone to the provider.
+The key is stored in the phone's secure storage and only sent to the provider you choose. Your chat
+messages go straight from your phone to that provider. Providers charge for use: you top up an
+account and each reply costs a small amount.
 
-## Providers
+## Recommended providers [#recommended-providers]
 
-Model providers are plugins too. The app comes with two.
+Any service with an OpenAI-compatible API works. For students in mainland China, these three are
+easy to pay for and reachable without a VPN.
 
-| Provider | Base URL | Where to get an API key |
-| --- | --- | --- |
-| **DeepSeek** (default) | `https://api.deepseek.com`, fixed | Create one under API Keys at [platform.deepseek.com](https://platform.deepseek.com) |
-| **OpenAI-compatible** | `https://api.openai.com/v1` by default, editable | From the provider you use |
+| Provider | How you connect it in the app | Base URL | Example models |
+| --- | --- | --- | --- |
+| **DeepSeek** | **DeepSeek** (built in, the default) | `https://api.deepseek.com`, fixed | DeepSeek-V4.1-Flash, DeepSeek-V4-Pro |
+| **Alibaba Cloud Bailian** (阿里云百炼, Qwen models) | **OpenAI-compatible** | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen3.7-plus`, `qwen3.8-flash` |
+| **Baidu Qianfan** (百度千帆, ERNIE models) | **OpenAI-compatible** | `https://qianfan.baidubce.com/v2` | `ernie-5.1`, `ernie-4.5-turbo-128k` |
 
-DeepSeek offers two models.
+Model names change often. Check the provider's model list for the current ones:
+[Bailian models](https://help.aliyun.com/zh/model-studio/models),
+[Qianfan models](https://cloud.baidu.com/doc/qianfan/s/rmh4stp0j).
 
-| Model | Description |
-| --- | --- |
-| DeepSeek-V4.1-Flash (default) | Fast and affordable, for everyday tasks. Accepts images |
-| DeepSeek-V4-Pro | Stronger reasoning for complex tasks. Doesn't accept images |
+### Which one to choose
 
-**OpenAI-compatible** connects any service that supports the OpenAI Chat Completions API. It has no
-fixed model list; the app reads the list the provider returns.
+**DeepSeek** is the simplest choice, and the one we recommend first. The app knows its models, so:
 
-## Set it up
+- You don't need to type a base URL or a model name.
+- The app knows each model's context size (1M tokens) and whether it reads images.
+  DeepSeek-V4.1-Flash accepts images, so you can send photos and Copilot can use screenshots.
+  DeepSeek-V4-Pro doesn't.
+- **Settings → Usage** estimates the cost from DeepSeek's published prices, and
+  **Settings → AI provider** shows your account balance.
+
+**Alibaba Cloud Bailian** and **Baidu Qianfan** work through the **OpenAI-compatible** provider.
+Choose one of them if you already have an account there or prefer their models. Bailian has one
+more advantage: the same account gives you a key for [voice input](/en/docs/manual/voice-input).
+The app knows less about models connected this way:
+
+- It assumes a context size of 128k tokens, and compacts the chat based on that.
+- It doesn't offer image attachments for these models, so you can't send photos and Copilot can't
+  use screenshots with them.
+- **Settings → Usage** counts their tokens but can't estimate the cost, and the app can't show the
+  balance. Check both in the provider's console.
+
+## Get a DeepSeek API key
+
+<Steps>
+
+<Step>
+
+### Create an account [#deepseek-account]
+
+Open [platform.deepseek.com](https://platform.deepseek.com) in a browser and sign up, for example
+with your phone number. The platform may ask you to complete real-name verification (实名认证)
+before you can top up.
+
+</Step>
+
+<Step>
+
+### Top up [#deepseek-top-up]
+
+Open the top-up page (充值) and add a small amount, for example ¥10, with WeChat Pay or Alipay. Calls
+fail with "Your account balance is too low" until the balance is above zero.
+
+</Step>
+
+<Step>
+
+### Create a key [#deepseek-create-key]
+
+Open **API keys** in the menu on the left and tap **Create API key** (创建 API key). Give it a name
+you will recognise, such as `PKU Harness`, and create it. Copy the key right away: the platform
+shows the full key only once.
+
+</Step>
+
+<Step>
+
+### Enter it in the app [#deepseek-enter]
+
+Open **Settings → AI provider**, tap **DeepSeek**, paste the key into **API Key**, and tap
+**Save and test**; see [Enter the key in the app](#enter-the-key-in-the-app).
+
+</Step>
+
+</Steps>
+
+## Get an Alibaba Cloud Bailian API key
+
+<Steps>
+
+<Step>
+
+### Create an account [#bailian-account]
+
+Sign up for an Alibaba Cloud (阿里云) account at [aliyun.com](https://www.aliyun.com). Alibaba
+Cloud usually asks you to complete real-name verification (实名认证) before you can use paid
+services. Follow the steps in its console.
+
+</Step>
+
+<Step>
+
+### Open Bailian in the Beijing region [#bailian-region]
+
+Open the [Bailian console](https://bailian.console.aliyun.com). If it asks you to activate the
+service (开通), agree to it. Make sure the region at the top right is **China North 2 (Beijing)**
+(华北2（北京）). Keys only work in the region where you created them.
+
+</Step>
+
+<Step>
+
+### Create a key [#bailian-create-key]
+
+Open the [API key page](https://bailian.console.aliyun.com/cn-beijing/model/settings/api-key) and
+tap **Create API key** (创建 API Key). Keep the suggested settings and confirm. Copy the key right
+away: the full key is shown only once.
+
+</Step>
+
+<Step>
+
+### Enter it in the app [#bailian-enter]
+
+Open **Settings → AI provider** and tap **OpenAI-compatible**. Set **Base URL** to
+`https://dashscope.aliyuncs.com/compatible-mode/v1`, paste the key into **API Key**, and type a model
+name such as `qwen3.7-plus` in **Model ID**. Tap **Save and test**.
+
+</Step>
+
+</Steps>
+
+Bailian bills each call to your Alibaba Cloud account. New accounts sometimes get a free quota for
+some models; the console shows what you have.
+
+The base URL above is the Beijing address from Bailian's
+[API key guide](https://help.aliyun.com/zh/model-studio/get-api-key). Bailian's
+[OpenAI compatibility page](https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope)
+also lists a workspace address, `https://<WorkspaceId>.cn-beijing.maas.aliyuncs.com/compatible-mode/v1`,
+which it recommends for stability. Either works.
+
+## Get a Baidu Qianfan API key
+
+<Steps>
+
+<Step>
+
+### Create an account [#qianfan-account]
+
+Sign up for a Baidu AI Cloud (百度智能云) account at [cloud.baidu.com](https://cloud.baidu.com), and
+complete real-name verification (实名认证) if the console asks for it.
+
+</Step>
+
+<Step>
+
+### Create a key [#qianfan-create-key]
+
+Open [Security → API Key](https://console.bce.baidu.com/iam/#/iam/apikey/list) (安全认证 → API Key)
+in the console and tap **Create API Key** (创建 API Key). The key looks like
+`bce-v3/ALTAK-…/…`. Copy all of it, including `bce-v3/`.
+
+</Step>
+
+<Step>
+
+### Enter it in the app [#qianfan-enter]
+
+Open **Settings → AI provider** and tap **OpenAI-compatible**. Set **Base URL** to
+`https://qianfan.baidubce.com/v2`, paste the key into **API Key**, and type a model name such as
+`ernie-5.1` in **Model ID**. Tap **Save and test**.
+
+</Step>
+
+</Steps>
+
+The base URL and key format come from Qianfan's
+[quick start](https://cloud.baidu.com/doc/qianfan-docs/s/qm8qxemze). Calls are billed to your Baidu
+AI Cloud account.
+
+## Enter the key in the app [#enter-the-key-in-the-app]
 
 You can connect a provider during
-[first-run setup](/en/docs/manual/first-run#step-1-connect-an-ai-provider) or change it later in
-Settings.
+[first-run setup](/en/docs/manual/first-run#step-1-connect-an-ai-provider) or later in Settings. The
+Settings screen has every option.
 
 1. Open **Settings → AI provider**.
-2. Tap a provider.
-3. For **OpenAI-compatible**, fill in **Base URL**. It usually ends in `/v1`.
-4. Enter your key in **API Key**. A saved key is marked "Saved in secure storage".
-5. Pick a model under **Model**, or type its name in **Model ID**.
+2. Tap a provider: **DeepSeek** or **OpenAI-compatible**.
+3. Under **Model**, tap a model, or type its name in **Model ID**. For **OpenAI-compatible**, type
+   the name; once the test succeeds, the app also lists the models the provider reports.
+4. For **OpenAI-compatible**, fill in **Base URL**. For DeepSeek, the address is fixed and shown as
+   "Endpoint: https://api.deepseek.com".
+5. Paste the key into **API Key**. A saved key is marked "Saved in secure storage".
 6. Tap **Save and test**. The app sends a very short test message and, on success, shows
    "Connected" with the model's reply. To save without testing, tap **Save only**.
 
-With DeepSeek selected and a key saved, **Account balance** appears below the provider list,
-including granted and topped-up amounts. Tap **Refresh balance** to fetch it again.
+If the test fails, the message says why. See
+[Troubleshooting → AI provider](/en/docs/manual/troubleshooting#ai-provider).
 
-## Switch models in a chat
+The assistant can't read or enter API keys. If you ask it to change your key in chat, it opens
+this screen for you to do it.
+
+## Account balance
+
+With DeepSeek selected and a key saved, **Account balance** appears on the **AI provider** screen.
+It shows the balance and how much of it was granted and topped up ("Granted … · Topped up …"). Tap
+it to refresh. If the provider says the balance can't cover requests, the screen says so; top up on
+the provider's website to keep chatting.
+
+For other providers, check the balance in their console.
+
+## Switch models
 
 On the Chat tab, tap the model label below the message box, or type `/model`, to choose another
 model. The new model is used in this chat from your next message, and becomes the default for new
 chats. See [Chat → Model and context](/en/docs/manual/chat#model-and-context).
 
+You can also ask the assistant, for example "Switch to DeepSeek-V4-Pro". It changes the setting and
+tells you what it changed; see [Settings → Changing settings in chat](/en/docs/manual/settings#changing-settings-in-chat).
+
 ## Context budget
 
-**Context budget** at the bottom of **Settings → AI provider** can be **32k**, **64k**, **128k**,
-**256k** or **No limit**. The default is 128k.
+The model sees your chat as its _context_. **Context budget** at the bottom of
+**Settings → AI provider** limits how much of it the app sends. The options are **32k**, **64k**,
+**128k**, **256k** and **Model maximum**. The default is **Model maximum**.
 
-When a chat goes over the budget (or 80% of the model's context), the app summarizes the older
-messages. A smaller budget means faster, cheaper replies, but the assistant sees less of the chat
-directly.
+With **Model maximum**, the app uses the model's whole context and summarizes older messages when
+the chat reaches 90% of it. On DeepSeek's 1M context that is about 900k tokens. A smaller budget
+means faster and cheaper replies, but the assistant sees less of the chat directly. Summarizing also
+happens in the middle of a long task, so the task carries on.
 
 ## Usage and cost
 
+You pay the provider for what you use, by the number of tokens (pieces of text) sent and received.
+Longer chats, attachments and long Copilot tasks use more tokens.
+
 **Settings → Usage** shows token usage, active hours and top tools, for **7 days**, **30 days** or
-**All time**. For models with public prices, such as DeepSeek's, it estimates the cost from those prices.
-The estimate is only a guide; your provider's bill is what counts. See
+**All time**. For models with published prices, such as DeepSeek's, it estimates the cost. The
+estimate is only a guide; your provider's bill is what counts. See
 [Settings and your data → Usage](/en/docs/manual/settings#usage).

@@ -1,6 +1,6 @@
 ---
 title: plugin
-description: '定义插件时用到的全部类型：definePlugin、defineTool、PluginDef、ToolDef、ToolContext、效果、调用方、能力需求、KV、轮次信息、数据源、模型服务商、翻译和旧 id。'
+description: '定义插件时用到的全部类型：definePlugin、defineTool、definePreference、PluginDef、ToolDef、ToolContext、效果、调用方、能力需求、KV、轮次信息、数据源、设置项、模型和语音服务商、翻译和旧 id。'
 ---
 
 每个内置插件都导出一个用 `definePlugin` 定义的对象，里面写明插件的名称、需要的能力、提供的工具和界面等。这一页列出这个对象和工具的全部字段，以及工具运行时收到的上下文。
@@ -12,9 +12,10 @@ description: '定义插件时用到的全部类型：definePlugin、defineTool�
 ```ts
 function definePlugin(def: PluginDef): PluginDef;
 function defineTool<I extends z.ZodType, O>(def: ToolDef<I, O>): ToolDef;
+function definePreference<T extends SettingValue>(def: PluginPreferenceDef<T>): PluginPreferenceDef<T>;
 ```
 
-两个函数都原样返回参数，用途只是类型检查。`defineTool` 会根据 zod 的 `input` schema 推断出 `execute` 的入参类型。
+三个函数都原样返回参数，用途只是类型检查。`defineTool` 会根据 zod 的 `input` schema 推断出 `execute` 的入参类型；`definePreference` 让设置项的值类型和它的 `input` schema 保持一致。
 
 ## PluginDef [#plugindef]
 
@@ -26,16 +27,19 @@ interface PluginDef {
   name: string;
   description: string;
   version: string;
+  maxAgentSteps?: number;
   icon?: string;
   core?: boolean;
   requires?: Capability[];
   cloud?: CloudManifest;
+  preferences?: Record<string, PluginPreferenceDef<any>>;
   remote?: { url: string; server: string };
   defaultModes?: Partial<Record<ToolEffect, 'auto' | 'ask' | 'off'>>;
   scopes: string[];
   tools: Record<string, ToolDef>;
   dataSources?: Record<string, DataSourceDef>;
   providers?: Record<string, ProviderDef>;
+  speech?: Record<string, SpeechProviderDef>;
   instructions?: Dynamic<string>;
   context?: (input: ContextInput) => Promise<string | undefined>;
   contributes?: Contributions;
@@ -50,16 +54,19 @@ interface PluginDef {
     name: { type: 'string', required: true, description: '显示名称，用中文（英文写在 `i18n.en.name`）。' },
     description: { type: 'string', required: true, description: '一句话，中文。' },
     version: { type: 'string', required: true, description: '插件版本号，遵循 semver。' },
+    maxAgentSteps: { type: 'number', description: '仍可填写但会被忽略：从 App 1.0.16 起，单次回复没有步骤上限（改为在回复进行中压缩上下文）。' },
     icon: { type: 'string', description: "宿主图标集里的图标名，如 'card'、'book'、'alarm'。" },
     core: { type: 'boolean', description: '属于 Harness 核心体验：始终启用，不能关闭。' },
     requires: { type: 'Capability[]', description: '插件需要设备提供什么；有不满足的需求时插件会被隐藏。' },
     cloud: { type: 'CloudManifest', description: "如何使用 PKU Harness Cloud（云服务）。没有写 `optional: true` 时，还要在 `requires` 里列出 'cloud'。" },
+    preferences: { type: 'Record<string, PluginPreferenceDef>', description: '插件自己的设置项，以 `<plugin id>.<name>` 列入宿主的设置注册表，用户和助手在同一处读取和修改。见[设置项](#preferences)。注意它和 `contributes.settings`（设置页上的入口行）不同。' },
     remote: { type: '{ url: string; server: string }', description: '宿主为已安装的远程插件（通过 Model Context Protocol，即 MCP 连接）填写，不要自己设置。' },
     defaultModes: { type: "Partial<Record<ToolEffect, 'auto' | 'ask' | 'off'>>", description: '每种效果的默认授权方式，用户可以修改。', default: '全部 auto' },
     scopes: { type: 'string[]', required: true, description: '插件会访问的校园服务或主机，展示给用户看。' },
     tools: { type: 'Record<string, ToolDef>', required: true, description: '插件的 API，键是工具名。' },
     dataSources: { type: 'Record<string, DataSourceDef>', description: '适合给小组件和定时检查用的读取工具。' },
     providers: { type: 'Record<string, ProviderDef>', description: '模型服务商（服务商插件用）。' },
+    speech: { type: 'Record<string, SpeechProviderDef>', description: '语音输入使用的语音识别服务，以本地 id 为键（宿主中的 id 为 `<plugin>.<key>`）。见[语音服务商](#speech-providers)。' },
     instructions: { type: 'Dynamic<string>', description: "追加到助手的系统提示词末尾。写短一些；提到工具时用模型侧名称（`plugin__tool`）。" },
     context: { type: '(input: ContextInput) => Promise<string | undefined>', description: '每轮 Agent 对话前调用，返回的文本会标记为数据，在这一轮展示给模型。每次请求都要消耗 token。' },
     contributes: { type: 'Contributions', description: '页面、设置项、标签页、小组件、命令。' },
@@ -78,10 +85,21 @@ interface ToolDef<I extends z.ZodType = z.ZodType, O = unknown> {
   description: Dynamic<string>;
   input: I;
   effect: ToolEffect;
+  resolveEffect?: (input: z.infer<I>, services: HostServices) => Promise<ToolEffect | ToolAssessment>;
   untrusted?: boolean;
   userOnly?: boolean;
+  grant?: boolean;
+  alwaysAsk?: boolean;
+  serial?: boolean;
+  dayScoped?: boolean;
   execute: (input: z.infer<I>, ctx: ToolContext) => Promise<O>;
 }
+
+/** 宿主观察到的操作对象，和模型给出的工具参数分开显示。 */
+type ToolAssessment = {
+  effect: ToolEffect;
+  target?: { label: string; context?: string };
+};
 ```
 
 <TypeTable
@@ -92,6 +110,11 @@ interface ToolDef<I extends z.ZodType = z.ZodType, O = unknown> {
     effect: { type: 'ToolEffect', required: true, description: "'read' | 'write' | 'money' | 'public'." },
     untrusted: { type: 'boolean', description: "工具会返回第三方写的文本。调用后，这一轮 Agent 对话会被标记为受污染（tainted）。远程插件的工具一律算作此类。" },
     userOnly: { type: 'boolean', description: '只能由用户在页面里运行：不提供给模型，助手和调度器的调用都会被拒绝。' },
+    resolveEffect: { type: '(input, services) => Promise<ToolEffect | ToolAssessment>', description: '根据当前的外部状态判断出的额外效果（例如 Copilot 的一次点按会点到什么），和 `effect` 一起检查。返回的 `target` 会作为审批提示的标题。' },
+    grant: { type: 'boolean', description: '这个工具会给助手它原本没有的访问权限。助手的每次调用都要等用户点按，不受授权方式影响（`auto` 不会跳过，`off` 照样拒绝）；定时任务的调用会被拒绝。提示提供「仅本次允许」和「始终允许」，用户的回答以 `ctx.grant` 传入。' },
+    alwaysAsk: { type: 'boolean', description: '助手的每次调用都要经过审批，不受授权方式影响；定时任务的调用会被拒绝。用于宿主无法根据观察到的目标来判断的操作。`resolveEffect` 应说明将要发生什么。' },
+    serial: { type: 'boolean', description: '这个插件中标记为 serial 的工具一次只运行一个（包括审批），按模型发出的顺序执行。用于作用在同一份共享状态上的工具。' },
+    dayScoped: { type: 'boolean', description: '结果描述的是当天（按 App 的时区）。小组件不能显示更早某天取得的缓存结果，离线时的兜底除外。' },
     execute: { type: '(input: z.infer<I>, ctx: ToolContext) => Promise<O>', required: true, description: '执行实际工作。失败时抛出一个 Error，消息要写得让用户能看懂。' },
   }}
 />
@@ -102,6 +125,8 @@ interface ToolDef<I extends z.ZodType = z.ZodType, O = unknown> {
 
 ```ts
 interface ToolContext {
+  /** 本次调用经过（可选的）原生分类后被批准的效果。 */
+  effect?: ToolEffect;
   pluginId: string;
   actor: Actor;
   /** 助手在一轮对话中调用时才有值。 */
@@ -111,6 +136,8 @@ interface ToolContext {
   services: HostServices;
   /** 绑定到本插件的 PKU Harness Cloud；在所有宿主版本都接入之前是可选的。 */
   cloud?: PluginCloud;
+  /** 用户对 `grant` 工具提示的回答。用户直接调用时不设置。 */
+  grant?: 'once' | 'always';
   signal?: AbortSignal;
 }
 
@@ -122,6 +149,8 @@ interface TurnInfo {
   tainted: boolean;
   /** 用户在本轮自己发的消息中要求记住某件事。 */
   userAsked?: boolean;
+  /** 本轮使用的模型能看图片（模型目录的 `inputModalities` 中有 'image'）。 */
+  acceptsImages?: boolean;
 }
 
 interface KV {
@@ -147,6 +176,7 @@ type Capability =
   | 'shell'            // 手机上永远不可用；需要它的插件必须远程运行
   | 'filesystem'
   | 'cloud'            // 已配置 PKU Harness Cloud 服务；见 PluginDef.cloud
+  | 'phone-control'    // 操作手机上的其他 App（Copilot）
   | 'ongoing';         // 常驻通知 / 前台服务（仅 Android）
 ```
 
@@ -207,12 +237,94 @@ type PluginTranslation = {
   screens?: Record<string, { title?: string }>;
   /** 设置项，以它打开的页面为键。 */
   settings?: Record<string, { title?: string; subtitle?: string }>;
+  /** 设置项（PluginDef.preferences）的标题和说明，以名称为键。 */
+  preferences?: Record<string, { title?: string; description?: string; options?: Record<string, string> }>;
   /** `prompt`：提示词类命令的英文模板。 */
   commands?: Record<string, { description?: string; argHint?: string; aliases?: string[]; prompt?: string }>;
   providers?: Record<string, { name?: string; description?: string; credentialHint?: string; models?: Record<string, { name?: string; description?: string }> }>;
+  speech?: Record<string, { name?: string; description?: string; credentialHint?: string; models?: Record<string, { name?: string; description?: string }> }>;
   dataSources?: Record<string, { title?: string }>;
+  /** 用文字描述（而非主机名）的访问范围，以 `scopes` 中的原文为键。 */
+  scopes?: Record<string, string>;
 };
 ```
+
+## 设置项 [#preferences]
+
+设置项是属于某个插件的设置，例如 Copilot 允许使用的 App。你在 `PluginDef.preferences` 中声明它，宿主就会把它列入设置注册表，键名为 `<plugin id>.<name>`，和 App 自己的设置放在一起。用户在插件的页面里修改它，助手通过核心插件 `settings` 修改它，两者都经过 `get` 和 `set`。宿主不需要任何改动。详见[架构 → 助手能操作一切](/docs/concepts/architecture#agent-operates-everything)。
+
+源码：`packages/sdk/src/settings.ts`。
+
+```ts
+type SettingValue = string | number | boolean | string[];
+
+interface PluginPreferenceDef<T extends SettingValue = SettingValue> {
+  title: string;
+  description?: string;
+  kind: 'choice' | 'boolean' | 'text' | 'list';
+  options?: { value: string; label: string }[];
+  /** 校验新的值（来自助手或页面）。 */
+  input: z.ZodType<T>;
+  get(ctx: SettingContext): Promise<T>;
+  set(ctx: SettingContext, value: T): Promise<void>;
+  /** 显示这个设置项的页面路由（默认是插件的第一个页面）。 */
+  screen?: string;
+}
+
+/** 设置项读写自己的值时能用的东西。 */
+interface SettingContext {
+  kv: KV;
+  services: HostServices;
+}
+```
+
+<TypeTable
+  type={{
+    title: { type: 'string', required: true, description: '显示在设置列表里，用中文；英文写在 `i18n.en.preferences.<name>.title`。' },
+    description: { type: 'string', description: '一句话说明它改变什么。' },
+    kind: { type: "'choice' | 'boolean' | 'text' | 'list'", required: true, description: '`choice` 取 `options` 中的一个值；`list` 是字符串列表。' },
+    options: { type: '{ value: string; label: string }[]', description: '`choice` 类型的可选值。标签可以在 `i18n.en.preferences.<name>.options` 中翻译。' },
+    input: { type: 'z.ZodType<T>', required: true, description: '在 `set` 运行前校验每个新值，校验失败时这次修改失败。' },
+    get: { type: '(ctx: SettingContext) => Promise<T>', required: true, description: '读取当前值，通常来自 `ctx.kv`。' },
+    set: { type: '(ctx: SettingContext, value: T) => Promise<void>', required: true, description: '写入校验过的值。也可以调用宿主服务，例如结束正在运行的会话。' },
+    screen: { type: 'string', description: '显示这个设置项的 App 路由，供 `settings.open` 使用。默认是插件的第一个页面。' },
+  }}
+/>
+
+设置项不是机密。不要把 API Key 或密码声明为设置项：助手能读取和修改每一个设置项。宿主自己的机密是标记为 `uiOnly` 的条目，只有用户能设置。
+
+Copilot 插件这样声明它的截图开关：
+
+```ts
+import { definePlugin, definePreference } from '@pku-harness/sdk';
+import { z } from 'zod';
+
+import { loadCopilotVision, saveCopilotVision } from './preferences';
+
+export const copilotPlugin = definePlugin({
+  id: 'copilot',
+  // …
+  i18n: {
+    en: {
+      preferences: {
+        screenshots: { title: 'Let the AI see screenshots', description: 'For apps that hide their contents from Copilot (Taobao, WeChat).' },
+      },
+    },
+  },
+  preferences: {
+    screenshots: definePreference({
+      title: '允许 AI 查看截图',
+      description: '用于不向 Copilot 显示内容的 App（淘宝、微信）。',
+      kind: 'boolean',
+      input: z.boolean(),
+      get: async (c) => (await loadCopilotVision(c.kv)).screenshots,
+      set: async (c, screenshots) => { await saveCopilotVision(c.kv, { screenshots }); },
+    }),
+  },
+});
+```
+
+这样，助手就能用 `settings__change` 和键名 `copilot.screenshots` 修改它。
 
 ## PluginLegacy [#pluginlegacy]
 
@@ -317,3 +429,99 @@ export const myProviderPlugin = definePlugin({
   },
 });
 ```
+
+## 语音服务商 [#speech-providers]
+
+语音服务商把用户说的话转成文字，供对话框的[语音输入](/docs/manual/voice-input)使用。它和模型服务商类似：用户使用自己的 Key，录音从手机直接发送到 `baseURL`。插件在 `speech` 中用 `SpeechProviderDef` 描述每个服务，宿主中的 id 为 `<plugin>.<key>`。
+
+实时服务实现 `stream`，用户说话时文字同步出现；只接受完整录音的服务实现 `transcribe`。使用 `transcribe` 时，宿主会在用户停顿处把录音切成小段陆续发送，所以用户说完时大部分已经转好。只有 `transcribe` 能处理作为附件的音频文件。
+
+```ts
+interface SpeechProviderDef {
+  name: string;
+  description: string;
+  defaultBaseURL: string;
+  editableBaseURL?: boolean;
+  models: { id: string; name: string; description?: string }[];
+  defaultModel: string;
+  credentialHint?: string;
+  /** 申请 Key 的网址，显示在输入框下方。 */
+  keyURL?: string;
+  transcribe?: (config: SpeechConfig, audio: SpeechAudio, signal?: AbortSignal) => Promise<string>;
+  stream?: (config: SpeechConfig, handlers: SpeechStreamHandlers) => Promise<SpeechStream>;
+}
+
+interface SpeechConfig {
+  baseURL: string;
+  model: string;
+  /** 来自宿主安全存储的 API Key。 */
+  credential?: string;
+  /** 宿主提供的 fetch（在 FormData 中上传 `SpeechAudio.file`）。 */
+  fetch: typeof fetch;
+  /** 打开一个带请求头的 WebSocket（供在握手时鉴权的实时服务使用）。 */
+  webSocket: (url: string, headers: Record<string, string>) => WebSocket;
+}
+
+/** 要转写的录音（除非 `mimeType` 另有说明，否则为 16 kHz 单声道 WAV）。 */
+interface SpeechAudio {
+  file: Blob;
+  uri: string;
+  name: string;
+  mimeType: string;
+  durationMs?: number;
+}
+
+interface SpeechStreamHandlers {
+  /** 到目前为止的完整转写（已确认的文字加上尚未确定的结尾），替换上一次的结果。 */
+  onText: (text: string) => void;
+}
+
+interface SpeechStream {
+  /** 100 毫秒的 16 kHz 单声道 16 位小端 PCM，base64 编码。 */
+  send: (pcmBase64: string) => void;
+  /** 音频已结束：返回最终的转写结果。 */
+  finish: () => Promise<string>;
+  /** 放弃这次会话，不要结果。 */
+  cancel: () => void;
+}
+```
+
+`packages/sdk/src/speech.ts` 提供三个辅助函数：
+
+- `openAITranscribe(config, audio, signal?)` 发送 `POST {baseURL}/audio/transcriptions`（multipart 中带 `file` 和 `model`），返回清理后的 `text`。硅基流动、OpenAI 和大多数兼容服务都使用这种格式，所以插件可以直接把它作为 `transcribe`。
+- `cleanTranscript(text)` 去掉 `<|zh|>` 这类控制标记，并去除多余空白。
+- `speechErrorMessage(status, body)` 把错误响应整理成 `"<status>: <message>"`。
+
+下面是精简后的硅基流动插件：
+
+```ts
+import { definePlugin, openAITranscribe } from '@pku-harness/sdk';
+
+export const siliconflowPlugin = definePlugin({
+  id: 'siliconflow',
+  name: '硅基流动',
+  description: '用硅基流动的语音识别把语音输入转成文字（你自己的 API Key）。',
+  version: '0.1.0',
+  requires: ['network'],
+  icon: 'mic',
+  scopes: ['api.siliconflow.cn'],
+  tools: {},
+  speech: {
+    asr: {
+      name: '硅基流动',
+      description: 'SenseVoice 与 TeleSpeech，国内可直接访问；文字按句子出现',
+      defaultBaseURL: 'https://api.siliconflow.cn/v1',
+      models: [
+        { id: 'FunAudioLLM/SenseVoiceSmall', name: 'SenseVoice', description: '普通话、英语、粤语、日语、韩语' },
+        { id: 'TeleAI/TeleSpeechASR', name: 'TeleSpeech', description: '方言识别更好' },
+      ],
+      defaultModel: 'FunAudioLLM/SenseVoiceSmall',
+      credentialHint: '在 cloud.siliconflow.cn 创建的 API Key',
+      keyURL: 'https://cloud.siliconflow.cn/account/ak',
+      transcribe: openAITranscribe,
+    },
+  },
+});
+```
+
+实时服务的写法见插件仓库中的 `plugins/aliyun-bailian/src/realtime.ts`。

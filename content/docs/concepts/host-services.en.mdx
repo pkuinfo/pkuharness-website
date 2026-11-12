@@ -25,7 +25,9 @@ cloud, it also gets a cloud client (`ctx.cloud`).
 | `timetable` | Courses, the semester and the class-reminder setting |
 | `notify` | Whether reminders can fire on time, and a way to fix what's missing |
 | `sms` | One-tap reading of SMS codes |
-| `files` | The system file picker |
+| `files` | The system file picker, and the text of documents attached in the chat (list, read, search) |
+| `settings` | Every app and plugin setting: list, change, open its screen |
+| `phone` | Copilot's phone sessions (for the bundled Copilot plugin) |
 | `browser` | Opening a URL in the system browser |
 | `crypto` | `sha256(text)` |
 | `registry` | Installed plugins and tools (read-only) |
@@ -47,7 +49,14 @@ points to keep in mind when you use them.
 - **`sms`** provides `awaitCode()`, which uses Android's SMS User Consent feature and needs no SMS
   permission.
 - **`files`** provides `pick`, which only the user can start. Never call it from a tool the agent
-  calls.
+  calls. Its `list`, `read` and `search` reach the documents the user attached in the current chat
+  (PDF, Word, Excel, PowerPoint, audio transcripts and so on) as text extracted on the phone. That
+  text is third-party content, so tools that return it must be marked `untrusted`.
+- **`settings`** reads and writes the same settings as the Settings screens. `change` refuses unknown
+  and `uiOnly` keys. A plugin's own settings are declared in `PluginDef.preferences`; see
+  [Architecture → The agent operates everything](/en/docs/concepts/architecture#agent-operates-everything).
+- **`phone`** drives Copilot's separate screen. Only the bundled Copilot plugin uses it, and it
+  needs the `phone-control` capability.
 - **`browser`** is for cashier pages, documents, and sign-ins that the harness can't do itself.
 - **`crypto`** exists because plugins have no cryptography library of their own.
 - **`remote`** is used by the `plugins` plugin.

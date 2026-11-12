@@ -1,10 +1,12 @@
 ---
 title: Settings and your data
-description: Everything on the Settings tab — account, AI provider, cloud, usage, plugins, reminders and alerts, appearance, language, time zone, exporting and erasing data, checking for updates, and the terms and privacy policy.
+description: Everything on the Settings tab — account, AI provider, voice input, cloud, usage, plugins, reminders and alerts, appearance, language, time zone, haptics, exporting and erasing data, updates and the About page — and how the assistant changes settings for you in chat.
 icon: Settings
 ---
 
-This page goes through the Settings tab from top to bottom and explains each item.
+This page goes through the Settings tab from top to bottom and explains each item. You can also
+ask the assistant to change most settings for you; see
+[Changing settings in chat](#changing-settings-in-chat).
 
 ## The Settings tab
 
@@ -13,15 +15,42 @@ This page goes through the Settings tab from top to bottom and explains each ite
 | (when there is a new version) | Version X.Y.Z is available | Download and install the new version; see [Install and update](/en/docs/manual/install#updates) |
 | Account | Campus account | Sign in to or out of your PKU account; see [Campus account and authenticator](/en/docs/manual/campus-account) |
 | | AI provider | Choose a model provider and enter an API key; see [AI provider](/en/docs/manual/ai-model) |
+| | Voice input | Choose a speech-to-text service and enter its key; see [Voice input](/en/docs/manual/voice-input) |
 | | Cloud | Choose a cloud server; see below |
 | | Usage | Tokens, active hours and top tools; see below |
-| | Plugins | Turn plugins on and off and set permissions; see [Plugins and permissions](/en/docs/manual/plugins) |
+| Plugins | Plugins | Services, permissions and each plugin's own settings; see [Plugins and permissions](/en/docs/manual/plugins) |
 | Notifications | Reminders and alerts | Notification, exact alarm and background permissions; see [Schedule and reminders](/en/docs/manual/schedule#on-time-delivery) |
 | Appearance | System / Dark / Light | The app's colors |
 | Language | System / 简体中文 / English | The app's language |
 | | Time zone | See below |
+| | Haptic feedback | Light vibrations on taps, switches and confirmations |
 | Data | Export data, Erase all data | See below |
-| About | Check for updates, Terms of Service, Privacy Policy | See below |
+| About | Check for updates, About PKU Harness | See below |
+
+## Changing settings in chat [#changing-settings-in-chat]
+
+Everything you can change on these screens, the assistant can change too. Ask in chat, for example
+"Switch to dark mode", "Use English", "Set my time zone to Asia/Shanghai", "Turn off haptics",
+"Switch to DeepSeek-V4-Pro", "Turn off the Treehole plugin", "Ask me before Copilot changes
+anything" or "Let Copilot use the browser". The assistant changes the setting and tells you what it
+was before and what it is now. The screens and the assistant change the same stored settings, so a
+change made in either place shows in both.
+
+This covers:
+
+- the app's appearance, language, time zone and haptic feedback;
+- the AI provider, model and voice input service;
+- each plugin's switch and its permissions;
+- each plugin's own settings, for example Copilot's on/off switch, its allowed apps and
+  **Let the AI see screenshots**.
+
+Some things only you can do. The assistant can't read or enter API keys, sign you in to your campus
+account, or grant system permissions such as notifications. When you ask for one of these, it opens
+the right screen for you.
+
+These changes are made by the core **Settings** plugin, and its permissions work like any other
+plugin's. By default the assistant changes settings without asking. To confirm each change, set
+**Change** to **Ask first** under **Settings → Plugins → Settings → What the AI may do**.
 
 ## Cloud
 
@@ -69,7 +98,8 @@ Costs are estimated from the providers' public prices. Your provider's bill is w
 
 ## Time zone
 
-Reminders, Schedule, the ledger and the assistant all keep time in this zone.
+Reminders, Schedule, the ledger and the assistant all keep time in this zone. The subtitle shows the
+zone in use and its current offset from UTC.
 
 The default is **System**: the zone follows your phone's system setting, so it changes when you
 travel. To use a fixed zone, open **Settings → Time zone**, search for a city, country or zone name,
@@ -94,6 +124,8 @@ first-run intro.
 
 - **Check for updates**: shows the installed version below it. Tap it to check GitHub for a new APK;
   see [Install and update](/en/docs/manual/install#updates).
-- **Terms of Service** and **Privacy Policy**: read them in full in the app. The website versions
-  are at [Terms of Service](/en/terms) and [Privacy Policy](/en/privacy). The privacy policy explains
-  what is sent to your AI provider, the university's systems and the cloud.
+- **About PKU Harness**: the app version and any over-the-air update in use, links to the website
+  and the source code, the author and contributors, our promise to keep the app open source and free,
+  and the **Terms of Service** and **Privacy Policy**. The website versions are at
+  [Terms of Service](/en/terms) and [Privacy Policy](/en/privacy). The privacy policy explains what is
+  sent to your AI provider, your voice input service, the university's systems and the cloud.

@@ -73,6 +73,21 @@ order.
 8. If `actor === 'user'`, there is never a prompt, because tapping a button already shows what you
    want.
 
+## Tools that always ask [#tools-that-always-ask]
+
+Two kinds of tool ask on every agent call, whatever the mode says. `auto` never skips the prompt,
+`off` still blocks the call, and scheduled calls are refused.
+
+- A **`grant`** tool gives the agent access it doesn't have yet, for example `copilot.requestApp`,
+  which adds an app to Copilot's scope. Its prompt offers **Allow once**, **Always allow** and
+  **Don't allow**. The answer reaches the tool as `ctx.grant` (`'once'` or `'always'`) and never
+  changes the plugin's modes.
+- An **`alwaysAsk`** tool is for actions the host can't judge from an observed target. Its prompt has
+  no "always allow" option.
+
+When a tool's `resolveEffect` names a target (for example the button Copilot is about to tap), the
+prompt shows it as the headline and doesn't offer "always allow" either.
+
 ## Consent beyond tools
 
 Besides tool calls, a few other things need your consent separately.
@@ -87,13 +102,23 @@ cloud call made without consent throws `CloudError('consent_required')`. See
 [Cloud](/en/docs/cloud/plugin-guide#2-consent).
 
 **Files.** Only you can choose files. A plugin may call `services.files.pick` from a screen, and
-never from a tool that the agent calls.
+never from a tool that the agent calls. Documents you attach in chat are read into text on the phone, and the agent
+pages through and searches them with the core `files` plugin's tools. Those tools return third-party
+content, so calling one marks the agent's turn as tainted.
 
 **Notifications and exact alarms.** These are granted through the system's permission prompts.
 A plugin shows the prompt by calling `services.notify.fix(kind)` when you tap.
 
 **Memory.** If the agent writes a memory after it has read untrusted content, the memory is saved
 as _pending_. It takes effect only after you approve it on the memory screen.
+
+**Settings, including the modes themselves.** The agent can change settings through the core
+`settings` plugin: the app's appearance, language and time zone, the model, each plugin's switch,
+each plugin's modes and each plugin's preferences. The `change` tool has the `write` effect, so it
+follows the `settings` plugin's own mode, which is `auto` by default like any bundled plugin. A user
+who wants to confirm every settings change sets that mode to `ask`. Secrets and steps that need the
+user's hands (API keys, the campus account, system permissions) are `uiOnly`: the agent can only
+open their screen. See [Architecture → The agent operates everything](/en/docs/concepts/architecture#agent-operates-everything).
 
 ## Rules for plugin authors
 

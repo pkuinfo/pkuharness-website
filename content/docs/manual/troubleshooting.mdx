@@ -1,6 +1,6 @@
 ---
 title: 常见问题
-description: 使用 PKU Harness 时常见的问题和处理方法：校园网、登录验证码、AI 服务报错、提醒延迟、App 更新、付款码和 Copilot 的无障碍设置。
+description: PKU Harness 的常见问题和解决方法：校园网、登录时的验证码、AI 服务和语音输入报错、附件文件、提醒延迟、App 更新、付款码，以及 Copilot 的设置。
 icon: LifeBuoy
 ---
 
@@ -48,13 +48,27 @@ icon: LifeBuoy
 | 请求太频繁 | 稍等片刻再试 |
 | 连接超时 / 连不上服务 | 检查网络和 Base URL |
 
+使用**阿里云百炼**时，Key 只能在创建它的地域使用；[AI 服务](/docs/manual/ai-model#recommended-providers)里给出的接口地址属于北京地域。使用**百度千帆**时，要复制完整的 Key，包括开头的 `bce-v3/`。如果测试提示模型不存在，请对照服务商的模型列表检查「模型 ID」的拼写。
+
 ### 无法发送图片 [#cant-send-images]
 
-当前模型不接收图片。例如 DeepSeek-V4-Pro 不接收图片，DeepSeek-V4.1-Flash 可以。附件面板中会提示，并在有可用模型时提供「切换」按钮。
+当前模型不接收图片。例如 DeepSeek-V4-Pro 不接收图片，DeepSeek-V4.1-Flash 可以。附件面板中会提示，并在有可用模型时提供「切换」按钮。通过「OpenAI 兼容」接入的模型，App 不提供图片附件。
 
-### 助手说「已达到单次回复的步骤上限」 [#step-limit-reached]
+## 语音输入和文件 [#voice-input-and-files]
 
-一次回复的步骤数有上限。回复「继续」，助手会接着做。
+### 语音输入无法开始 [#voice-input-doesnt-start]
+
+提示会说明缺少什么：语音识别服务、API Key 或麦克风权限。见[语音输入 → 语音输入用不了时](/docs/manual/voice-input#when-voice-input-doesnt-work)。
+
+### 文件无法读取 [#a-file-cant-be-read]
+
+| 提示 | 原因 |
+| --- | --- |
+| 这个 PDF 是扫描的图片，没有文字…… | PDF 里只有页面的图片。请拍下页面，作为图片发送 |
+| 这个文件有密码保护…… | 去掉密码后重新添加 |
+| 这个文件已损坏，或者实际格式与扩展名不符。 | 在电脑上打开后重新保存 |
+| 文件太大…… | 文本文件最大 200 KB，文档最大 30 MB，音频最大 50 MB |
+| ……只能转写实时语音…… | 「阿里云百炼（实时）」不能转写音频文件。请在「设置 → 语音输入」中选择硅基流动 |
 
 ## 提醒和定时任务 [#reminders-and-scheduled-tasks]
 
@@ -91,14 +105,50 @@ icon: LifeBuoy
 
 ## Copilot [#copilot]
 
+完整的设置步骤见 [Copilot 手机助手](/docs/manual/copilot)。
+
+### 提示「Copilot 需要 Android 12 或更高版本」 [#copilot-needs-android-12-or-later]
+
+Copilot 用到了 Android 12 才加入的功能。在更早的手机上，App 的其他功能都能用，只有 Copilot 不能用。
+
+### 找不到开发者选项或无线调试 [#cant-find-developer-options-or-wireless-debugging]
+
+使用系统设置顶部的搜索框：先搜「版本号」，连续点按七次；再搜「无线调试」。各品牌把它们放在不同的位置，见[各品牌手机上的开关位置](/docs/manual/copilot#where-the-switches-are-on-your-phone)。
+
+### 配对码不起作用 [#the-pairing-code-doesnt-work]
+
+每次打开配对弹窗，配对码都会变；弹窗关闭后，配对码就失效了。请保持弹窗打开，下拉通知栏，输入弹窗上当前显示的配对码。如果通知提示配对码错误或已过期，再点一次「使用配对码配对设备」，输入新的配对码。
+
+### 手机助手连不上 [#the-phone-helper-doesnt-connect]
+
+- 连接 Wi-Fi，系统询问时允许在此网络上使用无线调试。
+- 如果 Copilot 页面提示「系统配对授权已失效，请重新配对」，重新配对一次。
+- 如果 Copilot 经常断开，把 PKU Harness 的电池使用设为不受限制；小米手机还要允许「自启动」。
+
 ### 无法开启 Copilot 无障碍服务 [#cant-turn-on-copilot-accessibility]
 
 对于通过 APK 安装的应用，Android 会把开启无障碍服务列为「受限制的设置」。有两种处理方法：
 
-- 先连接「手机助手」，再在 Copilot 页面点「开启 Copilot 无障碍服务」。
-- 在 Copilot 页面点「打开应用信息」，点右上角的 ⋮，选择「允许受限制的设置」，再到系统的无障碍设置中开启「Copilot」。
+- 先连接「手机助手」。它会自动开启无障碍；如果没有，在无障碍这一步点「一键开启」。
+- 在 Copilot 页面点「改为在系统设置中开启」，再点「打开应用信息」，点右上角的 ⋮，选择「允许受限制的设置」，然后到系统的无障碍设置中开启「Copilot」。
 
-详见 [Copilot 手机助手](/docs/manual/copilot#enable-accessibility)。
+OPPO 和一加手机还需要在开发者选项中打开「禁止权限监控」。详见 [Copilot 手机助手 → 无障碍](/docs/manual/copilot#enable-accessibility)。
+
+### 助手请你到「系统设置 → 无障碍」中开启 [#accessibility-off]
+
+Copilot 每次操作前都会检查自己的无障碍服务，能重新打开时会自动打开。如果打不开（例如手机助手没有连接），助手会请你自己开启，然后停下。打开「系统设置 → 无障碍」，开启「Copilot」，再发送一次请求。
+
+### Copilot 能读到 App 内容，但点按和输入没有反应 [#copilot-reads-the-app-but-taps-and-typing-do-nothing]
+
+小米、Redmi、POCO 手机：在开发者选项中打开「USB 调试（安全设置）」，然后重启手机。OPPO、一加手机：打开「禁止权限监控」。见[各品牌的常见问题](/docs/manual/copilot#known-blockers-by-brand)。
+
+### 微信阻止了自动操作 [#wechat-is-blocking-automated-operation]
+
+微信自己的防自动化检测拦截了 Copilot。Copilot 会说明情况并停下，请你自己在微信里完成这一步。这是腾讯服务器端的决定，Copilot 不会尝试绕过。见 [Copilot 手机助手 → 微信](/docs/manual/copilot#wechat)。
+
+### 键盘每个键要点两次 [#the-keyboard-needs-two-taps-per-key]
+
+Copilot 的无障碍服务会让部分输入法（例如三星键盘）切换到读屏输入方式。Copilot 会在两次任务之间关闭这个服务，这需要手机助手处于连接状态。打开 Copilot 页面让手机助手重新连接即可。见[键盘每个键要点两次](/docs/manual/copilot#the-keyboard-needs-two-taps-per-key)。
 
 ### 「启用 Copilot」开关无法打开 [#enable-copilot-switch-is-disabled]
 

@@ -1,0 +1,68 @@
+---
+title: 语音输入
+description: 在对话框里说话代替打字。用你自己的 Key 设置语音识别服务：阿里云百炼（默认，说话时文字同步出现）或硅基流动，也可以转写音频文件。
+icon: Mic
+---
+
+开启语音输入后，点对话框里的麦克风说话，说的内容会变成文字出现在输入框里，发送前可以修改。和 AI 模型一样，语音识别也由你选择的服务商提供，使用你自己的 API Key。
+
+录音从手机直接发送给这家服务商，转成文字后即从手机上删除。PKU Harness 不会收到录音。
+
+## 可选的服务 [#the-services-you-can-choose]
+
+打开「设置 → 语音输入」，页面列出插件提供的语音识别服务，默认服务排在最前。
+
+| 服务 | 文字怎样出现 | 模型 | 在哪里申请 Key |
+| --- | --- | --- | --- |
+| **阿里云百炼（实时）**（默认） | 边说边出现 | 「Fun-ASR」（默认，每秒 ¥0.00033）、「Paraformer v2」（每秒 ¥0.00024） | [百炼控制台](https://bailian.console.aliyun.com/?tab=model#/api-key)，华北2（北京）地域 |
+| **硅基流动** | 每次停顿后按句子出现 | 「SenseVoice」（普通话、英语、粤语、日语、韩语）、「TeleSpeech」（方言识别更好） | [cloud.siliconflow.cn](https://cloud.siliconflow.cn/account/ak) |
+| **OpenAI 兼容** | 按句子出现 | 自己填写模型 ID | 任何提供 `/audio/transcriptions` 接口的服务 |
+
+价格是 App 在每个模型旁边显示的数字，实际以服务商的价目表为准。
+
+我们推荐「阿里云百炼」加「Fun-ASR」：说话时文字同步出现，在我们的测试中，它对校园地名识别得最准。如果你已经用百炼作为 [AI 模型](/docs/manual/ai-model#get-an-alibaba-cloud-bailian-api-key)，这里可以用同一个 Key。
+
+## 设置阿里云百炼 [#set-up-alibaba-cloud-bailian]
+
+1. 在「华北2（北京）」地域创建一个百炼 API Key，步骤和 [AI 服务 → 申请阿里云百炼 API Key](/docs/manual/ai-model#get-an-alibaba-cloud-bailian-api-key) 相同。其他地域的 Key 不能用。
+2. 在 App 中打开「设置 → 语音输入」，点「阿里云百炼（实时）」。
+3. 在「模型」下点「Fun-ASR」。
+4. 把 Key 粘贴到「API Key」。「获取 API Key」按钮会打开百炼的 Key 页面。
+5. 点「保存」。
+
+接口地址是固定的（`wss://dashscope.aliyuncs.com/api-ws/v1/inference`），显示在模型列表下方。
+
+## 设置硅基流动 [#set-up-siliconflow]
+
+1. 在 [cloud.siliconflow.cn](https://cloud.siliconflow.cn) 注册账号，如果要求实名认证，请先完成。
+2. 打开[「API 密钥」](https://cloud.siliconflow.cn/account/ak)，新建一个 Key 并复制。
+3. 在 App 中打开「设置 → 语音输入」，点「硅基流动」。
+4. 在「模型」下点「SenseVoice」；如果你说方言，可以选「TeleSpeech」。
+5. 把 Key 粘贴到「API Key」，点「保存」。
+
+## 用语音输入一条消息 [#speak-a-message]
+
+1. 在对话页点输入框里的麦克风。第一次使用时，Android 会询问麦克风权限，请允许。
+2. 开始说话。输入框显示「正在听…」和你说的内容。
+3. 说完后点对勾按钮（「完成并转成文字」），文字会留在输入框里。
+4. 需要的话修改一下，然后发送。
+
+不想要这段录音，点关闭按钮（「放弃录音」）。
+
+## 转写音频文件 [#transcribe-an-audio-file]
+
+在对话中也可以附上音频文件：点「+」，再点「文件」，选择一段录音（最大 50 MB）。语音输入服务会把它转成文字，助手读取转写结果。
+
+「阿里云百炼（实时）」只能转写实时语音。要转写音频文件，请在「设置 → 语音输入」中选择「硅基流动」或「OpenAI 兼容」服务。
+
+## 语音输入用不了时 [#when-voice-input-doesnt-work]
+
+| 提示 | 怎么办 |
+| --- | --- |
+| 请先设置语音输入（设置 → 语音输入）。 | 选择一个服务并保存 |
+| 请先为语音输入填写 API Key（设置 → 语音输入）。 | 粘贴 Key 后点「保存」 |
+| 麦克风权限已关闭…… | 在 Android 的应用设置中允许 PKU Harness 使用麦克风 |
+| 没有听到内容…… | 靠近手机再说一次 |
+| 语音输入失败：…… | 原因来自服务商。使用百炼时，检查 Key 是否来自北京地域、账户是否有余额 |
+
+也可以让助手切换语音识别服务，例如「语音输入改用硅基流动」。它不能填写 Key，会打开这个页面由你填写。

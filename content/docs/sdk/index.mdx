@@ -38,8 +38,11 @@ import { definePlugin, defineTool, type PluginScreenProps } from '@pku-harness/s
 
 | 模块 | 页面 | 主要导出 |
 | --- | --- | --- |
-| `plugin.ts` | [plugin](/docs/sdk/plugin) | `definePlugin`、`defineTool`、`PluginDef`、`ToolDef`、`ToolContext`、`ToolEffect`、`Actor`、`Capability`、`KV`、`TurnInfo`、`DataSourceDef`、`ProviderDef`、`PluginTranslation`、`PluginLegacy`、`ContextInput`、`CONTEXT_MARK`、`Dynamic`、`resolveDynamic` |
+| `plugin.ts` | [plugin](/docs/sdk/plugin) | `definePlugin`、`defineTool`、`PluginDef`、`ToolDef`、`ToolContext`、`ToolEffect`、`Actor`、`Capability`、`KV`、`TurnInfo`、`DataSourceDef`、`ProviderDef`、`SpeechProviderDef`、`ToolAssessment`、`PluginTranslation`、`PluginLegacy`、`ContextInput`、`CONTEXT_MARK`、`Dynamic`、`resolveDynamic` |
 | `plugin.ts` | [宿主服务](/docs/sdk/host-services) | `HostServices`、`JobInput`、`JobPatch`、`CheckResult`、`PluginInfo`、`ToolInfo`、`WidgetCatalogEntry`、`OngoingOptions`、`OngoingHandle` |
+| `settings.ts` | [plugin](/docs/sdk/plugin#preferences)、[宿主服务](/docs/sdk/host-services#settings) | `definePreference`、`PluginPreferenceDef`、`SettingContext`、`SettingsService`、`SettingInfo`、`SettingChange`、`SettingValue` |
+| `files.ts` | [宿主服务](/docs/sdk/host-services#files) | `FilesService`、`FileInfo`、`FileReadResult`、`FileSearchResult` |
+| `speech.ts` | [plugin](/docs/sdk/plugin#speech-providers) | `openAITranscribe`、`cleanTranscript`、`speechErrorMessage` |
 | `ui.ts` | [ui](/docs/sdk/ui) | `HostUI`、`HostComponents`、`HostTheme`、`LiveData`、`PluginScreenProps`、`PluginWidgetProps`、`Contributions`、`ScreenContribution`、`SettingsContribution`、`TabContribution`、`WidgetContribution`、`CommandContribution`、`AppLocale` |
 | `genui.ts` | [genui](/docs/sdk/genui) | `specSchema`、`UISpec`、`SpecCheck` |
 | `dashboard.ts` | [dashboard](/docs/sdk/dashboard) | `Widget`、`Binding`、`bindingSchema`、`WidgetSize`、`widgetSizeSchema`、`WidgetSource`、`widgetSourceSchema` |

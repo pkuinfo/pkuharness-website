@@ -1,6 +1,6 @@
 ---
 title: Troubleshooting
-description: Common problems with PKU Harness and how to solve them — the campus network, verification codes at sign-in, AI provider errors, late reminders, app updates, the payment code and Copilot's accessibility setting.
+description: Common problems with PKU Harness and how to solve them — the campus network, verification codes at sign-in, AI provider and voice input errors, attached files, late reminders, app updates, the payment code and Copilot setup.
 icon: LifeBuoy
 ---
 
@@ -60,14 +60,33 @@ No AI provider is set up yet. Tap the button or open **Settings → AI provider*
 | Too many requests | Wait a moment and try again |
 | The connection timed out / Can't reach the service | Check your network and the base URL |
 
+For **Alibaba Cloud Bailian**, a key only works in the region where you created it; the base URL in
+[AI provider](/en/docs/manual/ai-model#recommended-providers) is for the Beijing region. For
+**Baidu Qianfan**, copy the whole key, including `bce-v3/`. If the test says the model doesn't exist,
+check the spelling of **Model ID** against the provider's model list.
+
 ### Can't send images
 
 The current model doesn't accept images. For example, DeepSeek-V4-Pro doesn't and
 DeepSeek-V4.1-Flash does. The attachment sheet says so and offers **Switch** when another model can.
+The app doesn't offer images for models connected through **OpenAI-compatible**.
 
-### Step limit reached
+## Voice input and files
 
-Each reply has a limit on the number of steps. Reply "continue" and the assistant carries on.
+### Voice input doesn't start
+
+The message tells you what is missing: a service, an API key or microphone access. See
+[Voice input → When voice input doesn't work](/en/docs/manual/voice-input#when-voice-input-doesnt-work).
+
+### A file can't be read
+
+| Message | Cause |
+| --- | --- |
+| This PDF is scanned images without text… | The PDF holds only pictures of pages. Take photos of the pages and send them as images |
+| This file is password protected… | Remove the password, then attach it again |
+| This file is damaged or not the type its name says. | Open it on a computer and save it again |
+| File too large… | Text files can be up to 200 KB, documents up to 30 MB, audio up to 50 MB |
+| … only transcribes live speech… | Alibaba Cloud Bailian (live) can't transcribe audio files. Choose SiliconFlow in **Settings → Voice input** |
 
 ## Reminders and scheduled tasks
 
@@ -112,17 +131,71 @@ bath card top-up, tap the bath card on a top-up kiosk.
 
 ## Copilot
 
-### Can't turn on Copilot accessibility
+For a full walk-through, see [Copilot](/en/docs/manual/copilot).
+
+### Copilot needs Android 12 or later
+
+Copilot uses features that Android added in version 12. On older phones the rest of the app works,
+but Copilot doesn't.
+
+### Can't find Developer options or Wireless debugging
+
+Use the search box at the top of Android's Settings: search for **build number**, tap it seven
+times, then search for **wireless debugging**. Each brand puts these in a different place; see
+[Where the switches are on your phone](/en/docs/manual/copilot#where-the-switches-are-on-your-phone).
+
+### The pairing code doesn't work
+
+The code changes each time the pairing dialog opens, and it stops working when the dialog closes.
+Keep the dialog open, pull down the notification shade, and type the code shown now. If the
+notification says the code was wrong or expired, tap **Pair device with pairing code** again and
+enter the new code.
+
+### The phone helper doesn't connect
+
+- Connect to Wi-Fi, and allow Wireless debugging on this network when Android asks.
+- If the Copilot screen says "Pairing authorization is no longer valid", pair again.
+- If Copilot keeps disconnecting, set PKU Harness to unrestricted battery use, and on Xiaomi phones
+  also allow **Autostart**.
+
+### Can't turn on Copilot accessibility [#cant-turn-on-copilot-accessibility]
 
 For apps installed from an APK, Android treats turning on an accessibility service as a restricted
 setting. There are two ways around it:
 
-- Connect the **Phone helper** first, then tap **Enable Copilot accessibility** on the Copilot
-  screen.
-- On the Copilot screen, tap **Open App info**, tap ⋮ in the top corner, choose
-  **Allow restricted settings**, then turn on **Copilot** in Android's accessibility settings.
+- Connect the **Phone helper** first. It turns accessibility on by itself; if not, tap **Turn on** in
+  the accessibility step.
+- On the Copilot screen, tap **Turn on in Settings instead**, then **Open App info**, tap ⋮ in the
+  top corner, choose **Allow restricted settings**, then turn on **Copilot** in Android's
+  accessibility settings.
 
-See [Copilot](/en/docs/manual/copilot#enable-accessibility).
+On OPPO and OnePlus phones, also turn on **Disable permission monitoring** in Developer options. See
+[Copilot → Accessibility](/en/docs/manual/copilot#enable-accessibility).
+
+### "Turn on PKU Harness in Settings > Accessibility" [#accessibility-off]
+
+Copilot checks its accessibility service before every action and turns it back on when it can. If it
+can't, for example because the phone helper isn't connected, the assistant asks you to turn it on and
+stops. Open **Settings → Accessibility**, turn on **Copilot**, and send your request again.
+
+### Copilot reads the app, but taps and typing do nothing
+
+On Xiaomi, Redmi and POCO phones, turn on **USB debugging (Security settings)** in Developer options
+and restart the phone. On OPPO and OnePlus phones, turn on **Disable permission monitoring**. See
+[Known blockers by brand](/en/docs/manual/copilot#known-blockers-by-brand).
+
+### WeChat is blocking automated operation
+
+WeChat's own anti-automation checks have flagged Copilot. Copilot says so and stops; do that step
+yourself in WeChat. This is decided on Tencent's servers, and Copilot doesn't try to get around it.
+See [Copilot → WeChat](/en/docs/manual/copilot#wechat).
+
+### The keyboard needs two taps per key
+
+Copilot's accessibility service makes some keyboards, such as Samsung Keyboard, switch to
+screen-reader typing. Copilot switches the service off between tasks, which needs the phone helper to
+be connected. Open the Copilot screen so the helper reconnects. See
+[The keyboard needs two taps per key](/en/docs/manual/copilot#the-keyboard-needs-two-taps-per-key).
 
 ### Enable Copilot switch is disabled
 

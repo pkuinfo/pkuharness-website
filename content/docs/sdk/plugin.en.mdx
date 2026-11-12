@@ -1,6 +1,6 @@
 ---
 title: plugin
-description: 'Every type you use to define a plugin: definePlugin, defineTool, PluginDef, ToolDef, ToolContext, effects, actors, capabilities, KV, turn info, data sources, model providers, translations and legacy ids.'
+description: 'Every type you use to define a plugin: definePlugin, defineTool, definePreference, PluginDef, ToolDef, ToolContext, effects, actors, capabilities, KV, turn info, data sources, preferences, model and speech providers, translations and legacy ids.'
 ---
 
 Every bundled plugin exports one object defined with `definePlugin`. It states the plugin's name,
@@ -14,10 +14,12 @@ Source: `packages/sdk/src/plugin.ts`.
 ```ts
 function definePlugin(def: PluginDef): PluginDef;
 function defineTool<I extends z.ZodType, O>(def: ToolDef<I, O>): ToolDef;
+function definePreference<T extends SettingValue>(def: PluginPreferenceDef<T>): PluginPreferenceDef<T>;
 ```
 
-Both return their argument unchanged. They exist for type checking: `defineTool` infers the type of
-`execute`'s input from the zod `input` schema.
+All three return their argument unchanged. They exist for type checking: `defineTool` infers the type of
+`execute`'s input from the zod `input` schema, and `definePreference` ties a preference's value type to
+its `input` schema.
 
 ## PluginDef
 
@@ -29,16 +31,19 @@ interface PluginDef {
   name: string;
   description: string;
   version: string;
+  maxAgentSteps?: number;
   icon?: string;
   core?: boolean;
   requires?: Capability[];
   cloud?: CloudManifest;
+  preferences?: Record<string, PluginPreferenceDef<any>>;
   remote?: { url: string; server: string };
   defaultModes?: Partial<Record<ToolEffect, 'auto' | 'ask' | 'off'>>;
   scopes: string[];
   tools: Record<string, ToolDef>;
   dataSources?: Record<string, DataSourceDef>;
   providers?: Record<string, ProviderDef>;
+  speech?: Record<string, SpeechProviderDef>;
   instructions?: Dynamic<string>;
   context?: (input: ContextInput) => Promise<string | undefined>;
   contributes?: Contributions;
@@ -53,16 +58,19 @@ interface PluginDef {
     name: { type: 'string', required: true, description: 'Display name, Chinese (English in `i18n.en.name`).' },
     description: { type: 'string', required: true, description: 'One sentence, Chinese.' },
     version: { type: 'string', required: true, description: 'Semver of the plugin.' },
+    maxAgentSteps: { type: 'number', description: 'Accepted but ignored: since app 1.0.16 a chat reply has no step limit (the context is compacted mid-reply instead).' },
     icon: { type: 'string', description: "Icon name from the host's icon set, e.g. 'card', 'book', 'alarm'." },
     core: { type: 'boolean', description: 'Part of the harness experience: always on, cannot be disabled.' },
     requires: { type: 'Capability[]', description: 'What the plugin needs from the device; unmet requirements hide it.' },
     cloud: { type: 'CloudManifest', description: "PKU Harness Cloud use. Without `optional: true`, also list 'cloud' in `requires`." },
+    preferences: { type: 'Record<string, PluginPreferenceDef>', description: "The plugin's own settings, listed in the host's settings registry as `<plugin id>.<name>`. The user and the agent read and change them in one place. See [Preferences](#preferences). Not the same as `contributes.settings` (rows on the Settings page)." },
     remote: { type: '{ url: string; server: string }', description: 'Set by the host for installed remote plugins, which connect through the Model Context Protocol (MCP). Never set it yourself.' },
     defaultModes: { type: "Partial<Record<ToolEffect, 'auto' | 'ask' | 'off'>>", description: 'Default per-effect modes; the user can change them.', default: 'all auto' },
     scopes: { type: 'string[]', required: true, description: 'Campus services or hosts this plugin talks to, shown to the user.' },
     tools: { type: 'Record<string, ToolDef>', required: true, description: 'The API. Keys are tool names.' },
     dataSources: { type: 'Record<string, DataSourceDef>', description: 'Read tools suited to widgets and checks.' },
     providers: { type: 'Record<string, ProviderDef>', description: 'Model providers (provider plugins).' },
+    speech: { type: 'Record<string, SpeechProviderDef>', description: 'Speech-to-text services for voice input, keyed by local id (host id `<plugin>.<key>`). See [Speech providers](#speech-providers).' },
     instructions: { type: 'Dynamic<string>', description: "Appended to the agent's system prompt. Short; refer to tools by model name (`plugin__tool`)." },
     context: { type: '(input: ContextInput) => Promise<string | undefined>', description: 'Called before each agent turn; the text is shown to the model for that turn, marked as data. Costs tokens on every request.' },
     contributes: { type: 'Contributions', description: 'Screens, Settings rows, tabs, widgets, commands.' },
@@ -82,10 +90,21 @@ interface ToolDef<I extends z.ZodType = z.ZodType, O = unknown> {
   description: Dynamic<string>;
   input: I;
   effect: ToolEffect;
+  resolveEffect?: (input: z.infer<I>, services: HostServices) => Promise<ToolEffect | ToolAssessment>;
   untrusted?: boolean;
   userOnly?: boolean;
+  grant?: boolean;
+  alwaysAsk?: boolean;
+  serial?: boolean;
+  dayScoped?: boolean;
   execute: (input: z.infer<I>, ctx: ToolContext) => Promise<O>;
 }
+
+/** A host-observed action target, shown separately from model-supplied tool arguments. */
+type ToolAssessment = {
+  effect: ToolEffect;
+  target?: { label: string; context?: string };
+};
 ```
 
 <TypeTable
@@ -96,6 +115,11 @@ interface ToolDef<I extends z.ZodType = z.ZodType, O = unknown> {
     effect: { type: 'ToolEffect', required: true, description: "'read' | 'write' | 'money' | 'public'." },
     untrusted: { type: 'boolean', description: "The tool returns text written by third parties. Calling it marks the agent's turn as tainted. Tools of remote plugins always count as untrusted." },
     userOnly: { type: 'boolean', description: 'Only the user can run it from a screen: not offered to the model; agent and scheduler calls are refused.' },
+    resolveEffect: { type: '(input, services) => Promise<ToolEffect | ToolAssessment>', description: 'An extra effect judged from current external state (for example what a Copilot tap would hit), checked alongside `effect`. A returned `target` is shown as the headline of the approval prompt.' },
+    grant: { type: 'boolean', description: "The tool gives the agent access it doesn't have yet. Every agent call waits for the user's tap whatever the modes say (`auto` never skips it, `off` still blocks); scheduled calls are refused. The prompt offers Allow once / Always allow, and the answer arrives as `ctx.grant`." },
+    alwaysAsk: { type: 'boolean', description: 'Every agent call waits for approval whatever the modes say; scheduled calls are refused. For actions the host cannot judge from an observed target. `resolveEffect` should name what will happen.' },
+    serial: { type: 'boolean', description: "Calls of this plugin's serial tools run one at a time, approval included, in the order the model made them. For tools acting on one shared state." },
+    dayScoped: { type: 'boolean', description: 'The result describes the current day (in the app\'s time zone). Widgets must not show a cached result fetched on an earlier day, except as an offline fallback.' },
     execute: { type: '(input: z.infer<I>, ctx: ToolContext) => Promise<O>', required: true, description: 'Does the work. Throw an Error with a user-readable message on failure.' },
   }}
 />
@@ -107,6 +131,8 @@ When the host calls `execute`, it passes a second argument, `ctx`. It tells you 
 
 ```ts
 interface ToolContext {
+  /** Effect approved for this invocation after optional native classification. */
+  effect?: ToolEffect;
   pluginId: string;
   actor: Actor;
   /** Set for agent calls inside a chat turn. */
@@ -116,6 +142,8 @@ interface ToolContext {
   services: HostServices;
   /** PKU Harness Cloud, bound to this plugin; optional until every host build wires it. */
   cloud?: PluginCloud;
+  /** How the user answered the prompt of a `grant` tool. Unset for direct user calls. */
+  grant?: 'once' | 'always';
   signal?: AbortSignal;
 }
 
@@ -127,6 +155,8 @@ interface TurnInfo {
   tainted: boolean;
   /** The user's own message in this turn asks to remember something. */
   userAsked?: boolean;
+  /** The turn's model reads images (its catalog entry lists 'image' in `inputModalities`). */
+  acceptsImages?: boolean;
 }
 
 interface KV {
@@ -154,6 +184,7 @@ type Capability =
   | 'shell'            // never available on phones; plugins needing it must run remotely
   | 'filesystem'
   | 'cloud'            // a PKU Harness Cloud provider is configured; see PluginDef.cloud
+  | 'phone-control'    // operate other phone apps (Copilot)
   | 'ongoing';         // persistent ongoing notification / foreground service (Android only)
 ```
 
@@ -220,12 +251,99 @@ type PluginTranslation = {
   screens?: Record<string, { title?: string }>;
   /** Settings rows, keyed by the screen they open. */
   settings?: Record<string, { title?: string; subtitle?: string }>;
+  /** Preference titles and descriptions (PluginDef.preferences), keyed by name. */
+  preferences?: Record<string, { title?: string; description?: string; options?: Record<string, string> }>;
   /** `prompt`: the English template for prompt commands. */
   commands?: Record<string, { description?: string; argHint?: string; aliases?: string[]; prompt?: string }>;
   providers?: Record<string, { name?: string; description?: string; credentialHint?: string; models?: Record<string, { name?: string; description?: string }> }>;
+  speech?: Record<string, { name?: string; description?: string; credentialHint?: string; models?: Record<string, { name?: string; description?: string }> }>;
   dataSources?: Record<string, { title?: string }>;
+  /** Access scopes written as prose (not a host name), keyed by the source text in `scopes`. */
+  scopes?: Record<string, string>;
 };
 ```
+
+## Preferences [#preferences]
+
+A preference is a setting that belongs to a plugin, such as Copilot's allowed apps. You declare it in
+`PluginDef.preferences`, and the host lists it in its settings registry as `<plugin id>.<name>`,
+next to the app's own settings. The user changes it on the plugin's screen, and the agent changes
+it through the core `settings` plugin; both go through `get` and `set`. Nothing in the host needs to
+change. See [Architecture → The agent operates everything](/en/docs/concepts/architecture#agent-operates-everything).
+
+Source: `packages/sdk/src/settings.ts`.
+
+```ts
+type SettingValue = string | number | boolean | string[];
+
+interface PluginPreferenceDef<T extends SettingValue = SettingValue> {
+  title: string;
+  description?: string;
+  kind: 'choice' | 'boolean' | 'text' | 'list';
+  options?: { value: string; label: string }[];
+  /** Validates a new value (from the agent or a screen). */
+  input: z.ZodType<T>;
+  get(ctx: SettingContext): Promise<T>;
+  set(ctx: SettingContext, value: T): Promise<void>;
+  /** App route of the screen that shows it (defaults to the plugin's first screen). */
+  screen?: string;
+}
+
+/** What a preference gets to read and write its value with. */
+interface SettingContext {
+  kv: KV;
+  services: HostServices;
+}
+```
+
+<TypeTable
+  type={{
+    title: { type: 'string', required: true, description: 'Shown in settings listings. Chinese; English goes in `i18n.en.preferences.<name>.title`.' },
+    description: { type: 'string', description: 'One sentence on what it changes.' },
+    kind: { type: "'choice' | 'boolean' | 'text' | 'list'", required: true, description: '`choice` takes one of `options`; `list` is a list of strings.' },
+    options: { type: '{ value: string; label: string }[]', description: 'The choices of a `choice` preference. Labels can be translated in `i18n.en.preferences.<name>.options`.' },
+    input: { type: 'z.ZodType<T>', required: true, description: 'Validates every new value before `set` runs. A failing value fails the change.' },
+    get: { type: '(ctx: SettingContext) => Promise<T>', required: true, description: 'Reads the current value, usually from `ctx.kv`.' },
+    set: { type: '(ctx: SettingContext, value: T) => Promise<void>', required: true, description: 'Applies a validated value. It may also call host services, for example to end a running session.' },
+    screen: { type: 'string', description: "The app route that shows the setting, used by `settings.open`. Defaults to the plugin's first screen." },
+  }}
+/>
+
+Preferences are never secret. Don't declare API keys or passwords as preferences: the agent can read
+and change every preference. The host's own secrets are `uiOnly` entries that only the user can set.
+
+This is how the Copilot plugin declares its screenshot switch:
+
+```ts
+import { definePlugin, definePreference } from '@pku-harness/sdk';
+import { z } from 'zod';
+
+import { loadCopilotVision, saveCopilotVision } from './preferences';
+
+export const copilotPlugin = definePlugin({
+  id: 'copilot',
+  // …
+  i18n: {
+    en: {
+      preferences: {
+        screenshots: { title: 'Let the AI see screenshots', description: 'For apps that hide their contents from Copilot (Taobao, WeChat).' },
+      },
+    },
+  },
+  preferences: {
+    screenshots: definePreference({
+      title: '允许 AI 查看截图',
+      description: '用于不向 Copilot 显示内容的 App（淘宝、微信）。',
+      kind: 'boolean',
+      input: z.boolean(),
+      get: async (c) => (await loadCopilotVision(c.kv)).screenshots,
+      set: async (c, screenshots) => { await saveCopilotVision(c.kv, { screenshots }); },
+    }),
+  },
+});
+```
+
+The agent can now change it with `settings__change` and the key `copilot.screenshots`.
 
 ## PluginLegacy
 
@@ -335,3 +453,107 @@ export const myProviderPlugin = definePlugin({
   },
 });
 ```
+
+## Speech providers [#speech-providers]
+
+A speech provider turns the user's voice into text for the chat box's
+[voice input](/en/docs/manual/voice-input). It works like a model provider: the user brings their own
+key, and the audio goes from the phone straight to `baseURL`. A plugin describes each service in
+`speech` with a `SpeechProviderDef`; the host id is `<plugin>.<key>`.
+
+Implement `stream` for a realtime service, where text appears while the user talks, or `transcribe`
+for a service that takes a finished recording. With `transcribe`, the host sends the audio in pieces
+cut at pauses, so most of it is done when the user stops. Only `transcribe` can handle attached audio
+files.
+
+```ts
+interface SpeechProviderDef {
+  name: string;
+  description: string;
+  defaultBaseURL: string;
+  editableBaseURL?: boolean;
+  models: { id: string; name: string; description?: string }[];
+  defaultModel: string;
+  credentialHint?: string;
+  /** Where to get a key, shown under the field. */
+  keyURL?: string;
+  transcribe?: (config: SpeechConfig, audio: SpeechAudio, signal?: AbortSignal) => Promise<string>;
+  stream?: (config: SpeechConfig, handlers: SpeechStreamHandlers) => Promise<SpeechStream>;
+}
+
+interface SpeechConfig {
+  baseURL: string;
+  model: string;
+  /** API key from the host's secure storage. */
+  credential?: string;
+  /** The host's fetch (uploads `SpeechAudio.file` in a FormData). */
+  fetch: typeof fetch;
+  /** Open a WebSocket with request headers (for realtime services that authenticate in the handshake). */
+  webSocket: (url: string, headers: Record<string, string>) => WebSocket;
+}
+
+/** A recording to transcribe (16 kHz mono WAV unless `mimeType` says otherwise). */
+interface SpeechAudio {
+  file: Blob;
+  uri: string;
+  name: string;
+  mimeType: string;
+  durationMs?: number;
+}
+
+interface SpeechStreamHandlers {
+  /** The whole transcript so far (confirmed text plus the provisional tail), replacing the last one. */
+  onText: (text: string) => void;
+}
+
+interface SpeechStream {
+  /** 100 ms of 16 kHz mono 16-bit little-endian PCM, base64. */
+  send: (pcmBase64: string) => void;
+  /** No more audio: resolves with the final transcript. */
+  finish: () => Promise<string>;
+  /** Drop the session without a result. */
+  cancel: () => void;
+}
+```
+
+`packages/sdk/src/speech.ts` has three helpers:
+
+- `openAITranscribe(config, audio, signal?)` sends `POST {baseURL}/audio/transcriptions` (multipart
+  `file` and `model`) and returns the cleaned `text`. SiliconFlow, OpenAI and most compatible services
+  take this shape, so a plugin can pass it as `transcribe` directly.
+- `cleanTranscript(text)` drops control tokens such as `<|zh|>` and trims whitespace.
+- `speechErrorMessage(status, body)` turns an error body into `"<status>: <message>"`.
+
+This is the SiliconFlow plugin, shortened:
+
+```ts
+import { definePlugin, openAITranscribe } from '@pku-harness/sdk';
+
+export const siliconflowPlugin = definePlugin({
+  id: 'siliconflow',
+  name: '硅基流动',
+  description: '用硅基流动的语音识别把语音输入转成文字（你自己的 API Key）。',
+  version: '0.1.0',
+  requires: ['network'],
+  icon: 'mic',
+  scopes: ['api.siliconflow.cn'],
+  tools: {},
+  speech: {
+    asr: {
+      name: '硅基流动',
+      description: 'SenseVoice 与 TeleSpeech，国内可直接访问；文字按句子出现',
+      defaultBaseURL: 'https://api.siliconflow.cn/v1',
+      models: [
+        { id: 'FunAudioLLM/SenseVoiceSmall', name: 'SenseVoice', description: '普通话、英语、粤语、日语、韩语' },
+        { id: 'TeleAI/TeleSpeechASR', name: 'TeleSpeech', description: '方言识别更好' },
+      ],
+      defaultModel: 'FunAudioLLM/SenseVoiceSmall',
+      credentialHint: '在 cloud.siliconflow.cn 创建的 API Key',
+      keyURL: 'https://cloud.siliconflow.cn/account/ak',
+      transcribe: openAITranscribe,
+    },
+  },
+});
+```
+
+For a realtime service, see `plugins/aliyun-bailian/src/realtime.ts` in the plugins repository.

@@ -1,6 +1,6 @@
 ---
 title: HostServices
-description: Signatures and behaviour of every host service a bundled plugin gets as ctx.services or props.services, plus the job, widget catalog and ongoing-notification types.
+description: Signatures and behaviour of every host service a bundled plugin gets as ctx.services or props.services, including the settings registry and attached files, plus the job, widget catalog and ongoing-notification types.
 ---
 
 A plugin can't call the app's internal code. When it needs to open a browser, pick a file, send a
@@ -12,10 +12,12 @@ Source: `packages/sdk/src/plugin.ts`. Concepts: [Host services](/en/docs/concept
 
 ```ts
 interface HostServices {
+  phone: PhoneService;
+  settings: SettingsService;
   browser: {
     open(url: string): Promise<{ opened: true }>;
   };
-  files: {
+  files: FilesService & {
     pick(opts?: { types?: string[]; multiple?: boolean }): Promise<PickedFile[]>;
   };
   crypto: {
@@ -100,6 +102,13 @@ interface HostServices {
 
 The notes below describe how each member behaves and what to watch for when you call it.
 
+- **`phone`** drives Copilot's separate screen (`PhoneService` in `packages/sdk/src/phone.ts`). It is
+  meant for the bundled Copilot plugin, needs the `phone-control` capability, and isn't covered in
+  this reference.
+- **`settings`** lists and changes every app and plugin setting; see [Settings](#settings).
+- **`files.list` / `read` / `search`** reach the documents attached in the current chat; see
+  [Attached files](#files).
+
 - **`browser.open`** opens the page in a system browser tab (Custom Tabs on Android,
   SFSafariViewController on iOS). App links on that page (`weixin://`, `alipays://`) open those
   apps, so a checkout page can lead on to WeChat Pay or Alipay. The call resolves as soon as the page
@@ -150,6 +159,124 @@ The notes below describe how each member behaves and what to watch for when you 
   user action and stop it when you're done.
 - **`timetable.reloadSemester`** makes the host read the semester again after the calendar plugin
   has saved it.
+
+## Settings [#settings]
+
+`settings` is the host's settings registry: every setting the user can change in the app, in one
+list. The Settings screens and the core `settings` plugin (the agent's way in) both use it, so a
+change from either place shows in both. Source: `packages/sdk/src/settings.ts`.
+
+```ts
+type SettingValue = string | number | boolean | string[];
+
+interface SettingInfo {
+  /** `app.theme`, `plugin.copilot.enabled`, `copilot.apps`, … */
+  key: string;
+  /** Section it belongs to, for listing (`app`, `ai`, a plugin's name, …). */
+  group: string;
+  title: string;
+  description?: string;
+  /** `choice` takes one of `options`; `list` is a list of strings. */
+  kind: 'choice' | 'boolean' | 'text' | 'list';
+  options?: { value: string; label: string }[];
+  value: SettingValue | null;
+  /** A secret or a step that needs the user: never set by the agent; `screen` is where it lives. */
+  uiOnly?: boolean;
+  /** App route of the screen that shows this setting. */
+  screen?: string;
+}
+
+interface SettingChange {
+  key: string;
+  before: SettingValue | null;
+  after: SettingValue | null;
+}
+
+interface SettingsService {
+  /** Every setting with its current value. */
+  list(): Promise<SettingInfo[]>;
+  /** Apply changes in order. */
+  change(changes: { key: string; value: SettingValue }[]): Promise<SettingChange[]>;
+  /** Show the screen of a setting. */
+  open(key: string): void;
+}
+```
+
+The keys the app lists today:
+
+| Key | Kind | Values |
+| --- | --- | --- |
+| `app.theme` | `choice` | `system`, `light`, `dark` |
+| `app.language` | `choice` | `system`, `zh-Hans`, `en` |
+| `app.timezone` | `text` | `auto` (follow the phone) or an IANA zone such as `Asia/Shanghai` |
+| `app.haptics` | `boolean` | |
+| `ai.provider` | `choice` | Provider ids, such as `deepseek.api` |
+| `ai.model` | `text` | A model id; for a provider with a fixed model list, one of its models |
+| `voice.provider` | `choice` | Speech provider ids, such as `aliyun-bailian.realtime` |
+| `plugin.<id>.enabled` | `boolean` | Not listed for core plugins |
+| `plugin.<id>.permission.<effect>` | `choice` | `auto`, `ask`, `off`; for plugins with tools |
+| `<plugin>.<name>` | from the plugin | Each entry of `PluginDef.preferences`, e.g. `copilot.enabled`, `copilot.apps`, `copilot.screenshots` |
+| `ai.apiKey`, `voice.apiKey`, `campus.account`, `app.notifications` | `text`, `uiOnly` | Only the user can set these; `open` shows their screen |
+
+How `change` behaves:
+
+- It checks every key first. An unknown key or a `uiOnly` key fails the whole call before anything
+  changes.
+- It then applies the changes in order. Each value is validated against its entry (an option of a
+  `choice`, `true`/`false` for a `boolean`, the preference's `input` schema). An invalid value throws
+  an `Error` with a readable message.
+- It returns `before` and `after` for each key.
+
+`open(key)` navigates to the setting's `screen`, and throws for an unknown key. Call it in response
+to the user, for example when they ask to change a `uiOnly` setting.
+
+A plugin adds its own entries with [`PluginDef.preferences`](/en/docs/sdk/plugin#preferences), not
+through this service.
+
+## Attached files [#files]
+
+Besides `pick`, `files` reaches the documents the user attached in the current chat: PDF, Word,
+Excel, PowerPoint, audio transcripts and text files. The host extracts their text on the phone. The
+user's message carries each one as `<attachment name=… kind=… id=… chars=…>`, with only the beginning
+inline when it is long; these calls page through the rest or search it. Offsets and lengths count
+characters of the extracted text. Source: `packages/sdk/src/files.ts`.
+
+```ts
+interface FileInfo {
+  id: string;
+  name: string;
+  /** 'pdf' | 'docx' | 'xlsx' | 'pptx' | 'audio' | 'text' | … (host-defined). */
+  kind: string;
+  /** Length of the extracted text. */
+  chars: number;
+  /** Pages, sheets, slides or seconds, when the kind has them. */
+  units?: number;
+}
+
+interface FileReadResult extends FileInfo {
+  /** Where this slice starts. */
+  offset: number;
+  text: string;
+  /** Offset to continue from, null at the end. */
+  next: number | null;
+}
+
+interface FileSearchResult {
+  id: string;
+  name: string;
+  matches: { offset: number; snippet: string }[];
+}
+
+interface FilesService {
+  /** Documents attached in the current chat (most recent first). */
+  list(): Promise<FileInfo[]>;
+  read(id: string, offset?: number, length?: number): Promise<FileReadResult>;
+  search(id: string, query: string, max?: number): Promise<FileSearchResult>;
+}
+```
+
+Document text is third-party content. A tool that returns it must set `untrusted: true`, as the core
+`files` plugin's `read` and `search` do.
 
 ## Types used above
 

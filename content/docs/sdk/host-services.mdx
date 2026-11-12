@@ -1,6 +1,6 @@
 ---
 title: HostServices
-description: 内置插件通过 ctx.services 或 props.services 拿到的全部宿主服务的签名和行为，以及任务、小组件目录和常驻通知相关的类型。
+description: 内置插件通过 ctx.services 或 props.services 拿到的全部宿主服务的签名和行为，包括设置注册表和附件，以及任务、小组件目录和常驻通知相关的类型。
 ---
 
 插件不能直接调用 App 的内部代码。需要打开浏览器、选择文件、发校园网请求、创建提醒时，插件调用宿主提供的服务。工具在 `ctx.services` 中拿到这些服务，页面和小组件在 `props.services` 中拿到。这一页列出每项服务的签名和行为。
@@ -9,10 +9,12 @@ description: 内置插件通过 ctx.services 或 props.services 拿到的全部�
 
 ```ts
 interface HostServices {
+  phone: PhoneService;
+  settings: SettingsService;
   browser: {
     open(url: string): Promise<{ opened: true }>;
   };
-  files: {
+  files: FilesService & {
     pick(opts?: { types?: string[]; multiple?: boolean }): Promise<PickedFile[]>;
   };
   crypto: {
@@ -97,6 +99,10 @@ interface HostServices {
 
 下面按成员说明调用时需要注意的行为。
 
+- **`phone`**：驱动 Copilot 的独立屏幕（`packages/sdk/src/phone.ts` 中的 `PhoneService`）。它供内置的 Copilot 插件使用，需要 `phone-control` 能力，本参考不展开说明。
+- **`settings`**：列出和修改 App 与插件的全部设置，见[设置](#settings)。
+- **`files.list` / `read` / `search`**：读取当前对话中附上的文档，见[附件](#files)。
+
 - **`browser.open`**：在系统浏览器标签页（Android 上是 Custom Tabs，iOS 上是 SFSafariViewController）里打开页面。页面上的 App 链接（`weixin://`、`alipays://`）会唤起对应的 App，所以收银台页面可以一路跳转到微信支付或支付宝。这个方法在页面打开后就 resolve，无法得知支付是否成功。等用户回到 App 后，请重新读取一次结果，比如余额。
 - **`files.pick`**：只有用户能选择文件。请在页面里响应用户点击时调用它，不要在 Agent 工具里调用。`types` 是 MIME 类型，支持通配符，例如 `['application/pdf', 'image/*']`。用户取消时 resolve 为 `[]`。选中的文件会复制到 App 缓存，你拿到的是文件引用（在本次 App 会话内有效的 URI），拿不到文件内容。
 - **`crypto.sha256`**：对 UTF-8 文本计算 SHA-256，返回小写十六进制字符串。插件自己没有加密库，这个方法用来给请求签名。
@@ -116,6 +122,112 @@ interface HostServices {
 - **`campus.openSignedIn`**：借助服务自己的登录跳转，在系统浏览器里以已登录状态打开该服务。URL 由宿主生成，插件看不到会话 token。服务不支持这种跳转时会 reject。
 - **`ongoing`**：只有设备具备 `ongoing` 能力（Android）时才存在。请在用户操作时启动，用完后停掉。
 - **`timetable.reloadSemester`**：日历插件保存学期信息后，调用它让宿主重新读取。
+
+## 设置 [#settings]
+
+`settings` 是宿主的设置注册表：用户在 App 中能修改的每一项设置，都在这一个列表里。设置页面和核心插件 `settings`（助手的入口）都使用它，所以在任一处修改，另一处都会同步显示。源码：`packages/sdk/src/settings.ts`。
+
+```ts
+type SettingValue = string | number | boolean | string[];
+
+interface SettingInfo {
+  /** `app.theme`、`plugin.copilot.enabled`、`copilot.apps` 等 */
+  key: string;
+  /** 所属的分组，用于列出（`app`、`ai`、插件名称等）。 */
+  group: string;
+  title: string;
+  description?: string;
+  /** `choice` 取 `options` 中的一个值；`list` 是字符串列表。 */
+  kind: 'choice' | 'boolean' | 'text' | 'list';
+  options?: { value: string; label: string }[];
+  value: SettingValue | null;
+  /** 机密或需要用户亲手完成的步骤：助手不能设置；`screen` 是它所在的页面。 */
+  uiOnly?: boolean;
+  /** 显示这项设置的页面路由。 */
+  screen?: string;
+}
+
+interface SettingChange {
+  key: string;
+  before: SettingValue | null;
+  after: SettingValue | null;
+}
+
+interface SettingsService {
+  /** 所有设置及其当前值。 */
+  list(): Promise<SettingInfo[]>;
+  /** 按顺序应用修改。 */
+  change(changes: { key: string; value: SettingValue }[]): Promise<SettingChange[]>;
+  /** 打开某项设置所在的页面。 */
+  open(key: string): void;
+}
+```
+
+目前 App 列出的键：
+
+| 键 | 类型 | 取值 |
+| --- | --- | --- |
+| `app.theme` | `choice` | `system`、`light`、`dark` |
+| `app.language` | `choice` | `system`、`zh-Hans`、`en` |
+| `app.timezone` | `text` | `auto`（跟随手机）或 IANA 时区，例如 `Asia/Shanghai` |
+| `app.haptics` | `boolean` | |
+| `ai.provider` | `choice` | 服务商 id，例如 `deepseek.api` |
+| `ai.model` | `text` | 模型 id；服务商有固定模型列表时，只能取其中之一 |
+| `voice.provider` | `choice` | 语音服务商 id，例如 `aliyun-bailian.realtime` |
+| `plugin.<id>.enabled` | `boolean` | 核心插件没有这一项 |
+| `plugin.<id>.permission.<effect>` | `choice` | `auto`、`ask`、`off`；只有带工具的插件才有 |
+| `<plugin>.<name>` | 由插件决定 | `PluginDef.preferences` 中的每一项，例如 `copilot.enabled`、`copilot.apps`、`copilot.screenshots` |
+| `ai.apiKey`、`voice.apiKey`、`campus.account`、`app.notifications` | `text`，`uiOnly` | 只有用户能设置；`open` 打开它们所在的页面 |
+
+`change` 的行为：
+
+- 先检查所有的键。只要有一个未知的键或 `uiOnly` 的键，整个调用就会失败，什么都不改。
+- 然后按顺序应用修改。每个值都按它的条目校验（`choice` 必须是可选值之一，`boolean` 必须是 `true` 或 `false`，设置项按它的 `input` schema 校验）。值不合法时抛出一个带可读消息的 `Error`。
+- 返回每个键修改前后的值（`before` 和 `after`）。
+
+`open(key)` 跳转到这项设置的 `screen`，键不存在时抛出错误。请在响应用户时调用它，例如用户要求修改一项 `uiOnly` 设置时。
+
+插件通过 [`PluginDef.preferences`](/docs/sdk/plugin#preferences) 添加自己的条目，而不是通过这个服务。
+
+## 附件 [#files]
+
+除了 `pick`，`files` 还能读取用户在当前对话中附上的文档：PDF、Word、Excel、PowerPoint、录音转写和文本文件。宿主在手机上提取它们的文字。用户的消息以 `<attachment name=… kind=… id=… chars=…>` 的形式携带每个文档，文档较长时只内联开头部分；下面这些调用用来翻阅其余部分或在其中搜索。偏移量和长度都按提取出的文字的字符数计算。源码：`packages/sdk/src/files.ts`。
+
+```ts
+interface FileInfo {
+  id: string;
+  name: string;
+  /** 'pdf' | 'docx' | 'xlsx' | 'pptx' | 'audio' | 'text' | …（由宿主定义） */
+  kind: string;
+  /** 提取出的文字的长度。 */
+  chars: number;
+  /** 页数、工作表数、幻灯片数或秒数（对应类型有这一项时）。 */
+  units?: number;
+}
+
+interface FileReadResult extends FileInfo {
+  /** 这一段的起始位置。 */
+  offset: number;
+  text: string;
+  /** 继续读取的位置，读到末尾时为 null。 */
+  next: number | null;
+}
+
+interface FileSearchResult {
+  id: string;
+  name: string;
+  matches: { offset: number; snippet: string }[];
+}
+
+interface FilesService {
+  /** 当前对话中附上的文档（最新的在前）。 */
+  list(): Promise<FileInfo[]>;
+  read(id: string, offset?: number, length?: number): Promise<FileReadResult>;
+  search(id: string, query: string, max?: number): Promise<FileSearchResult>;
+}
+```
+
+文档的文字属于第三方内容。返回这些文字的工具必须设置 `untrusted: true`，核心插件 `files` 的 `read` 和 `search` 就是这样做的。
 
 ## 上文用到的类型 [#types-used-above]
 

@@ -45,9 +45,11 @@ We call the layer beneath the plugins the _harness_. It has four parts.
 
 The **agent loop** talks to the model. It is built on the AI SDK, and the model comes from any
 provider plugin. With each request it gives the model every enabled tool and receives the answer
-as a stream. The model can call several tools in a row, up to 10 steps per reply. The agent loop
-also keeps the history the model can see for each conversation, compacts older turns and records
-token usage.
+as a stream. The model can call tools in as many steps as the task needs; a reply has no step
+limit and ends when the model answers or you stop it. When the history grows past the context budget
+during a reply, the loop summarizes the older steps and carries on. It also keeps the history the
+model can see for each conversation and records token usage. Scheduled agent runs, which nobody
+watches, keep a small step limit.
 
 The **design system** contains design tokens, native controls and motion. Plugin screens are
 built from it, so they look like the app's own screens. They also keep working when the app
@@ -55,10 +57,41 @@ changes.
 
 The **host services** are the services the app offers to plugins. They cover campus HTTP
 requests, the scheduler, widgets, to-dos, the timetable, notification readiness, files, the
-browser, cryptography and the plugin registry.
+browser, cryptography, the plugin registry and the settings registry.
 
 **Generative UI** is a catalog of components. The agent writes a JSON description, and the app
 shows the matching components in the chat or on the dashboard.
+
+## The agent operates everything [#agent-operates-everything]
+
+Anything you can do in the app, the agent can do through a tool. The screens are a second way into
+the same stored data, never a separate path. Three surfaces cover the whole app.
+
+| Surface | What it operates | Through |
+| --- | --- | --- |
+| Campus and data | Campus services, the card, the schedule, to-dos, the dashboard, memory, attached files | Each plugin's tools |
+| The app itself | Every setting: appearance, language, time zone, haptics, the AI and voice services, each plugin's switch and permissions, each plugin's own preferences | The settings registry and the core `settings` plugin |
+| The phone | Other apps on the device | Copilot (`copilot.*` tools) |
+
+The **settings registry** is one list of typed entries, each with a key, a group, a title, a kind
+(`choice`, `boolean`, `text` or `list`), its options and its current value. It holds:
+
+- the host's own settings: `app.theme`, `app.language`, `app.timezone`, `app.haptics`,
+  `ai.provider`, `ai.model` and `voice.provider`;
+- for each plugin, `plugin.<id>.enabled` (not for core plugins) and
+  `plugin.<id>.permission.<effect>`, set to `auto`, `ask` or `off`;
+- each plugin's own preferences, declared in its manifest as `PluginDef.preferences` and listed as
+  `<plugin>.<name>`, for example `copilot.enabled`, `copilot.apps` and `copilot.screenshots`.
+
+A plugin adds a setting by declaring it; nothing in the host changes. Entries marked `uiOnly`, such as
+API keys, the campus account and system notification permissions, are listed with the screen where
+they live. The agent can't set them; it opens that screen for the user.
+
+The core `settings` plugin gives the agent three tools: `list` (read), `change` (write) and `open`.
+Changes follow the normal [permission modes](/en/docs/concepts/permissions), refuse unknown and
+`uiOnly` keys before anything changes, validate each value against its entry, and return each key's
+value before and after. Plugins reach the same registry through
+[`HostServices.settings`](/en/docs/sdk/host-services#settings).
 
 ## Who provides the four tabs [#the-four-tabs]
 
@@ -117,7 +150,7 @@ compares the three forms.
 
 | Data | Where |
 | --- | --- |
-| Campus credentials, model API keys, remote plugin tokens | The phone's keystore (SecureStore) |
+| Campus credentials, model and voice-input API keys, remote plugin tokens | The phone's keystore (SecureStore) |
 | Chat sessions, usage, widgets, scheduled jobs, to-dos, timetable, plugin key-value storage | A SQLite database on the phone |
 | Plugin data you chose to store online | A [PKU Harness Cloud](/en/docs/cloud) provider, end-to-end encrypted |
 

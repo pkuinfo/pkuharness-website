@@ -43,8 +43,11 @@ The table lists each source file of the SDK, its reference page and its main exp
 
 | Module | Page | Main exports |
 | --- | --- | --- |
-| `plugin.ts` | [plugin](/en/docs/sdk/plugin) | `definePlugin`, `defineTool`, `PluginDef`, `ToolDef`, `ToolContext`, `ToolEffect`, `Actor`, `Capability`, `KV`, `TurnInfo`, `DataSourceDef`, `ProviderDef`, `PluginTranslation`, `PluginLegacy`, `ContextInput`, `CONTEXT_MARK`, `Dynamic`, `resolveDynamic` |
+| `plugin.ts` | [plugin](/en/docs/sdk/plugin) | `definePlugin`, `defineTool`, `PluginDef`, `ToolDef`, `ToolContext`, `ToolEffect`, `Actor`, `Capability`, `KV`, `TurnInfo`, `DataSourceDef`, `ProviderDef`, `SpeechProviderDef`, `ToolAssessment`, `PluginTranslation`, `PluginLegacy`, `ContextInput`, `CONTEXT_MARK`, `Dynamic`, `resolveDynamic` |
 | `plugin.ts` | [host services](/en/docs/sdk/host-services) | `HostServices`, `JobInput`, `JobPatch`, `CheckResult`, `PluginInfo`, `ToolInfo`, `WidgetCatalogEntry`, `OngoingOptions`, `OngoingHandle` |
+| `settings.ts` | [plugin](/en/docs/sdk/plugin#preferences), [host services](/en/docs/sdk/host-services#settings) | `definePreference`, `PluginPreferenceDef`, `SettingContext`, `SettingsService`, `SettingInfo`, `SettingChange`, `SettingValue` |
+| `files.ts` | [host services](/en/docs/sdk/host-services#files) | `FilesService`, `FileInfo`, `FileReadResult`, `FileSearchResult` |
+| `speech.ts` | [plugin](/en/docs/sdk/plugin#speech-providers) | `openAITranscribe`, `cleanTranscript`, `speechErrorMessage` |
 | `ui.ts` | [ui](/en/docs/sdk/ui) | `HostUI`, `HostComponents`, `HostTheme`, `LiveData`, `PluginScreenProps`, `PluginWidgetProps`, `Contributions`, `ScreenContribution`, `SettingsContribution`, `TabContribution`, `WidgetContribution`, `CommandContribution`, `AppLocale` |
 | `genui.ts` | [genui](/en/docs/sdk/genui) | `specSchema`, `UISpec`, `SpecCheck` |
 | `dashboard.ts` | [dashboard](/en/docs/sdk/dashboard) | `Widget`, `Binding`, `bindingSchema`, `WidgetSize`, `widgetSizeSchema`, `WidgetSource`, `widgetSourceSchema` |

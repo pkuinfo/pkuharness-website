@@ -21,7 +21,9 @@ icon: Server
 | `timetable` | 课程、学期和上课提醒设置 |
 | `notify` | 提醒能否准时触发，以及修复入口 |
 | `sms` | 一键读取短信验证码 |
-| `files` | 系统的文件选择器 |
+| `files` | 系统的文件选择器，以及对话中附件的文字（列出、读取、搜索） |
+| `settings` | App 和插件的全部设置：列出、修改、打开对应页面 |
+| `phone` | Copilot 的手机会话（供内置的 Copilot 插件使用） |
 | `browser` | 在系统浏览器中打开网址 |
 | `crypto` | `sha256(text)` |
 | `registry` | 已安装的插件和工具（只读） |
@@ -36,7 +38,9 @@ icon: Server
 - **`widgets`** 可以列出、放置、移除、排序、预览和解析小组件，并提供组件目录，详见[看板](/docs/concepts/dashboard)。
 - **`notify`** 的 `fix` 方法只能在用户点击时调用。
 - **`sms`** 的 `awaitCode()` 使用 Android 的 SMS User Consent 接口，不需要短信权限。
-- **`files`** 的 `pick` 只能由用户发起，绝不能在助手调用的工具里使用。
+- **`files`** 的 `pick` 只能由用户发起，绝不能在助手调用的工具里使用。`list`、`read` 和 `search` 读取用户在当前对话里附上的文档（PDF、Word、Excel、PowerPoint、录音转写等），内容是手机上提取出的文字。这些文字属于第三方内容，返回它们的工具要标记为 `untrusted`。
+- **`settings`** 和设置页面读写同一份设置。`change` 会拒绝未知的键和 `uiOnly` 的键；插件自己的设置项要在 `PluginDef.preferences` 中声明，见[架构 → 助手能操作一切](/docs/concepts/architecture#agent-operates-everything)。
+- **`phone`** 驱动 Copilot 的独立屏幕。它只供内置的 Copilot 插件使用，需要 `phone-control` 能力。
 - **`browser`** 用于打开收银台和文档，以及框架无法代为完成的登录。
 - **`crypto`** 存在的原因是插件自己没有加密库。
 - **`remote`** 供 `plugins` 插件使用。
