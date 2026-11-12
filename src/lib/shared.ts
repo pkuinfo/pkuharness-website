@@ -1,4 +1,4 @@
-export const appName = 'PKU Harness';
+export const appName = 'PKU harness';
 // Empty when unset in CI build args, so treat '' as missing too.
 export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 export const docsRoute = '/docs';

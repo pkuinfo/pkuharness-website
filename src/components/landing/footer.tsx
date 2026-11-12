@@ -56,7 +56,7 @@ export function SiteFooter({ lang }: { lang: Lang }) {
             className="inline-flex items-center gap-2.5 rounded-[8px] font-semibold focus-visible:outline-2 focus-visible:outline-fd-ring"
           >
             <Logo size={28} />
-            PKU Harness
+            PKU harness
           </Link>
           <p className="mt-4 max-w-xs text-pretty text-fd-muted-foreground text-sm leading-relaxed">{m.tagline}</p>
         </div>
@@ -92,7 +92,7 @@ export function SiteFooter({ lang }: { lang: Lang }) {
         <span className="md:text-end">{m.disclaimer}</span>
       </div>
       <TextHoverEffect
-        text="PKU Harness"
+        text="PKU harness"
         className="mx-auto mt-6 -mb-[3%] block w-full max-w-[1440px] text-fd-foreground"
       />
     </footer>

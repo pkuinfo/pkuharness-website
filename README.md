@@ -131,3 +131,10 @@ you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). To report a vulnerabilit
 
 [MIT](LICENSE). PKU Harness is a student community project and is not an official product of Peking
 University. The name and emblem of Peking University belong to the university.
+
+## Brand assets
+
+The little-swallow mark and **PKU harness** wordmark are generated from the app repository.
+See [the identity system](https://github.com/pkuinfo/pku-harness/blob/main/docs/BRAND.md).
+Run `bun scripts/render-brand.ts --sync-related` in the sibling `pku-harness` checkout to refresh
+`public/brand`, `public/icon.png` and `src/app/icon.png`. Do not redraw the mark here.
