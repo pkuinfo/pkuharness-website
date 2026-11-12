@@ -1,10 +1,10 @@
 ---
 title: 架构
-description: PKU Harness 的框架层由 Agent 循环、设计系统和宿主服务组成，具体功能都由插件通过同一套接口提供。
+description: PKU harness 的框架层由 Agent 循环、设计系统和宿主服务组成，具体功能都由插件通过同一套接口提供。
 icon: Layers
 ---
 
-PKU Harness 的设计借鉴了 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的两个思路。第一，App 的功能都由插件提供。第二，App 以 AI 助手为核心，但你和助手能做的事情完全相同。
+PKU harness 的设计借鉴了 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的两个思路。第一，App 的功能都由插件提供。第二，App 以 AI 助手为核心，但你和助手能做的事情完全相同。
 
 为了做到第二点，每项功能只实现一次，形式是一个有类型的工具（tool）。你在界面上点按钮时，界面调用这个工具；你在对话里提出需求时，助手调用同一个工具。
 
@@ -117,7 +117,7 @@ export const helloPlugin = definePlugin({
 | --- | --- |
 | 校园账号密码、模型和语音输入的 API 密钥、远程插件的令牌 | 手机的密钥库（SecureStore） |
 | 聊天会话、用量、小组件、定时任务、待办、课表、插件的键值存储 | 手机上的 SQLite 数据库 |
-| 你主动开启的插件云端数据 | [PKU Harness Cloud](/docs/cloud) 服务，端到端加密 |
+| 你主动开启的插件云端数据 | [PKU harness Cloud](/docs/cloud) 服务，端到端加密 |
 
 默认情况下，数据不经过本项目的任何服务器。你配置的模型服务商会收到对话内容。校园服务收到的请求和浏览器发出的请求相同。
 

@@ -26,7 +26,7 @@ These patterns make text read as machine-written. Remove them.
 
 | Avoid                                                                                                                          | Write instead                                                                                                                                   |
 | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Slogans and wordplay: "Anything at PKU, just ask." / "北大的事，跟它说一声就行。"                                              | A plain statement: "PKU Harness is an Android app that helps you with campus services." / "PKU Harness 是一个帮你处理校园事务的 Android 应用。" |
+| Slogans and wordplay: "Anything at PKU, just ask." / "北大的事，跟它说一声就行。"                                              | A plain statement: "PKU harness is an Android app that helps you with campus services." / "PKU harness 是一个帮你处理校园事务的 Android 应用。" |
 | Paired, symmetrical headings: "Three kinds, one contract" / "三种形式，一套约定"                                               | "The three kinds of plugin" / "插件的三种形式"                                                                                                  |
 | Manifesto lines: "Every plugin is equal."                                                                                      | Say what it means: "Built-in and community plugins use the same permission system."                                                             |
 | Hype words: seamless, powerful, effortless, unlock, supercharge, robust, leverage, delve, 赋能, 无缝, 强大, 一站式, 极致, 打造 | Remove them, or say the concrete fact.                                                                                                          |
@@ -57,19 +57,19 @@ Chinese docs. It should not read like a translation.
 
 ## Before and after
 
-> Every capability in PKU Harness is a plugin, and all plugins are equal. A plugin is either a
+> Every capability in PKU harness is a plugin, and all plugins are equal. A plugin is either a
 > **document** the app interprets, a **TypeScript** module bundled in the app, or a **remote** MCP
 > server.
 
-> In PKU Harness, each feature that connects to a campus service is provided by a plugin. There
+> In PKU harness, each feature that connects to a campus service is provided by a plugin. There
 > are three kinds of plugin. The most common is a _plugin document_: a folder with a `PLUGIN.md`
 > file that the app reads and follows. The other two kinds are TypeScript modules built into the
 > app, and _remote plugins_, which run on a server and connect through the Model Context Protocol
 > (MCP).
 
-> PKU Harness 的每项能力都是插件，所有插件地位平等。
+> PKU harness 的每项能力都是插件，所有插件地位平等。
 
-> 在 PKU Harness 里，每一项连接校园服务的功能都由一个插件提供。插件有三种。最常见的是「插件文档」：一个包含 `PLUGIN.md` 文件的文件夹，App 读取并按照其中的说明执行。另外两种分别是内置在 App 中的 TypeScript 模块，以及运行在服务器上、通过 MCP（Model Context Protocol）连接的「远程插件」。
+> 在 PKU harness 里，每一项连接校园服务的功能都由一个插件提供。插件有三种。最常见的是「插件文档」：一个包含 `PLUGIN.md` 文件的文件夹，App 读取并按照其中的说明执行。另外两种分别是内置在 App 中的 TypeScript 模块，以及运行在服务器上、通过 MCP（Model Context Protocol）连接的「远程插件」。
 
 ## Page text (buttons, labels, errors)
 

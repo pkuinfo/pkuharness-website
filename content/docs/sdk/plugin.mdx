@@ -58,7 +58,7 @@ interface PluginDef {
     icon: { type: 'string', description: "宿主图标集里的图标名，如 'card'、'book'、'alarm'。" },
     core: { type: 'boolean', description: '属于 Harness 核心体验：始终启用，不能关闭。' },
     requires: { type: 'Capability[]', description: '插件需要设备提供什么；有不满足的需求时插件会被隐藏。' },
-    cloud: { type: 'CloudManifest', description: "如何使用 PKU Harness Cloud（云服务）。没有写 `optional: true` 时，还要在 `requires` 里列出 'cloud'。" },
+    cloud: { type: 'CloudManifest', description: "如何使用 PKU harness Cloud（云服务）。没有写 `optional: true` 时，还要在 `requires` 里列出 'cloud'。" },
     preferences: { type: 'Record<string, PluginPreferenceDef>', description: '插件自己的设置项，以 `<plugin id>.<name>` 列入宿主的设置注册表，用户和助手在同一处读取和修改。见[设置项](#preferences)。注意它和 `contributes.settings`（设置页上的入口行）不同。' },
     remote: { type: '{ url: string; server: string }', description: '宿主为已安装的远程插件（通过 Model Context Protocol，即 MCP 连接）填写，不要自己设置。' },
     defaultModes: { type: "Partial<Record<ToolEffect, 'auto' | 'ask' | 'off'>>", description: '每种效果的默认授权方式，用户可以修改。', default: '全部 auto' },
@@ -134,7 +134,7 @@ interface ToolContext {
   /** 本插件的私有存储。 */
   kv: KV;
   services: HostServices;
-  /** 绑定到本插件的 PKU Harness Cloud；在所有宿主版本都接入之前是可选的。 */
+  /** 绑定到本插件的 PKU harness Cloud；在所有宿主版本都接入之前是可选的。 */
   cloud?: PluginCloud;
   /** 用户对 `grant` 工具提示的回答。用户直接调用时不设置。 */
   grant?: 'once' | 'always';
@@ -175,7 +175,7 @@ type Capability =
   | 'background'       // 定期在后台运行
   | 'shell'            // 手机上永远不可用；需要它的插件必须远程运行
   | 'filesystem'
-  | 'cloud'            // 已配置 PKU Harness Cloud 服务；见 PluginDef.cloud
+  | 'cloud'            // 已配置 PKU harness Cloud 服务；见 PluginDef.cloud
   | 'phone-control'    // 操作手机上的其他 App（Copilot）
   | 'ongoing';         // 常驻通知 / 前台服务（仅 Android）
 ```

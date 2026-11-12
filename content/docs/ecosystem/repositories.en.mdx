@@ -42,7 +42,7 @@ and the marketplace.
 All campus logins go through IAAA (`iaaa.pku.edu.cn`), PKU's unified login service. pkucli
 documents the campus protocols, and the app follows them. The app includes
 `pku-harness-plugins` as a git submodule. Remote plugins connect to the app through the Model
-Context Protocol (MCP), and the PKU Harness Cloud provider is built on the cloud protocol and the
+Context Protocol (MCP), and the PKU harness Cloud provider is built on the cloud protocol and the
 reference cloud server from the plugins repository.
 
 | Repository | Uses | How |
@@ -51,7 +51,7 @@ reference cloud server from the plugins repository.
 | `pku-harness` (the app) | `pkucli` | Implements campus services from the protocols pkucli records |
 | `pku-harness` (the app) | `pku-harness-plugins` | Includes the SDK and plugins as a git submodule |
 | Remote plugins (anyone can write one) | `templates/remote-plugin` in `pku-harness-plugins` | Start from the template; connect to the app over MCP |
-| PKU Harness Cloud providers | `cloud-protocol` and `cloud-server` in `pku-harness-plugins` | Implement the cloud protocol; `cloud-server` is the reference |
+| PKU harness Cloud providers | `cloud-protocol` and `cloud-server` in `pku-harness-plugins` | Implement the cloud protocol; `cloud-server` is the reference |
 | `pkuharness-website` | `registry.json`, indexed plugin repositories, GitHub releases | Builds the docs, the marketplace and the download page |
 
 The website stands beside the others. Its marketplace reads `registry.json` and the plugin
@@ -63,7 +63,7 @@ repositories it has indexed, and its download page lists the app's GitHub releas
 | --- | --- |
 | `packages/sdk` | `@pku-harness/sdk`: the plugin contract, pure helpers and the plugin language (`src/lang`: schemas, interpreter, abilities, loader) |
 | `packages/cloud-protocol` | `@pku-harness/cloud-protocol`: Cloud wire schemas, envelope crypto, share links |
-| `packages/cloud-server` | The reference PKU Harness Cloud server (Bun + Hono + SQLite) |
+| `packages/cloud-server` | The reference PKU harness Cloud server (Bun + Hono + SQLite) |
 | `plugins/<id>/PLUGIN.md` | Official plugin documents. They ship with the app (`bun run bundle`) and update from their link |
 | `plugins/<id>/src` | Bundled TypeScript plugins (`builtinPlugins` in `plugins/index.ts`) |
 | `plugins/shared` | Code shared by bundled plugins |

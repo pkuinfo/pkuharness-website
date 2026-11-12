@@ -1,6 +1,6 @@
 ---
 title: 路线图
-description: PKU Harness 已完成、进行中、计划中和暂缓的工作，整理自应用仓库的开发计划和设计文档。
+description: PKU harness 已完成、进行中、计划中和暂缓的工作，整理自应用仓库的开发计划和设计文档。
 icon: Map
 ---
 
@@ -10,7 +10,7 @@ icon: Map
 
 - Android 应用的 1.0.0 版本已经发布。
 - OTA（over-the-air，空中下载）更新已经上线。App 的 JavaScript 代码（包括内置在 App 里的插件）有改动时，可以通过 OTA 直接更新到已安装的应用上，不需要重新安装 APK。插件文档不走 OTA，而是从各自的链接更新。
-- PKU Harness Cloud（云服务）的官方实例还没有部署。
+- PKU harness Cloud（云服务）的官方实例还没有部署。
 - 官方服务器上的插件服务端函数处于关闭状态。
 
 ## 已完成 [#done]
@@ -52,7 +52,7 @@ icon: Map
 
 **官方插件文档**：classrooms、campus-events、grades、canteen、shuttle 和 notices 已经从 TypeScript 移植成插件文档。每个移植版本都通过了对拍测试，原来的 TypeScript 版本已经删除。
 
-**PKU Harness Cloud（云服务）**：通信协议 v1 和信封加密、SDK 中的云服务类型，以及插件清单的 `cloud` 字段。用 Bun、Hono 和 SQLite 实现的参考服务器。宿主客户端，包括设备身份、授权、端到端加密的存储和通道，以及「设置 → 云服务」页面。Android 前台服务（`services.ongoing`）。`card-share` 插件，带网页查看页和 `pkuharness://share` 链接。
+**PKU harness Cloud（云服务）**：通信协议 v1 和信封加密、SDK 中的云服务类型，以及插件清单的 `cloud` 字段。用 Bun、Hono 和 SQLite 实现的参考服务器。宿主客户端，包括设备身份、授权、端到端加密的存储和通道，以及「设置 → 云服务」页面。Android 前台服务（`services.ongoing`）。`card-share` 插件，带网页查看页和 `pkuharness://share` 链接。
 
 **发布与更新**：1.0.0 版本已经发布。推送版本 tag 后，CI 会构建签名的 APK，并发布到 GitHub Releases。自建、经过代码签名的 OTA 更新已经上线：它使用 expo-updates，在 CI 中基于公开的提交签名，由我们的服务器以静态文件的形式提供。
 
@@ -65,7 +65,7 @@ icon: Map
 
 ## 计划中 [#planned]
 
-- **PKU Harness Cloud**：部署官方实例，并保持最小规模，只提供实时分享用的中继、小型的端到端加密存储和查看页。支持多台设备配对。
+- **PKU harness Cloud**：部署官方实例，并保持最小规模，只提供实时分享用的中继、小型的端到端加密存储和查看页。支持多台设备配对。
 - **插件需要的宿主能力**：为插件提供限定范围的公网 HTTP 访问。
 - **限定范围的会话授权**：让远程插件不接触你的账号密码，也能操作校园服务。
 - **官方托管的模型服务选项。**

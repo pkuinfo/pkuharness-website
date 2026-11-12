@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="public/icon.png" width="88" alt="PKU Harness logo" />
+<img src="public/icon.png" width="88" alt="PKU harness logo" />
 
-# PKU Harness website
+# PKU harness website
 
-The official website of [PKU Harness](https://github.com/pkuinfo/pku-harness), _a pluggable, keyless,
+The official website of [PKU harness](https://github.com/pkuinfo/pku-harness), _a pluggable, keyless,
 unified agent harness on your phone_: the open-source, AI-native app for campus life at Peking
 University. Download page, developer documentation, and the plugin marketplace.
 
@@ -25,7 +25,7 @@ University. Download page, developer documentation, and the plugin marketplace.
 |                          |                                                                                                                                                                                                                                                                                                                 |
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Landing and download** | The project showcase (WebGL aurora, three.js plugin constellation, motion) and a download page that reads the latest APK, size, SHA-256 and release notes from [GitHub Releases](https://github.com/pkuinfo/pku-harness/releases).                                                                              |
-| **Developer docs**       | How the harness works and how to build plugins: concepts, the `PLUGIN.md` plugin language, remote (MCP) plugins, the SDK, PKU Harness Cloud with an OpenAPI reference. Written for people **and** AI agents.                                                                                                    |
+| **Developer docs**       | How the harness works and how to build plugins: concepts, the `PLUGIN.md` plugin language, remote (MCP) plugins, the SDK, PKU harness Cloud with an OpenAPI reference. Written for people **and** AI agents.                                                                                                    |
 | **Plugin marketplace**   | Indexes GitHub repos the way [skills.sh](https://skills.sh) indexes skills: one repo can hold many plugins, each found by its `PLUGIN.md`. Every plugin page shows exactly what it may access, plus an install link, deep link and QR code. Anyone can submit a repo; a bot checks it and opens a pull request. |
 
 ### Docs for AI agents
@@ -83,7 +83,7 @@ Optional environment variables (`.env.local`):
 
 ```
 content/docs/          Documentation (MDX): page.mdx = Chinese, page.en.mdx = English
-openapi/               OpenAPI 3.1 spec of the PKU Harness Cloud wire protocol
+openapi/               OpenAPI 3.1 spec of the PKU harness Cloud wire protocol
 data/sources.json      Community repos indexed by the marketplace (edited by the submission bot)
 scripts/marketplace.ts Marketplace CLI: scan, add, check (used by CI)
 src/app/[lang]/        All pages, per language (zh at /, en at /en); llms*/ serve Markdown for agents
@@ -129,7 +129,7 @@ you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). To report a vulnerabilit
 
 ## License
 
-[MIT](LICENSE). PKU Harness is a student community project and is not an official product of Peking
+[MIT](LICENSE). PKU harness is a student community project and is not an official product of Peking
 University. The name and emblem of Peking University belong to the university.
 
 ## Brand assets

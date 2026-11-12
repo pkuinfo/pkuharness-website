@@ -75,7 +75,7 @@ definePlugin({
 
 **校园服务。** 你登录校园账号，就授权了 App 访问校园服务。插件要声明它访问的站点和服务（`scopes`），以及 `requires: ['campus-session']`。这些信息会显示在插件页面上。
 
-**PKU Harness Cloud。** 每个插件都有一个单独的**允许云端**开关。开关旁边会列出插件的 `disclosure` 说明，用通俗的话讲清它会在云端存什么。没有得到授权就调用云服务时，会抛出 `CloudError('consent_required')`，详见[云服务](/docs/cloud/plugin-guide#2-consent)。
+**PKU harness Cloud。** 每个插件都有一个单独的**允许云端**开关。开关旁边会列出插件的 `disclosure` 说明，用通俗的话讲清它会在云端存什么。没有得到授权就调用云服务时，会抛出 `CloudError('consent_required')`，详见[云服务](/docs/cloud/plugin-guide#2-consent)。
 
 **文件。** 只有你本人能选择文件。插件只能在页面里调用 `services.files.pick`，绝不能在助手调用的工具里使用它。你在对话里附上的文档会在手机上读成文字，助手通过核心插件 `files` 的工具翻页和搜索；这些工具返回第三方内容，调用后助手的这个回合会被标记为「已污染」。
 

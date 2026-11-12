@@ -37,8 +37,8 @@ icon: Send
 
 用户可能已经在小组件、定时检查或设置里保存了插件 id、工具 id 或小组件的 key。这些 id 不要复用，也不要悄悄改名。请用 `PluginDef.legacy` 把旧的插件 id、工具 id 和小组件 key 映射到新的上面（见 [SDK → plugin](/docs/sdk/plugin#pluginlegacy)）。
 
-## 使用 PKU Harness Cloud [#using-pku-harness-cloud]
+## 使用 PKU harness Cloud [#using-pku-harness-cloud]
 
-PKU Harness Cloud 是我们为需要服务器的功能提供的托管服务。如果插件声明了 `PluginDef.cloud`，请把其中的 `cloud` 声明原样复制到注册表记录里。这份声明包含 `uses`、`e2e`（存储的数据是否必须端到端加密）、`disclosure`，以及可选的 `backend`。
+PKU harness Cloud 是我们为需要服务器的功能提供的托管服务。如果插件声明了 `PluginDef.cloud`，请把其中的 `cloud` 声明原样复制到注册表记录里。这份声明包含 `uses`、`e2e`（存储的数据是否必须端到端加密）、`disclosure`，以及可选的 `backend`。
 
 插件市场会在安装前展示这份声明。`disclosure.zh` 必须用平实的话写清楚哪些数据会离开手机。详见 [Cloud → 插件指南](/docs/cloud/plugin-guide#6-registry-entry)。

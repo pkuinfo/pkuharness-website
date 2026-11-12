@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
-  title: PKU Harness Cloud
+  title: PKU harness Cloud
   version: "1"
-  summary: Wire protocol v1 of the PKU Harness Cloud plugin backend standard.
+  summary: Wire protocol v1 of the PKU harness Cloud plugin backend standard.
   description: |
-    Every PKU Harness Cloud provider (the official instance, a self-hosted reference server, or any
+    Every PKU harness Cloud provider (the official instance, a self-hosted reference server, or any
     URL the user enters) serves exactly these endpoints. The source of truth is
     `@pku-harness/cloud-protocol` (`packages/cloud-protocol/src/schemas.ts` in
     `pkuinfo/pku-harness-plugins`) and `docs/CLOUD.md` §2.3 in `pkuinfo/pku-harness`; this document

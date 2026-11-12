@@ -79,7 +79,7 @@ Use `menu` when the user asks what to eat or which canteen is open. Prices are i
 | `widgets`、`screens` | | 名称到 JSON 文件的映射（生成式界面 spec 加数据绑定）。 |
 | `settings`、`commands`、`defaultModes` | | 设置项、斜杠命令，以及按效果建议的授权方式。 |
 | `requires` | | 可以不写，因为插件市场会根据其他字段[推导](#derived-capabilities)出来。 |
-| `cloud` | | 使用 PKU Harness Cloud，并附上通俗易懂的数据说明（[见下文](#cloud-disclosure)）。 |
+| `cloud` | | 使用 PKU harness Cloud，并附上通俗易懂的数据说明（[见下文](#cloud-disclosure)）。 |
 | `server` | | 服务端函数。官方服务器暂不开启（见下文）。 |
 | `i18n.en` | | 英文字符串：`name`、`description`，以及 `tools.<name>.{title,summary}` 等覆盖项。 |
 | `remote` | | `{ mcp: https URL, auth?: none \| bearer }`，把这个文件夹变成[远程 MCP 插件](#remote-mcp-plugins)。 |
@@ -88,7 +88,7 @@ Use `menu` when the user asks what to eat or which canteen is open. Prices are i
 
 **`abilities`** 可以填 `verify`、`otp`、`todos`、`timetable`、`scheduler`、`browser`、`campusPage`、`sms`、`files`、`crypto` 和 `cloud`。每种能力提供哪些操作、对应什么效果，见[声明式插件指南](/docs/build/declarative-plugins#host-abilities)。写别的名字会报错，因为 App 会拒绝它。
 
-**`server`** 声明服务端函数，这些函数运行在 PKU Harness Cloud 上（[CLOUD-FUNCTIONS.md](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)）。带 `server` 的插件必须写 `cloud.disclosure`，并且隐含 `cloud.uses: [functions]`。官方服务器**暂不开启**服务端函数，使用官方实例的用户无法运行它们。请让插件在手机上完成工作，或者使用你自己的后端。
+**`server`** 声明服务端函数，这些函数运行在 PKU harness Cloud 上（[CLOUD-FUNCTIONS.md](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)）。带 `server` 的插件必须写 `cloud.disclosure`，并且隐含 `cloud.uses: [functions]`。官方服务器**暂不开启**服务端函数，使用官方实例的用户无法运行它们。请让插件在手机上完成工作，或者使用你自己的后端。
 
 ### 使用说明 [#the-instructions]
 
@@ -204,7 +204,7 @@ Use the tools when the user asks how crowded a canteen is.
 | `requires` | capability[] | | 插件需要什么，见[能力需求](#capabilities-requires)。 |
 | `scopes` | string[] | | 插件访问的主机名（`"dining.pku.edu.cn"`、`"*.example.com"`），会展示给用户。 |
 | `tags` | string[] | | 小写的搜索标签。 |
-| `cloud` | object | | PKU Harness Cloud 的使用声明，从 `PluginDef.cloud` 复制过来，见[下文](#cloud-disclosure)。 |
+| `cloud` | object | | PKU harness Cloud 的使用声明，从 `PluginDef.cloud` 复制过来，见[下文](#cloud-disclosure)。 |
 | `version` | string | | 显示在插件页上。 |
 | `license` | string | | SPDX 许可证标识，例如 `"MIT"`。 |
 | `homepage` | https URL | | 文档或项目主页。 |
@@ -249,7 +249,7 @@ Use the tools when the user asks how crowded a canteen is.
 | `notifications` | 发送本地通知。 |
 | `background` | App 关闭时也会运行定时检查。 |
 | `shell`、`filesystem` | 手机上两者都没有。App 会隐藏需要它们的插件，扫描器也会给出警告。 |
-| `cloud` | 使用 PKU Harness Cloud，必须有 `cloud` 块。 |
+| `cloud` | 使用 PKU harness Cloud，必须有 `cloud` 块。 |
 | `ongoing` | 显示一个实时的持续活动。 |
 
 `PLUGIN.md` 插件通过声明 `campus` 获得 `campus-session`，请求由 App 自己签发。远程 MCP 服务器永远拿不到校园会话，所以它申请 `campus-session` 时扫描器会警告。
@@ -258,7 +258,7 @@ Use the tools when the user asks how crowded a canteen is.
 
 ## 云服务数据说明 [#cloud-disclosure]
 
-如果插件使用 PKU Harness Cloud，它的 `cloud` 块必须用通俗的话写清楚哪些数据会离开设备。插件市场和 App 都会在插件页上显示这些说明。
+如果插件使用 PKU harness Cloud，它的 `cloud` 块必须用通俗的话写清楚哪些数据会离开设备。插件市场和 App 都会在插件页上显示这些说明。
 
 ```json
 "cloud": {

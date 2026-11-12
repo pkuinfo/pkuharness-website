@@ -1,9 +1,9 @@
 /** Shared UI strings (site metadata, nav, footer). English defines the shape; Chinese must match it. */
 export const en = {
   site: {
-    title: 'PKU Harness: an AI assistant for PKU students',
+    title: 'PKU harness: an AI assistant for PKU students',
     description:
-      'PKU Harness is an open-source Android app for students at Peking University. You sign in with your PKU account once, and an AI assistant on your phone uses plugins to work with campus services such as your timetable, campus card, Treehole and course website.',
+      'PKU harness is an open-source Android app for students at Peking University. You sign in with your PKU account once, and an AI assistant on your phone uses plugins to work with campus services such as your timetable, campus card, Treehole and course website.',
   },
   nav: { docs: 'Docs', marketplace: 'Marketplace', download: 'Download' },
   footer: {
@@ -20,15 +20,15 @@ export const en = {
     privacy: 'Privacy Policy',
     license: 'Released under the MIT license. Developed and maintained by the pkuinfo community.',
     disclaimer:
-      'PKU Harness is a student community project. It is not an official product of Peking University. The name and emblem of Peking University belong to the university.',
+      'PKU harness is a student community project. It is not an official product of Peking University. The name and emblem of Peking University belong to the university.',
   },
 };
 
 export const zh: typeof en = {
   site: {
-    title: 'PKU Harness：北大学生的 AI 校园助手',
+    title: 'PKU harness：北大学生的 AI 校园助手',
     description:
-      'PKU Harness 是一个面向北大学生的开源 Android 应用。用北大账号登录一次之后，手机上的 AI 助手就可以通过插件使用课表、校园卡、树洞、教学网等校园服务。',
+      'PKU harness 是一个面向北大学生的开源 Android 应用。用北大账号登录一次之后，手机上的 AI 助手就可以通过插件使用课表、校园卡、树洞、教学网等校园服务。',
   },
   nav: { docs: '文档', marketplace: '插件市场', download: '下载' },
   footer: {
@@ -44,6 +44,6 @@ export const zh: typeof en = {
     terms: '用户协议',
     privacy: '隐私政策',
     license: '以 MIT 协议发布，由 pkuinfo 社区开发和维护。',
-    disclaimer: 'PKU Harness 是学生社区的开源项目，不是北京大学的官方产品。「北京大学」的名称和标识归北京大学所有。',
+    disclaimer: 'PKU harness 是学生社区的开源项目，不是北京大学的官方产品。「北京大学」的名称和标识归北京大学所有。',
   },
 };

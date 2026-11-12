@@ -177,7 +177,7 @@ export const langManifest = z.strictObject({
     .object({ en: z.looseObject({ name: z.string().optional(), description: z.string().optional() }).optional() })
     .optional(),
   remote: z.strictObject({ mcp: z.string().url(), auth: z.enum(['none', 'bearer']).optional() }).optional(),
-  /** Server functions run by PKU Harness Cloud (CLOUD-FUNCTIONS.md); not checked here. */
+  /** Server functions run by PKU harness Cloud (CLOUD-FUNCTIONS.md); not checked here. */
   server: z.record(z.string(), z.unknown()).optional(),
 });
 

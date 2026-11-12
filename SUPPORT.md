@@ -10,5 +10,5 @@
 | Report a broken campus service or request a new one     | [Plugin issues](https://github.com/pkuinfo/pku-harness-plugins/issues/new/choose)                         |
 | Report a security vulnerability                         | Privately, as described in [SECURITY.md](SECURITY.md)                                                     |
 
-Never post passwords, tokens, student IDs or other personal data. PKU Harness is maintained by
+Never post passwords, tokens, student IDs or other personal data. PKU harness is maintained by
 student volunteers and is not an official Peking University product.

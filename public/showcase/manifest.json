@@ -1,6 +1,6 @@
 {
   "captured": "2026-11-11",
-  "device": "Android emulator (Pixel-class, 1080x2400, Android 17), PKU Harness 1.0.20 release build",
+  "device": "Android emulator (Pixel-class, 1080x2400, Android 17), PKU harness 1.0.20 release build",
   "note": "Real app captures. Only public campus data is shown (free classrooms, shuttle timetable, canteen crowds); the campus account is signed out. The timetable entry, to-do and reminders are demo data entered through the assistant and removed after capture. The status bar uses Android demo mode. Files with .zh are the same screens with the app language set to Simplified Chinese. Videos are 1.5x speed.",
   "items": [
     {

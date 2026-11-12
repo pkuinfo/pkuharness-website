@@ -1,9 +1,9 @@
 ---
 title: cloud
-description: 插件使用 PKU Harness Cloud 时的接口：CloudManifest、PluginCloud（store、channels、push、functions）、Channel 及其事件、SecretLink、CloudStatus、CloudError 和 defineCloudFunction。
+description: 插件使用 PKU harness Cloud 时的接口：CloudManifest、PluginCloud（store、channels、push、functions）、Channel 及其事件、SecretLink、CloudStatus、CloudError 和 defineCloudFunction。
 ---
 
-PKU Harness Cloud 是一组可选的云服务，插件可以用它在服务器上保存少量数据，或者通过中继与打开分享链接的人实时共享内容。这个模块定义了插件这一侧的接口。插件先在清单里声明要用哪些服务，再通过宿主提供的客户端调用它们。
+PKU harness Cloud 是一组可选的云服务，插件可以用它在服务器上保存少量数据，或者通过中继与打开分享链接的人实时共享内容。这个模块定义了插件这一侧的接口。插件先在清单里声明要用哪些服务，再通过宿主提供的客户端调用它们。
 
 源码：`packages/sdk/src/cloud.ts`。使用指南见[云服务 → 插件指南](/docs/cloud/plugin-guide)。线上协议见
 [`@pku-harness/cloud-protocol`](/docs/cloud/protocol-package) 和 [API 参考](/docs/cloud/api/meta)。

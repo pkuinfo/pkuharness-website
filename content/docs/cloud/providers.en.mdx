@@ -4,7 +4,7 @@ description: How to pick the official instance, a self-hosted reference server o
 icon: Server
 ---
 
-A server that offers the cloud is called a _provider_. PKU Harness isn't tied to one provider:
+A server that offers the cloud is called a _provider_. PKU harness isn't tied to one provider:
 the app can use any server that implements the cloud protocol. The first part of this page is
 for users and explains how to choose a provider. The rest is for operators and explains what a
 provider must implement and how to run the open-source reference server.
@@ -79,7 +79,7 @@ The reference server is configured with environment variables:
 | `CLOUD_TOKEN_SECRET` | generated, stored in the DB | HMAC key for bearer tokens (≥ 32 chars) |
 | `CLOUD_POW_DIFFICULTY` | `16` | Proof-of-work difficulty |
 | `CLOUD_POW_ROTATE_S` | `21600` | Salt rotation period; the previous salt stays valid for one more period |
-| `CLOUD_OPERATOR_NAME` / `CLOUD_OPERATOR_CONTACT` / `CLOUD_PRIVACY_URL` | `PKU Harness Cloud (self-hosted)` / empty | Returned by `GET /v1/meta` |
+| `CLOUD_OPERATOR_NAME` / `CLOUD_OPERATOR_CONTACT` / `CLOUD_PRIVACY_URL` | `PKU harness Cloud (self-hosted)` / empty | Returned by `GET /v1/meta` |
 | `CLOUD_PAGES_DIR` | `<plugins repo>/plugins` | Folder holding the `<plugin>/web/dist` viewer pages |
 | `CLOUD_TRUST_PROXY` | off | `1` takes the client IP from the last `X-Forwarded-For` hop (use behind Caddy) |
 

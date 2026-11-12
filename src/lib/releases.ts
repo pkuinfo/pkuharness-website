@@ -146,7 +146,7 @@ export function formatDate(iso: string) {
 export const PREVIEW_RELEASES: GhRelease[] = [
   {
     tag_name: 'v1.1.0',
-    name: 'PKU Harness 1.1.0',
+    name: 'PKU harness 1.1.0',
     draft: false,
     prerelease: false,
     published_at: '2026-11-02T08:00:00Z',
@@ -164,7 +164,7 @@ export const PREVIEW_RELEASES: GhRelease[] = [
   },
   {
     tag_name: 'v1.0.0',
-    name: 'PKU Harness 1.0.0',
+    name: 'PKU harness 1.0.0',
     draft: false,
     prerelease: false,
     published_at: '2026-10-30T08:00:00Z',

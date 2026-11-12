@@ -19,7 +19,7 @@ a _login hop_.
 
 ## Where things are
 
-| pkucli crate | Service | In PKU Harness |
+| pkucli crate | Service | In PKU harness |
 | --- | --- | --- |
 | `common` | IAAA login (password, QR code), TOTP codes, captcha, sessions, credentials | The app (`src/core/campus`); **not** in plugins |
 | `campuscard` | Campus card (bdcard) | `wallet` plugin, `card` campus service |
@@ -38,11 +38,11 @@ service's own login hops, and `commands.rs` holds the operations a user runs.
 
 ## What moves where
 
-Each file of a pkucli crate maps to a place in PKU Harness. Sign-in moves into the app, and
+Each file of a pkucli crate maps to a place in PKU harness. Sign-in moves into the app, and
 everything else moves into the plugin:
 
 ```
-pkucli crate                     PKU Harness
+pkucli crate                     PKU harness
 ─────────────────────────────    ──────────────────────────────────────────────
 login.rs  (IAAA → service SSO)   app: a campus service adapter (harness-owned)
 client.rs (headers, base URL)    plugin: the `url`/`headers` of services.campus.request

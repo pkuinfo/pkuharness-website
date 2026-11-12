@@ -1,6 +1,6 @@
 # Guidelines for agents and contributors
 
-The PKU Harness website: Next.js 16 + Fumadocs 16, bun. Humans should read
+The PKU harness website: Next.js 16 + Fumadocs 16, bun. Humans should read
 [CONTRIBUTING.md](CONTRIBUTING.md) too; this file adds what an AI coding agent needs.
 
 ## Commands

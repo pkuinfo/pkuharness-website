@@ -1,10 +1,10 @@
 ---
 title: 简介
-description: PKU Harness 是一个开源的北大校园生活 App，核心是一个 AI 助手。这份文档写给为它开发插件的同学和 AI 助手。
+description: PKU harness 是一个开源的北大校园生活 App，核心是一个 AI 助手。这份文档写给为它开发插件的同学和 AI 助手。
 icon: House
 ---
 
-PKU Harness 是一个帮北大同学处理校园事务的 Android 应用。你用校园账号登录一次，就能在 App 里使用课表、校园卡、网费、树洞、教学网、财务、场地预约等校园系统。登录走的是学校的统一身份认证系统 IAAA。插件还可以接入更多服务。
+PKU harness 是一个帮北大同学处理校园事务的 Android 应用。你用校园账号登录一次，就能在 App 里使用课表、校园卡、网费、树洞、教学网、财务、场地预约等校园系统。登录走的是学校的统一身份认证系统 IAAA。插件还可以接入更多服务。
 
 App 的核心是一个 AI 助手。你在对话里提出需求，助手会替你操作这些系统。助手能用的每一项功能，在 App 的原生界面里也有对应的按钮，你可以自己点。
 
@@ -15,7 +15,7 @@ App 本身只提供三样基础设施：一个 Agent 循环（让 AI 助手反�
 除此之外的功能都由**插件**（plugin）提供。每个校园服务、看板、提醒，甚至 AI 模型的服务商，都是一个插件。随 App 一起发布的插件和同学自己在服务器上运行的插件遵循同一套接口，显示在同一个插件列表里，也受同一套权限系统管理。
 
 <LayerDiagram
-  title="PKU Harness App（框架层）"
+  title="PKU harness App（框架层）"
   parts={[
     { name: 'Agent 循环', note: '调用工具' },
     { name: '设计系统（HostUI）', note: '显示页面' },
@@ -24,7 +24,7 @@ App 本身只提供三样基础设施：一个 Agent 循环（让 AI 助手反�
   below={[
     { name: '内置插件', note: 'TypeScript、SDK' },
     { name: '远程插件', note: '基于 HTTPS 的 MCP' },
-    { name: 'PKU Harness Cloud', note: '可选的后端' },
+    { name: 'PKU harness Cloud', note: '可选的后端' },
   ]}
 />
 
@@ -46,7 +46,7 @@ App 本身只提供三样基础设施：一个 Agent 循环（让 AI 助手反�
     使用手册：安装 App、完成首次设置，以及各个标签页和设置项的用法。
   </Card>
   <Card title="服务器运维" href="/docs/cloud">
-    运行一个 PKU Harness Cloud 服务。它是一个可选的后端，为插件提供端到端加密的存储和同步。
+    运行一个 PKU harness Cloud 服务。它是一个可选的后端，为插件提供端到端加密的存储和同步。
   </Card>
 </Cards>
 
@@ -58,7 +58,7 @@ App 本身只提供三样基础设施：一个 Agent 循环（让 AI 助手反�
 | 不改动 App，今天就发布一个插件 | [快速上手：远程插件](/docs/build/remote-plugin) |
 | 写一个随 App 发布的插件 | [内置插件](/docs/build/bundled-plugin)和 [SDK 参考](/docs/sdk) |
 | 把插件上架到插件市场 | [插件市场](/docs/marketplace) |
-| 在服务器上存数据或实时共享 | [PKU Harness Cloud](/docs/cloud) 及其 [API 参考](/docs/cloud/api/meta) |
+| 在服务器上存数据或实时共享 | [PKU harness Cloud](/docs/cloud) 及其 [API 参考](/docs/cloud/api/meta) |
 | 查看所有仓库和路线图 | [生态](/docs/ecosystem/repositories) |
 
 ## 把文档交给 AI 助手 [#feeding-these-docs-to-an-agent]
@@ -84,7 +84,7 @@ curl -s https://<this-site>/docs/for-agents.md https://<this-site>/docs/sdk/plug
 ```
 
 <Callout title="当前状态">
-  PKU Harness 1.0.0 已发布 Android 版，iOS 版正在准备中。
+  PKU harness 1.0.0 已发布 Android 版，iOS 版正在准备中。
 
   JavaScript 代码的修复通过签名的空中更新（over-the-air update，简称 OTA）推送到已安装的 App。原生代码的改动则需要发布新的 APK。
 

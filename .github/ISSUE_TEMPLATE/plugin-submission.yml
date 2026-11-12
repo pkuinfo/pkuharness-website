@@ -1,5 +1,5 @@
 name: Plugin submission
-description: List a GitHub repository's PKU Harness plugins in the marketplace.
+description: List a GitHub repository's PKU harness plugins in the marketplace.
 title: "[plugin] "
 labels: ["plugin-submission"]
 body:
@@ -40,5 +40,5 @@ body:
           required: true
         - label: Tool results return data, not instructions for the model.
           required: true
-        - label: Any PKU Harness Cloud use is declared in the manifest's `cloud` block with a plain-language disclosure.
+        - label: Any PKU harness Cloud use is declared in the manifest's `cloud` block with a plain-language disclosure.
           required: true

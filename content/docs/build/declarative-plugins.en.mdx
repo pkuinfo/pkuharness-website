@@ -20,7 +20,7 @@ first.
 </Callout>
 
 A declarative plugin is a folder of text files that you can share as a link. It plays the same
-role for PKU Harness that a `SKILL.md` folder plays for an AI agent. The app reads the folder and
+role for PKU harness that a `SKILL.md` folder plays for an AI agent. The app reads the folder and
 runs the steps it declares in a small, safe interpreter. The app never downloads or runs plugin
 code. As a result, publishing a new plugin or an update needs neither an app release nor a server.
 
@@ -147,7 +147,7 @@ password, a cookie or a token.
 - `i18n` holds the English text. It can translate the name, the description, the instructions,
   and each tool's `title` and `summary` (`i18n.en.tools.<name>`).
 - `remote: { mcp, auth }` describes a remote MCP server with a `PLUGIN.md`.
-- `cloud` declares the plugin's use of PKU Harness Cloud, including `cloud.disclosure`, and
+- `cloud` declares the plugin's use of PKU harness Cloud, including `cloud.disclosure`, and
   `server` declares server functions ([below](#server-functions)).
 
 You don't need to write `requires`. It is derived from `campus`, `network`, `cloud` and `server`.
@@ -353,7 +353,7 @@ sent.
   use your own backend as a [remote plugin](/en/docs/build/remote-plugin).
 </Callout>
 
-A `server:` section declares functions written with the same steps and expressions. A PKU Harness
+A `server:` section declares functions written with the same steps and expressions. A PKU harness
 Cloud server runs them, with a set of abilities of its own: server-side KV storage,
 `crypto.sha256`, `hmacSha256` and `randomId`, and HTTPS requests to the hosts in `server.network`
 using secrets set by the server's operator. Server functions never get campus access.

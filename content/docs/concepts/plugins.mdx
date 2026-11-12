@@ -4,7 +4,7 @@ description: 插件有三种形式。插件文档（PLUGIN.md）由 App 解释�
 icon: Puzzle
 ---
 
-在 PKU Harness 里，每一项连接校园服务的功能都由一个插件（plugin）提供。插件有三种形式。最常见的是**插件文档**：一个包含 `PLUGIN.md` 文件的文件夹，App 读取并按照其中的说明执行。另外两种分别是内置在 App 中的 **TypeScript 插件**，以及运行在服务器上、通过 MCP（Model Context Protocol，模型上下文协议）连接的**远程插件**。
+在 PKU harness 里，每一项连接校园服务的功能都由一个插件（plugin）提供。插件有三种形式。最常见的是**插件文档**：一个包含 `PLUGIN.md` 文件的文件夹，App 读取并按照其中的说明执行。另外两种分别是内置在 App 中的 **TypeScript 插件**，以及运行在服务器上、通过 MCP（Model Context Protocol，模型上下文协议）连接的**远程插件**。
 
 助手、权限系统和插件市场用同样的方式对待这三种插件。内置插件和社区插件使用同一套权限系统。
 
@@ -24,7 +24,7 @@ icon: Puzzle
 
 内置插件是一个基于 `@pku-harness/sdk` 的 TypeScript 模块，用 `definePlugin` 定义。它运行在手机上的 App 内部，随 App 的新版本或签名的空中更新（OTA）一起发布。
 
-内置插件可以使用宿主服务、原生界面和 PKU Harness Cloud。原生界面包括页面、小组件、设置项、快捷指令和标签页。
+内置插件可以使用宿主服务、原生界面和 PKU harness Cloud。原生界面包括页面、小组件、设置项、快捷指令和标签页。
 
 ### 远程插件 [#remote-plugins]
 

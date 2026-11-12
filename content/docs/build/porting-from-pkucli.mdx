@@ -12,7 +12,7 @@ icon: Terminal
 
 ## 对应关系 [#where-things-are]
 
-| pkucli crate | 服务 | 在 PKU Harness 中 |
+| pkucli crate | 服务 | 在 PKU harness 中 |
 | --- | --- | --- |
 | `common` | IAAA 登录（密码、扫码）、TOTP 验证码、图形验证码、会话、凭据 | App 本身（`src/core/campus`）；**不**放在插件里 |
 | `campuscard` | 校园卡（bdcard） | `wallet` 插件，`card` 校园服务 |
@@ -29,10 +29,10 @@ TOTP（基于时间的一次性密码）就是身份验证器 App 上显示的�
 
 ## 代码搬到哪里 [#what-moves-where]
 
-pkucli crate 里的每个文件，在 PKU Harness 里都有对应的位置。登录部分搬进 App，其余部分搬进插件：
+pkucli crate 里的每个文件，在 PKU harness 里都有对应的位置。登录部分搬进 App，其余部分搬进插件：
 
 ```
-pkucli crate                     PKU Harness
+pkucli crate                     PKU harness
 ─────────────────────────────    ──────────────────────────────────────────────
 login.rs（IAAA → 服务的 SSO）    App：一个校园服务适配器（由 App 维护）
 client.rs（请求头、基础 URL）    插件：services.campus.request 的 `url` / `headers`

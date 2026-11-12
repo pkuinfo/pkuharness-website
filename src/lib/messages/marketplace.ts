@@ -6,9 +6,9 @@ export const en = {
   meta: {
     title: 'Plugin marketplace',
     description:
-      'Official and community plugins for PKU Harness. For each plugin, you can see which campus services it uses, which websites it contacts and what it is allowed to do. You install a plugin from its link.',
+      'Official and community plugins for PKU harness. For each plugin, you can see which campus services it uses, which websites it contacts and what it is allowed to do. You install a plugin from its link.',
     submitTitle: 'Submit a plugin',
-    submitDescription: 'Check the PKU Harness plugins in a GitHub repository and submit them to the marketplace.',
+    submitDescription: 'Check the PKU harness plugins in a GitHub repository and submit them to the marketplace.',
     suffix: 'Plugin marketplace',
   },
   root: 'Marketplace',
@@ -16,7 +16,7 @@ export const en = {
 
   browse: {
     title: 'Plugins',
-    lede: 'Each campus service in PKU Harness is provided by a plugin. Before you install one, you can see which campus services it uses, which websites it contacts and what it may do for you.',
+    lede: 'Each campus service in PKU harness is provided by a plugin. Before you install one, you can see which campus services it uses, which websites it contacts and what it may do for you.',
     stats: (plugins: number, repos: number, date: string) =>
       `${plugins} ${plugins === 1 ? 'plugin' : 'plugins'} from ${repos} ${repos === 1 ? 'repository' : 'repositories'}. Last updated ${date}.`,
     publish: 'Publish a plugin',
@@ -105,7 +105,7 @@ export const en = {
     remoteTitle: 'A server that you add by its URL. It connects through the Model Context Protocol (MCP).',
     cloud: 'Cloud',
     cloudE2e: 'Cloud, end-to-end encrypted',
-    cloudTitle: 'Sends data to PKU Harness Cloud',
+    cloudTitle: 'Sends data to PKU harness Cloud',
   },
 
   detail: {
@@ -147,7 +147,7 @@ export const en = {
       uses: 'Uses',
       e2e: 'End-to-end encrypted',
       notE2e: 'Not end-to-end encrypted',
-      none: 'Does not use PKU Harness Cloud.',
+      none: 'Does not use PKU harness Cloud.',
     },
     checks: {
       title: 'Checks',
@@ -161,7 +161,7 @@ export const en = {
         'Because it has not been reviewed, tools that change data, involve money or post publicly ask you first. Their results are treated as untrusted data.',
       remoteServer: 'Its code runs on the author’s server, not on your phone.',
       remoteNoPassword: 'It never gets your campus password. The app does not give passwords to remote plugins.',
-      cloud: 'It declares the data it sends to PKU Harness Cloud. See Cloud data.',
+      cloud: 'It declares the data it sends to PKU harness Cloud. See Cloud data.',
     },
     instructions: {
       title: 'Instructions for the AI',
@@ -177,20 +177,20 @@ export const en = {
       tabJson: 'As indexed',
     },
     install: {
-      title: 'Install in PKU Harness',
+      title: 'Install in PKU harness',
       open: 'Open in the app',
       steps: [
-        'On your phone, tap Open in the app, or scan the QR code with PKU Harness.',
+        'On your phone, tap Open in the app, or scan the QR code with PKU harness.',
         'Alternatively, go to Settings → Plugins in the app and paste the install link below.',
         'Review what the plugin can access, then install it.',
       ],
-      qr: 'Scan with PKU Harness or your phone’s camera.',
-      qrAlt: (name: string) => `QR code that opens ${name} in PKU Harness`,
+      qr: 'Scan with PKU harness or your phone’s camera.',
+      qrAlt: (name: string) => `QR code that opens ${name} in PKU harness`,
       link: 'Install link',
       endpoint: 'MCP endpoint',
       builtin: 'Included in the app',
       builtinSteps: (name: string) => [
-        'Install or update PKU Harness.',
+        'Install or update PKU harness.',
         `Open Settings → Plugins and turn on ${name}.`,
       ],
       remoteSteps: (name: string) => [
@@ -292,9 +292,9 @@ export const zh: typeof en = {
   meta: {
     title: '插件市场',
     description:
-      'PKU Harness 的官方插件和社区插件。每个插件会用到哪些校园服务、连接哪些网站、可以做什么，都列在它的页面上。插件通过链接安装。',
+      'PKU harness 的官方插件和社区插件。每个插件会用到哪些校园服务、连接哪些网站、可以做什么，都列在它的页面上。插件通过链接安装。',
     submitTitle: '提交插件',
-    submitDescription: '检查 GitHub 仓库中的 PKU Harness 插件，并提交到插件市场。',
+    submitDescription: '检查 GitHub 仓库中的 PKU harness 插件，并提交到插件市场。',
     suffix: '插件市场',
   },
   root: '插件市场',
@@ -302,7 +302,7 @@ export const zh: typeof en = {
 
   browse: {
     title: '插件市场',
-    lede: 'PKU Harness 中的每项校园服务都由一个插件提供。安装插件之前，你可以看到它会用到哪些校园服务、连接哪些网站，以及可以替你做什么。',
+    lede: 'PKU harness 中的每项校园服务都由一个插件提供。安装插件之前，你可以看到它会用到哪些校园服务、连接哪些网站，以及可以替你做什么。',
     stats: (plugins, repos, date) => `目前收录 ${plugins} 个插件，来自 ${repos} 个仓库，最近更新于 ${date}。`,
     publish: '发布插件',
     rules: '上架规则',
@@ -387,7 +387,7 @@ export const zh: typeof en = {
     remoteTitle: '通过网址添加的服务器，使用 MCP（Model Context Protocol）协议连接',
     cloud: '云端',
     cloudE2e: '云端，端到端加密',
-    cloudTitle: '会把数据发送到 PKU Harness Cloud',
+    cloudTitle: '会把数据发送到 PKU harness Cloud',
   },
 
   detail: {
@@ -426,7 +426,7 @@ export const zh: typeof en = {
       uses: '使用',
       e2e: '端到端加密',
       notE2e: '非端到端加密',
-      none: '不使用 PKU Harness Cloud。',
+      none: '不使用 PKU harness Cloud。',
     },
     checks: {
       title: '检查结果',
@@ -438,7 +438,7 @@ export const zh: typeof en = {
       unverifiedAsk: '由于尚未审核，修改数据、涉及资金或公开发布的工具都会先询问你，返回的结果也按不可信的数据处理。',
       remoteServer: '它的代码运行在作者的服务器上，不在你的手机上运行。',
       remoteNoPassword: '它拿不到你的校园密码，App 不会把密码交给远程插件。',
-      cloud: '它已声明会发送到 PKU Harness Cloud 的数据，详见「云端数据」。',
+      cloud: '它已声明会发送到 PKU harness Cloud 的数据，详见「云端数据」。',
     },
     instructions: {
       title: '给 AI 的说明',
@@ -454,19 +454,19 @@ export const zh: typeof en = {
       tabJson: '索引结果',
     },
     install: {
-      title: '安装到 PKU Harness',
+      title: '安装到 PKU harness',
       open: '在 App 中打开',
       steps: [
-        '在手机上点按「在 App 中打开」，或者用 PKU Harness 扫描二维码。',
+        '在手机上点按「在 App 中打开」，或者用 PKU harness 扫描二维码。',
         '也可以在 App 的「设置 → 插件」中粘贴下面的安装链接。',
         '确认插件可以访问的内容，然后安装。',
       ],
-      qr: '用 PKU Harness 或手机相机扫码。',
-      qrAlt: (name) => `在 PKU Harness 中打开「${name}」的二维码`,
+      qr: '用 PKU harness 或手机相机扫码。',
+      qrAlt: (name) => `在 PKU harness 中打开「${name}」的二维码`,
       link: '安装链接',
       endpoint: 'MCP 地址',
       builtin: '随 App 内置',
-      builtinSteps: (name) => ['安装或更新 PKU Harness。', `打开「设置 → 插件」，启用「${name}」。`],
+      builtinSteps: (name) => ['安装或更新 PKU harness。', `打开「设置 → 插件」，启用「${name}」。`],
       remoteSteps: (name) => [
         `在 App 中打开「设置 → 插件 → 插件市场」，搜索「${name}」。`,
         '也可以选择「添加远程插件」，粘贴下面的地址。',

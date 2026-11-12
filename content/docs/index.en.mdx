@@ -1,10 +1,10 @@
 ---
 title: Introduction
-description: PKU Harness is an open-source app for campus life at Peking University, built around an AI assistant. These docs are for the people and AI agents who build plugins for it.
+description: PKU harness is an open-source app for campus life at Peking University, built around an AI assistant. These docs are for the people and AI agents who build plugins for it.
 icon: House
 ---
 
-PKU Harness is an Android app that helps Peking University students with campus services. You
+PKU harness is an Android app that helps Peking University students with campus services. You
 sign in once with your campus account, and the app gives you your timetable, campus card,
 network fee, Treehole (树洞), Blackboard (教学网), finance, room booking and other campus
 systems. Sign-in goes through IAAA, the university's central login system. Plugins can add
@@ -27,7 +27,7 @@ plugin that a student runs on their own server use the same interface. Both appe
 plugin list and use the same permission system.
 
 <LayerDiagram
-  title="PKU Harness app (the harness)"
+  title="PKU harness app (the harness)"
   parts={[
     { name: 'Agent loop', note: 'calls tools' },
     { name: 'Design system (HostUI)', note: 'shows screens' },
@@ -36,7 +36,7 @@ plugin list and use the same permission system.
   below={[
     { name: 'Bundled plugins', note: 'TypeScript, SDK' },
     { name: 'Remote plugins', note: 'MCP over HTTPS' },
-    { name: 'PKU Harness Cloud', note: 'optional backend' },
+    { name: 'PKU harness Cloud', note: 'optional backend' },
   ]}
 />
 
@@ -63,7 +63,7 @@ This design leads to two rules that the rest of these docs come back to often.
     The user manual: installing the app, first-run setup, and how to use each tab and setting.
   </Card>
   <Card title="Server operators" href="/en/docs/cloud">
-    Run a PKU Harness Cloud provider. It is an optional backend that gives plugins end-to-end
+    Run a PKU harness Cloud provider. It is an optional backend that gives plugins end-to-end
     encrypted storage and sync.
   </Card>
 </Cards>
@@ -76,7 +76,7 @@ This design leads to two rules that the rest of these docs come back to often.
 | Ship a plugin today without changing the app | [Quickstart: remote plugin](/en/docs/build/remote-plugin) |
 | Write a plugin that ships inside the app | [Bundled plugin](/en/docs/build/bundled-plugin) and the [SDK reference](/en/docs/sdk) |
 | List a plugin in the marketplace | [Marketplace](/en/docs/marketplace) |
-| Store data on a server or share it live | [PKU Harness Cloud](/en/docs/cloud) and its [API reference](/en/docs/cloud/api/meta) |
+| Store data on a server or share it live | [PKU harness Cloud](/en/docs/cloud) and its [API reference](/en/docs/cloud/api/meta) |
 | See every repository and the roadmap | [Ecosystem](/en/docs/ecosystem/repositories) |
 
 ## Giving these docs to an AI agent [#feeding-these-docs-to-an-agent]
@@ -106,7 +106,7 @@ curl -s https://<this-site>/en/docs/for-agents.md https://<this-site>/en/docs/sd
 ```
 
 <Callout title="Status">
-  PKU Harness 1.0.0 is out for Android. The iOS version is being prepared.
+  PKU harness 1.0.0 is out for Android. The iOS version is being prepared.
 
   Fixes to the JavaScript code reach installed apps as signed over-the-air (OTA) updates. Changes
   to native code need a new APK.

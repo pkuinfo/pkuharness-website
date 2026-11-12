@@ -70,9 +70,9 @@ export function reportMarkdown(r: ScanReport, siteUrl?: string): string {
 
 export function marketplaceLlms(index: MarketplaceIndex, siteUrl: string): string {
   const lines = [
-    '# PKU Harness plugin marketplace',
+    '# PKU harness plugin marketplace',
     '',
-    '> Plugins for PKU Harness, the AI-native campus app for Peking University. Built-in plugins ship in the app;',
+    '> Plugins for PKU harness, the AI-native campus app for Peking University. Built-in plugins ship in the app;',
     '> remote plugins are MCP servers (Streamable HTTP) that users add by URL. Handles are `owner/repo/id`.',
     '',
     `- JSON index: ${siteUrl}/marketplace.json`,

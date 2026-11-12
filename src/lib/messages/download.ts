@@ -6,11 +6,11 @@ export const en = {
   meta: {
     title: 'Download',
     description:
-      'Download PKU Harness for Android. This page has the signed APK, its SHA-256 checksum and signing certificate, the release notes and older versions. You can also build the app from source.',
+      'Download PKU harness for Android. This page has the signed APK, its SHA-256 checksum and signing certificate, the release notes and older versions. You can also build the app from source.',
     previewTitle: 'Download (preview)',
   },
-  title: 'Download PKU Harness',
-  lede: 'PKU Harness runs on Android 7.0 or later. It is free and open source.',
+  title: 'Download PKU harness',
+  lede: 'PKU harness runs on Android 7.0 or later. It is free and open source.',
   previewBanner: 'This preview uses demo data. It is only available in the development environment.',
 
   latest: {
@@ -149,11 +149,11 @@ export const zh: typeof en = {
   meta: {
     title: '下载',
     description:
-      '下载 PKU Harness 的 Android 版。本页提供签名的 APK、它的 SHA-256 校验值和签名证书、发布说明以及历史版本。你也可以从源码构建 App。',
+      '下载 PKU harness 的 Android 版。本页提供签名的 APK、它的 SHA-256 校验值和签名证书、发布说明以及历史版本。你也可以从源码构建 App。',
     previewTitle: '下载（预览）',
   },
-  title: '下载 PKU Harness',
-  lede: 'PKU Harness 支持 Android 7.0 及以上版本，免费且开源。',
+  title: '下载 PKU harness',
+  lede: 'PKU harness 支持 Android 7.0 及以上版本，免费且开源。',
   previewBanner: '这是使用演示数据的预览页，只在开发环境中提供。',
 
   latest: {

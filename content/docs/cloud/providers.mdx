@@ -4,7 +4,7 @@ description: 如何选择官方实例、自建参考服务器或任何符合标�
 icon: Server
 ---
 
-提供云服务的服务器叫作服务商。PKU Harness 不绑定某一家服务商：只要服务器实现了云服务协议，App 就能使用它。本页前半部分面向用户，说明如何选择服务商；后半部分面向运营者，说明服务商要实现什么，以及如何运行开源的参考服务器。
+提供云服务的服务器叫作服务商。PKU harness 不绑定某一家服务商：只要服务器实现了云服务协议，App 就能使用它。本页前半部分面向用户，说明如何选择服务商；后半部分面向运营者，说明服务商要实现什么，以及如何运行开源的参考服务器。
 
 ## 选择服务商（用户） [#choosing-a-provider-users]
 
@@ -55,7 +55,7 @@ bun test           # 路由测试，以及真实的 WebSocket/SSE 测试
 | `CLOUD_TOKEN_SECRET` | 自动生成并存进数据库 | bearer token 的 HMAC 密钥（至少 32 个字符） |
 | `CLOUD_POW_DIFFICULTY` | `16` | 工作量证明难度 |
 | `CLOUD_POW_ROTATE_S` | `21600` | salt 轮换周期；上一个 salt 会再多有效一个周期 |
-| `CLOUD_OPERATOR_NAME` / `CLOUD_OPERATOR_CONTACT` / `CLOUD_PRIVACY_URL` | `PKU Harness Cloud (self-hosted)` / 空 | 由 `GET /v1/meta` 返回 |
+| `CLOUD_OPERATOR_NAME` / `CLOUD_OPERATOR_CONTACT` / `CLOUD_PRIVACY_URL` | `PKU harness Cloud (self-hosted)` / 空 | 由 `GET /v1/meta` 返回 |
 | `CLOUD_PAGES_DIR` | `<plugins repo>/plugins` | 存放 `<plugin>/web/dist` 查看页的目录 |
 | `CLOUD_TRUST_PROXY` | 关闭 | 设为 `1` 时，客户端 IP 取 `X-Forwarded-For` 的最后一跳（部署在 Caddy 后面时使用） |
 

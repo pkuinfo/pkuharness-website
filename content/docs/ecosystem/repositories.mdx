@@ -28,7 +28,7 @@ icon: FolderGit2
 
 ## 仓库之间的关系 [#how-they-fit-together]
 
-所有校园登录都要经过 IAAA（`iaaa.pku.edu.cn`），也就是北大的统一身份认证服务。pkucli 记录了各个校园服务的协议，应用按照这些协议实现。应用把 `pku-harness-plugins` 作为 git 子模块引入。远程插件通过 MCP（Model Context Protocol，模型上下文协议）连接到应用；PKU Harness Cloud（云服务）则基于插件仓库里的云服务协议和参考服务器实现。
+所有校园登录都要经过 IAAA（`iaaa.pku.edu.cn`），也就是北大的统一身份认证服务。pkucli 记录了各个校园服务的协议，应用按照这些协议实现。应用把 `pku-harness-plugins` 作为 git 子模块引入。远程插件通过 MCP（Model Context Protocol，模型上下文协议）连接到应用；PKU harness Cloud（云服务）则基于插件仓库里的云服务协议和参考服务器实现。
 
 | 仓库 | 用到什么 | 方式 |
 | --- | --- | --- |
@@ -36,7 +36,7 @@ icon: FolderGit2
 | `pku-harness`（应用） | `pkucli` | 按 pkucli 记录的协议实现校园服务 |
 | `pku-harness`（应用） | `pku-harness-plugins` | 作为 git 子模块引入 SDK 和插件 |
 | 远程插件（任何人都可以写） | `pku-harness-plugins` 的 `templates/remote-plugin` | 从模板开始，通过 MCP 连接到应用 |
-| PKU Harness Cloud 服务 | `pku-harness-plugins` 的 `cloud-protocol` 和 `cloud-server` | 实现云服务协议，`cloud-server` 是参考实现 |
+| PKU harness Cloud 服务 | `pku-harness-plugins` 的 `cloud-protocol` 和 `cloud-server` | 实现云服务协议，`cloud-server` 是参考实现 |
 | `pkuharness-website` | `registry.json`、已收录的插件仓库、GitHub Releases | 生成文档、插件市场和下载页 |
 
 网站独立于其他仓库。它的插件市场读取 `registry.json` 和已收录的插件仓库，下载页列出应用在 GitHub 上发布的版本。
@@ -47,7 +47,7 @@ icon: FolderGit2
 | --- | --- |
 | `packages/sdk` | `@pku-harness/sdk`：插件接口约定、纯函数工具和插件语言（`src/lang`：schema、解释器、宿主能力、加载器） |
 | `packages/cloud-protocol` | `@pku-harness/cloud-protocol`：云服务通信协议的 schema、信封加密、分享链接 |
-| `packages/cloud-server` | PKU Harness Cloud（云服务）的参考服务器实现（Bun + Hono + SQLite） |
+| `packages/cloud-server` | PKU harness Cloud（云服务）的参考服务器实现（Bun + Hono + SQLite） |
 | `plugins/<id>/PLUGIN.md` | 官方插件文档。随应用一起打包（`bun run bundle`），之后从各自的链接更新 |
 | `plugins/<id>/src` | 用 TypeScript 写的内置插件（见 `plugins/index.ts` 里的 `builtinPlugins`） |
 | `plugins/shared` | 内置插件之间共用的代码 |

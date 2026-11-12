@@ -1,10 +1,10 @@
 ---
 title: Architecture
-description: The PKU Harness core is an agent loop, a design system and a set of host services. Every feature comes from a plugin, and all plugins use the same interface.
+description: The PKU harness core is an agent loop, a design system and a set of host services. Every feature comes from a plugin, and all plugins use the same interface.
 icon: Layers
 ---
 
-The design of PKU Harness borrows two ideas from
+The design of PKU harness borrows two ideas from
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). First, the app's features
 all come from plugins. Second, the app is built around an AI agent, but you and the agent can do
 exactly the same things.
@@ -152,7 +152,7 @@ compares the three forms.
 | --- | --- |
 | Campus credentials, model and voice-input API keys, remote plugin tokens | The phone's keystore (SecureStore) |
 | Chat sessions, usage, widgets, scheduled jobs, to-dos, timetable, plugin key-value storage | A SQLite database on the phone |
-| Plugin data you chose to store online | A [PKU Harness Cloud](/en/docs/cloud) provider, end-to-end encrypted |
+| Plugin data you chose to store online | A [PKU harness Cloud](/en/docs/cloud) provider, end-to-end encrypted |
 
 By default, no data passes through any server run by the project. The model provider you set up
 receives the conversation. Campus services receive the same requests that a browser would send.

@@ -9,7 +9,7 @@ its tools. On this page you copy the template, write a tool, run the server on y
 to the app, and then deploy and register it.
 
 The server speaks the [Model Context Protocol](https://modelcontextprotocol.io) (MCP), an open
-standard that lets AI apps discover and call tools on a server. PKU Harness uses MCP's Streamable
+standard that lets AI apps discover and call tools on a server. PKU harness uses MCP's Streamable
 HTTP transport, in which each call is an HTTP `POST` request.
 
 Users add a remote plugin by its URL or from the marketplace. Its tools then join the same registry
@@ -84,7 +84,7 @@ optional token, then hands the request to a fresh server. Replace the `hello` to
 
 ## 2. Write real tools
 
-Each MCP field of a tool has a specific use in PKU Harness:
+Each MCP field of a tool has a specific use in PKU harness:
 
 - **`name`**, the first argument of `registerTool`, becomes the tool id `mcp-<server>.<name>`. The
   model sees it as `mcp-<server>__<name>`. Use a short ASCII camelCase name. Other characters become

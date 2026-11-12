@@ -6,7 +6,7 @@ icon: Globe
 
 远程插件（remote plugin）是你自己运行的服务器，App 通过网络连接它、调用它的工具。本页带你复制模板、编写一个工具、在电脑上运行服务器、把它添加到 App，最后部署上线并登记到插件市场。
 
-服务器使用 [MCP](https://modelcontextprotocol.io)（Model Context Protocol，模型上下文协议）。MCP 是一项开放标准，让 AI 应用能够发现并调用服务器上的工具。PKU Harness 使用 MCP 的 Streamable HTTP 传输方式，每次调用都是一个 HTTP `POST` 请求。
+服务器使用 [MCP](https://modelcontextprotocol.io)（Model Context Protocol，模型上下文协议）。MCP 是一项开放标准，让 AI 应用能够发现并调用服务器上的工具。PKU harness 使用 MCP 的 Streamable HTTP 传输方式，每次调用都是一个 HTTP `POST` 请求。
 
 用户可以通过 URL 或插件市场添加远程插件。添加之后，它的工具和内置插件的工具进入同一个注册表，遵守同一套权限，由同一个助手调用。你的代码不会在手机上运行，远程插件也永远拿不到校园账号密码。
 
@@ -75,7 +75,7 @@ app.listen(Number(process.env.PORT ?? 8787), () => console.log('MCP plugin ready
 
 ## 2. 编写真正的工具 [#2-write-real-tools]
 
-工具的每个 MCP 字段在 PKU Harness 里都有特定的用途：
+工具的每个 MCP 字段在 PKU harness 里都有特定的用途：
 
 - **`name`**，即 `registerTool` 的第一个参数，会成为工具 id `mcp-<server>.<name>`，模型看到的名字是 `mcp-<server>__<name>`。请用简短的 ASCII 小驼峰命名。其他字符会被替换成 `_`，超过 40 个字符的部分会被截掉。
 - **`title`** 显示给用户，出现在聊天、授权确认和设置页里。用中文写。

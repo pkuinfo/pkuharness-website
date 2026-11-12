@@ -1,6 +1,6 @@
 ---
 title: Roadmap
-description: The work on PKU Harness that is done, in progress, planned or on hold, summarised from the app's plan and design documents.
+description: The work on PKU harness that is done, in progress, planned or on hold, summarised from the app's plan and design documents.
 icon: Map
 ---
 
@@ -16,7 +16,7 @@ lands, so check it if you need the latest detail.
 - Over-the-air (OTA) updates are live. An OTA update delivers changes to the app's JavaScript
   code, including the plugins built into the app, without a new APK. Plugin documents don't use
   OTA; they update from their own links.
-- The official PKU Harness Cloud instance has not been deployed yet.
+- The official PKU harness Cloud instance has not been deployed yet.
 - Plugin server functions are switched off on the official server.
 
 ## Done
@@ -84,7 +84,7 @@ the app interprets. This work includes:
 ported from TypeScript to plugin documents. Each port passed parity tests, and the TypeScript
 versions were removed.
 
-**PKU Harness Cloud.** Wire protocol v1 and envelope encryption, the SDK's cloud types and the
+**PKU harness Cloud.** Wire protocol v1 and envelope encryption, the SDK's cloud types and the
 registry's `cloud` field. A reference server built with Bun, Hono and SQLite. The host client,
 which covers device identity, consent, an end-to-end encrypted store and channels, and the
 Settings → Cloud screen. An Android foreground service (`services.ongoing`). The `card-share`
@@ -110,7 +110,7 @@ files from our server.
 
 ## Planned
 
-- **PKU Harness Cloud.** Deploy the official instance and keep it minimal: a relay for live
+- **PKU harness Cloud.** Deploy the official instance and keep it minimal: a relay for live
   shares, a small end-to-end encrypted store, and viewer pages. Pair multiple devices.
 - **Host capabilities requested by plugins.** Scoped access to public HTTP for plugins.
 - **Scoped session grants.** These would let a remote plugin act on a campus service without ever

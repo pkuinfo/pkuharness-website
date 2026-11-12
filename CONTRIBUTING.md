@@ -1,4 +1,4 @@
-# Contributing to the PKU Harness website
+# Contributing to the PKU harness website
 
 Thanks for helping. This repo is the website: landing and download pages, the developer docs and the
 plugin marketplace. For the app itself see [pku-harness](https://github.com/pkuinfo/pku-harness); for

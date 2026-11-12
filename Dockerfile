@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# PKU Harness website: build with bun, run the Next.js standalone server on Node.
+# PKU harness website: build with bun, run the Next.js standalone server on Node.
 
 FROM oven/bun:1.4 AS build
 WORKDIR /app

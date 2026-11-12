@@ -59,8 +59,8 @@ export const CAPABILITY: Record<
   cloud: {
     zh: '云服务',
     en: 'Cloud',
-    explain: 'Sends data to PKU Harness Cloud. See the Cloud data section.',
-    explainZh: '会把数据发送到 PKU Harness Cloud，详见「云端数据」。',
+    explain: 'Sends data to PKU harness Cloud. See the Cloud data section.',
+    explainZh: '会把数据发送到 PKU harness Cloud，详见「云端数据」。',
     tone: 'notice',
   },
   ongoing: {

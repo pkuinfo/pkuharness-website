@@ -10,7 +10,7 @@ icon: FileCode
   语言规范见 [`docs/PLUGIN-LANGUAGE.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/PLUGIN-LANGUAGE.md)（规范版本 1），实现位于 `@pku-harness/sdk` 的 `lang/` 目录，其中有 schema、解释器、宿主能力和加载器。本页是规范的摘要。两者不一致时，App 以 SDK 里的 [`schema.ts`](https://github.com/pkuinfo/pku-harness-plugins/blob/main/packages/sdk/src/lang/schema.ts) 和 [`abilities.ts`](https://github.com/pkuinfo/pku-harness-plugins/blob/main/packages/sdk/src/lang/abilities.ts) 为准。
 </Callout>
 
-声明式插件是一个由文本文件组成的文件夹，可以作为链接分享。它在 PKU Harness 里的作用，和 `SKILL.md` 文件夹在 AI Agent 里的作用相同。App 读取这个文件夹，用一个小而安全的解释器执行其中声明的步骤。App 从不下载或运行插件代码，因此发布新插件或更新插件既不需要 App 发版，也不需要服务器。
+声明式插件是一个由文本文件组成的文件夹，可以作为链接分享。它在 PKU harness 里的作用，和 `SKILL.md` 文件夹在 AI Agent 里的作用相同。App 读取这个文件夹，用一个小而安全的解释器执行其中声明的步骤。App 从不下载或运行插件代码，因此发布新插件或更新插件既不需要 App 发版，也不需要服务器。
 
 如果一项任务只是向校园网站或公开网站发几个请求，再提取一些数据，就适合写成声明式插件。例如空闲教室、食堂人流和营业时间、班车时刻表、成绩、校园活动和通知。
 
@@ -99,7 +99,7 @@ Use `free` when the user asks where to study or which rooms are free. Periods ar
 - `defaultModes` 设置每种效果的初始授权方式。
 - `i18n` 放英文文字，可以翻译名称、简介、说明，以及每个工具的 `title` 和 `summary`（`i18n.en.tools.<name>`）。
 - `remote: { mcp, auth }` 用 `PLUGIN.md` 描述一个远程 MCP 服务器。
-- `cloud` 声明插件对 PKU Harness Cloud 的使用，包括 `cloud.disclosure`；`server` 声明服务端函数（[见下文](#server-functions)）。
+- `cloud` 声明插件对 PKU harness Cloud 的使用，包括 `cloud.disclosure`；`server` 声明服务端函数（[见下文](#server-functions)）。
 
 `requires` 不用写，它由 `campus`、`network`、`cloud` 和 `server` 自动推导。每个字段的详细说明，以及插件市场会检查什么，见[清单参考](/docs/marketplace/manifest)。
 
@@ -247,7 +247,7 @@ return: "page.rows.map(r => ({ room: r.room, seats: num(r.cap, 0) }))"
   SDK 里已经有 `server:` 字段、`{ fn }` 绑定和 `cloud.call` 宿主能力，但插件的服务端函数**目前在官方服务器上没有开放**。请让插件在手机上运行，或者把你自己的后端做成[远程插件](/docs/build/remote-plugin)。
 </Callout>
 
-`server:` 部分用同样的步骤和表达式声明函数，由 PKU Harness Cloud 服务器运行。服务器有一套自己的能力：服务端 KV 存储，`crypto.sha256`、`hmacSha256` 和 `randomId`，以及使用服务器运营方设置的密钥（secrets）向 `server.network` 里的域名发 HTTPS 请求。服务端函数永远拿不到校园访问权限。
+`server:` 部分用同样的步骤和表达式声明函数，由 PKU harness Cloud 服务器运行。服务器有一套自己的能力：服务端 KV 存储，`crypto.sha256`、`hmacSha256` 和 `randomId`，以及使用服务器运营方设置的密钥（secrets）向 `server.network` 里的域名发 HTTPS 请求。服务端函数永远拿不到校园访问权限。
 
 带有 `server:` 的插件必须在 `cloud.disclosure` 里写明哪些数据会离开设备。设计和进展见 [`docs/CLOUD-FUNCTIONS.md`](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)（目前暂缓）；另见[云服务 → 插件作者指南](/docs/cloud/plugin-guide#server-functions)。
 

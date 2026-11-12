@@ -19,7 +19,7 @@ Android provides for app developers and for screen readers. Each one has a clear
 
 | What | Why Copilot needs it |
 | --- | --- |
-| **Phone helper** (through Wireless debugging) | A small helper program that PKU Harness starts on your phone. It creates Copilot's separate screen, opens apps there, and performs every tap, swipe and keystroke. It connects only to your own phone, never to a computer or a server |
+| **Phone helper** (through Wireless debugging) | A small helper program that PKU harness starts on your phone. It creates Copilot's separate screen, opens apps there, and performs every tap, swipe and keystroke. It connects only to your own phone, never to a computer or a server |
 | **Accessibility** | Lets Copilot read what is on the screen of the app it operates (buttons, text, lists), and show its floating window. Since version 1.0.20 it is only used to read, never to tap or type |
 | **Allowed apps** | The list of apps Copilot may open. Up to 20 |
 | **Notifications** (optional) | During setup you type the pairing code into a notification. While a task runs, a notification lets you stop it |
@@ -57,7 +57,7 @@ you. Work through them from top to bottom.
 This step is marked **Optional**, but it makes pairing much easier.
 
 Tap **Allow notifications**, then **Allow** in Android's dialog. If you blocked notifications before,
-the button reads **Open notification settings**; turn notifications on for PKU Harness there and come
+the button reads **Open notification settings**; turn notifications on for PKU harness there and come
 back.
 
 </Step>
@@ -90,7 +90,7 @@ Developer options at the right place.
 
 ### Turn on Wireless debugging [#turn-on-wireless-debugging]
 
-1. In PKU Harness, tap **Turn on Wireless debugging**. The app opens Android's Developer options
+1. In PKU harness, tap **Turn on Wireless debugging**. The app opens Android's Developer options
    and waits for you there.
 2. Find **Wireless debugging** and turn its switch on. If Android asks "Allow wireless debugging on
    this network?", tap **Allow**. Ticking "Always allow on this network" saves you this question
@@ -119,7 +119,7 @@ You don't need to type a port number or use split screen.
 If the notification says the code was wrong or the dialog closed, tap
 **Pair device with pairing code** again and type the new code in the same notification.
 
-If you didn't allow notifications, or the notification doesn't appear, go back to PKU Harness and tap
+If you didn't allow notifications, or the notification doesn't appear, go back to PKU harness and tap
 **Enter code manually**. Type the code in **Pairing code** and tap **Pair phone**. You can leave
 **IP address & Port** empty; the app finds it.
 
@@ -135,9 +135,9 @@ reconnects by itself, even after a restart.
 Once the phone helper is connected, this step turns on by itself. The row shows **Turning on…** and
 then **Enabled**. The helper also does three things for Copilot, so you don't have to:
 
-- allows Android 13's _restricted settings_ for PKU Harness (see below);
-- adds PKU Harness to the battery optimization allowlist, so Copilot keeps running in the background;
-- gives PKU Harness permission to turn its own accessibility service back on.
+- allows Android 13's _restricted settings_ for PKU harness (see below);
+- adds PKU harness to the battery optimization allowlist, so Copilot keeps running in the background;
+- gives PKU harness permission to turn its own accessibility service back on.
 
 If the row still says **Needed**, tap **Turn on**. This happens, for example, when you turned the
 service off in Android's settings before.
@@ -207,7 +207,7 @@ Google's general instructions are at
   **USB debugging (Security settings)** (USB 调试（安全设置）) in Developer options. This is a
   separate switch from USB debugging. Xiaomi asks you to sign in with a Xiaomi account to turn it on,
   and may need a SIM card in the phone. Restart the phone afterwards. Also allow **Autostart** for
-  PKU Harness and set its battery saver to **No restrictions**, or the system may stop the helper in
+  PKU harness and set its battery saver to **No restrictions**, or the system may stop the helper in
   the background.
 - **OPPO, OnePlus.** If setup can't turn on accessibility, or taps do nothing, turn on
   **Disable permission monitoring** (禁止权限监控) in Developer options, then try again.
@@ -243,7 +243,7 @@ the task until it is done or you stop it. There is no limit on the number of ste
 If a task needs an app you haven't allowed, the assistant asks you first: “Copilot” wants to use,
 with the app's name. Choose **Allow once** (this task only), **Always allow** (added to the allowed
 list) or **Don't allow** (the assistant stops and tells you). Only your tap can grant access. When
-you are not in PKU Harness, the request comes as a notification or in the floating window.
+you are not in PKU harness, the request comes as a notification or in the floating window.
 
 Scheduled tasks can't use Copilot.
 
@@ -254,7 +254,7 @@ because Copilot's **Change**, **Money** and **Public** permissions start as **As
 work without asking, set **Change** to **Allow** under
 **Settings → Plugins → Copilot → What the AI may do**.
 
-- While PKU Harness is open, the confirmation appears in the app.
+- While PKU harness is open, the confirmation appears in the app.
 - While you are in another app, it appears in the floating window. Tap **Allow once** or **Deny**.
 
 The floating window shows the current step and a live preview. It has **Pause** / **Resume** and
@@ -318,14 +318,14 @@ kept, and no new task can start. You can also ask the assistant, for example "Tu
 **To remove the system access as well**, do these in Android's settings:
 
 1. Open **Developer options → Wireless debugging**. Under **Paired devices**, tap the device that
-   PKU Harness paired and tap **Forget**. The phone helper then can't reconnect until you pair
+   PKU harness paired and tap **Forget**. The phone helper then can't reconnect until you pair
    again.
 2. Turn off **Wireless debugging**, or turn off Developer options entirely with the switch at the top
    of that page.
 3. In **Settings → Accessibility**, turn off **Copilot**.
 
-While Copilot is on and paired, PKU Harness turns Wireless debugging and the accessibility service
-back on when it needs them. That is why step 1 matters. The permission the helper gave PKU Harness to
+While Copilot is on and paired, PKU harness turns Wireless debugging and the accessibility service
+back on when it needs them. That is why step 1 matters. The permission the helper gave PKU harness to
 change these system settings stays with the app until you uninstall it; it is used only for
 Copilot's own accessibility service and Wireless debugging.
 

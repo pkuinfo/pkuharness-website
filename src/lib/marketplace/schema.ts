@@ -29,7 +29,7 @@ export const capability = z.enum([
 export const cloudService = z.enum(['store', 'channels', 'push', 'files', 'functions']);
 
 export const registryCloud = z.object({
-  uses: z.array(cloudService).describe('PKU Harness Cloud services the plugin uses.'),
+  uses: z.array(cloudService).describe('PKU harness Cloud services the plugin uses.'),
   e2e: z.boolean().describe('Whether everything sent to the cloud is end-to-end encrypted.'),
   disclosure: z
     .object({
@@ -122,7 +122,7 @@ export const manifestV1 = z
     requires: z.array(capability).default([]).describe('What the plugin needs from the device and account.'),
     scopes: z.array(z.string()).default([]).describe('Hosts the plugin talks to, e.g. "dining.pku.edu.cn".'),
     tags: z.array(z.string()).default([]).describe('Search tags, lowercase.'),
-    cloud: registryCloud.optional().describe('PKU Harness Cloud use, copied from PluginDef.cloud.'),
+    cloud: registryCloud.optional().describe('PKU harness Cloud use, copied from PluginDef.cloud.'),
     version: z.string().max(40).optional(),
     license: z.string().max(80).optional().describe('SPDX id, e.g. "MIT".'),
     homepage: z.string().url().optional(),
@@ -138,7 +138,7 @@ export const manifestV1 = z
       .optional()
       .describe('Translations of user-facing strings.'),
   })
-  .describe('PKU Harness plugin manifest v1');
+  .describe('PKU harness plugin manifest v1');
 
 export type ManifestV1 = z.infer<typeof manifestV1>;
 export const MANIFEST_KEYS = new Set(Object.keys(manifestV1.shape));
@@ -175,7 +175,7 @@ export function manifestJsonSchema(siteUrl: string): Record<string, unknown> {
   return {
     ...schema,
     $id: new URL(MANIFEST_SCHEMA_PATH, siteUrl).toString(),
-    title: 'PKU Harness plugin manifest',
+    title: 'PKU harness plugin manifest',
     additionalProperties: false,
   };
 }

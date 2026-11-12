@@ -96,7 +96,7 @@ The table lists every top-level field. Fields without "yes" are optional.
 | `widgets`, `screens` | | Map of name to a JSON file (a generative-UI spec with data bindings). |
 | `settings`, `commands`, `defaultModes` | | Settings rows, slash commands, and suggested permission modes per effect. |
 | `requires` | | Optional, because the marketplace [derives it](#derived-capabilities) from the other fields. |
-| `cloud` | | Use of PKU Harness Cloud, with a plain-language disclosure ([below](#cloud-disclosure)). |
+| `cloud` | | Use of PKU harness Cloud, with a plain-language disclosure ([below](#cloud-disclosure)). |
 | `server` | | Server functions. Off on the official server for now (see below). |
 | `i18n.en` | | English strings: `name`, `description`, and overlays such as `tools.<name>.{title,summary}`. |
 | `remote` | | `{ mcp: https URL, auth?: none \| bearer }` makes the folder a [remote MCP plugin](#remote-mcp-plugins). |
@@ -110,7 +110,7 @@ name is a warning.
 [declarative plugins guide](/en/docs/build/declarative-plugins#host-abilities) lists the
 operations and effects of each one. Any other name is an error, because the app refuses it.
 
-**`server`** declares server functions, which run on PKU Harness Cloud
+**`server`** declares server functions, which run on PKU harness Cloud
 ([CLOUD-FUNCTIONS.md](https://github.com/pkuinfo/pku-harness/blob/master/docs/CLOUD-FUNCTIONS.md)).
 A plugin with `server` needs `cloud.disclosure`, and it implies `cloud.uses: [functions]`. Server
 functions are **off on the official server for now**, so users of the official instance can't run
@@ -253,7 +253,7 @@ as you type.
 | `requires` | capability[] | | What the plugin needs. See [Capabilities](#capabilities-requires). |
 | `scopes` | string[] | | Host names the plugin talks to (`"dining.pku.edu.cn"`, `"*.example.com"`). Shown to users. |
 | `tags` | string[] | | Lowercase search tags. |
-| `cloud` | object | | Use of PKU Harness Cloud, copied from `PluginDef.cloud`. See [below](#cloud-disclosure). |
+| `cloud` | object | | Use of PKU harness Cloud, copied from `PluginDef.cloud`. See [below](#cloud-disclosure). |
 | `version` | string | | Shown on the plugin page. |
 | `license` | string | | SPDX id, e.g. `"MIT"`. |
 | `homepage` | https URL | | Docs or project page. |
@@ -303,7 +303,7 @@ Each value below is shown to users on the plugin page, with the meaning in the r
 | `notifications` | Sends local notifications. |
 | `background` | Runs scheduled checks while the app is closed. |
 | `shell`, `filesystem` | Phones have neither. The app hides plugins that need them, and the scanner warns. |
-| `cloud` | Uses PKU Harness Cloud. Requires a `cloud` block. |
+| `cloud` | Uses PKU harness Cloud. Requires a `cloud` block. |
 | `ongoing` | Shows a live, ongoing activity. |
 
 A `PLUGIN.md` plugin gets `campus-session` by declaring `campus`; the app then signs the requests
@@ -313,7 +313,7 @@ A remote plugin runs on your server, so declare only what the **phone** has to p
 
 ## Cloud disclosure
 
-If a plugin uses PKU Harness Cloud, its `cloud` block must say in plain words what data leaves the
+If a plugin uses PKU harness Cloud, its `cloud` block must say in plain words what data leaves the
 device. The marketplace and the app both show these lines on the plugin's page.
 
 ```json
