@@ -1,6 +1,6 @@
 ---
 title: Voice input
-description: Speak instead of typing in the chat box. Set up a speech-to-text service with your own key — Alibaba Cloud Bailian (the default, text appears while you talk) or SiliconFlow — and transcribe audio files.
+description: Speak instead of typing in the chat box. Set up a speech-to-text service with your own key (Alibaba Cloud Bailian, the default, where text appears while you talk; DeepSeek, with the key you already use for the AI; or SiliconFlow) and transcribe audio files.
 icon: Mic
 ---
 
@@ -19,6 +19,7 @@ default first.
 | Service | How text appears | Models | Where to get a key |
 | --- | --- | --- | --- |
 | **Alibaba Cloud Bailian (live)** (default) | While you talk | **Fun-ASR** (default, ¥0.00033 per second), **Paraformer v2** (¥0.00024 per second) | The [Bailian console](https://bailian.console.aliyun.com/?tab=model#/api-key), Beijing region |
+| **DeepSeek** | In phrases, at each pause | **DeepSeek speech recognition** (detects the language: Mandarin, Cantonese, English and more), $0.116 per hour of audio, currently 50% off at $0.058, billed per second | No separate key: it uses your DeepSeek key from **Settings → AI provider** |
 | **SiliconFlow** (硅基流动) | In phrases, at each pause | **SenseVoice** (Mandarin, English, Cantonese, Japanese, Korean), **TeleSpeech** (better on Chinese dialects) | [cloud.siliconflow.cn](https://cloud.siliconflow.cn/account/ak) |
 | **OpenAI-compatible** | In phrases | You type the model ID | Any service with an `/audio/transcriptions` endpoint |
 
@@ -27,6 +28,11 @@ The prices are the ones the app shows next to each model; the provider's price l
 We recommend **Alibaba Cloud Bailian** with **Fun-ASR**: the text appears as you speak, and in our
 tests it recognised campus place names best. If you already use Bailian for the
 [AI model](/en/docs/manual/ai-model#get-an-alibaba-cloud-bailian-api-key), the same key works here.
+
+If you use DeepSeek for the AI model and don't want another account, choose **DeepSeek**. It needs
+no extra key. DeepSeek has no live recognition, so the app sends your speech in pieces cut at each
+pause, and the text appears phrase by phrase rather than word by word. Prices are from
+[DeepSeek's price list](https://api-docs.deepseek.com/quick_start/pricing).
 
 ## Set up Alibaba Cloud Bailian
 
@@ -40,6 +46,16 @@ tests it recognised campus place names best. If you already use Bailian for the
 
 The address is fixed (`wss://dashscope.aliyuncs.com/api-ws/v1/inference`) and shown under the model
 list.
+
+## Set up DeepSeek
+
+1. Make sure your DeepSeek API key is saved in **Settings → AI provider**. If it isn't, follow
+   [AI provider → Get a DeepSeek API key](/en/docs/manual/ai-model#get-a-deepseek-api-key).
+2. In the app, open **Settings → Voice input** and tap **DeepSeek**.
+3. The screen shows "Uses your DeepSeek API key from AI provider settings. No separate key needed."
+   There is nothing to paste. If it says "Add your DeepSeek API key in AI provider settings first."
+   instead, tap **Open AI provider settings** and save the key there.
+4. Tap **Save**.
 
 ## Set up SiliconFlow
 
@@ -67,6 +83,10 @@ You can also attach an audio file in chat: tap **+**, then **Files**, and choose
 
 Alibaba Cloud Bailian (live) only transcribes live speech. For audio files, choose **SiliconFlow**
 or an **OpenAI-compatible** service in **Settings → Voice input**.
+
+DeepSeek can transcribe audio files too, but it only accepts WAV or Ogg Opus recordings of up to
+120 seconds and 8 MiB. Longer recordings and MP3 or M4A files may fail, so we recommend SiliconFlow
+for audio files.
 
 ## When voice input doesn't work
 

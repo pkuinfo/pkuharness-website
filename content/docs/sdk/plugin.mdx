@@ -1,6 +1,6 @@
 ---
 title: plugin
-description: '定义插件时用到的全部类型：definePlugin、defineTool、definePreference、PluginDef、ToolDef、ToolContext、效果、调用方、能力需求、KV、轮次信息、数据源、设置项、模型和语音服务商、翻译和旧 id。'
+description: '定义插件时用到的全部类型：definePlugin、defineTool、definePreference、PluginDef、ToolDef、ToolContext、效果、调用方、能力需求、KV、轮次信息、数据源、设置项、模型、语音和 OCR 服务商、翻译和旧 id。'
 ---
 
 每个内置插件都导出一个用 `definePlugin` 定义的对象，里面写明插件的名称、需要的能力、提供的工具和界面等。这一页列出这个对象和工具的全部字段，以及工具运行时收到的上下文。
@@ -40,6 +40,7 @@ interface PluginDef {
   dataSources?: Record<string, DataSourceDef>;
   providers?: Record<string, ProviderDef>;
   speech?: Record<string, SpeechProviderDef>;
+  ocr?: Record<string, OcrProviderDef>;
   instructions?: Dynamic<string>;
   context?: (input: ContextInput) => Promise<string | undefined>;
   contributes?: Contributions;
@@ -67,6 +68,7 @@ interface PluginDef {
     dataSources: { type: 'Record<string, DataSourceDef>', description: '适合给小组件和定时检查用的读取工具。' },
     providers: { type: 'Record<string, ProviderDef>', description: '模型服务商（服务商插件用）。' },
     speech: { type: 'Record<string, SpeechProviderDef>', description: '语音输入使用的语音识别服务，以本地 id 为键（宿主中的 id 为 `<plugin>.<key>`）。见[语音服务商](#speech-providers)。' },
+    ocr: { type: 'Record<string, OcrProviderDef>', description: '识别手机自己读不出文字的文档（没有文字层的扫描版 PDF），以本地 id 为键。只有用户附上这类文件、并且 `credentialFrom` 指定的服务商已有 Key 时才会调用。见 [OCR 服务商](#ocr-providers)。' },
     instructions: { type: 'Dynamic<string>', description: "追加到助手的系统提示词末尾。写短一些；提到工具时用模型侧名称（`plugin__tool`）。" },
     context: { type: '(input: ContextInput) => Promise<string | undefined>', description: '每轮 Agent 对话前调用，返回的文本会标记为数据，在这一轮展示给模型。每次请求都要消耗 token。' },
     contributes: { type: 'Contributions', description: '页面、设置项、标签页、小组件、命令。' },
@@ -140,6 +142,11 @@ interface ToolContext {
   cloud?: PluginCloud;
   /** 用户对 `grant` 工具提示的回答。用户直接调用时不设置。 */
   grant?: 'once' | 'always';
+  /**
+   * 本插件自己的某个模型服务商（`PluginDef.providers` 的键）的地址和 Key，不能取其他插件的。
+   * 在所有宿主版本都接入之前是可选的。
+   */
+  provider?: (key: string) => Promise<{ baseURL: string; credential?: string }>;
   signal?: AbortSignal;
 }
 
@@ -161,6 +168,8 @@ interface KV {
   delete(key: string): Promise<void>;
 }
 ```
+
+`ctx.provider(key)` 返回插件自己的某个模型服务商的地址和 Key，也就是用户在「设置 → AI 服务」中填写的内容。调用同一个服务、用同一个 Key 的工具可以用它，例如 DeepSeek 插件的 `web_search` 用的就是 DeepSeek 对话的 Key。用户还没保存 Key 时 `credential` 为空，这时抛出一个 Error，告诉用户去哪里填写。插件读不到其他插件的服务商。
 
 ## 效果与能力需求 [#effects-and-capabilities]
 
@@ -451,6 +460,8 @@ interface SpeechProviderDef {
   credentialHint?: string;
   /** 申请 Key 的网址，显示在输入框下方。 */
   keyURL?: string;
+  /** 改用本插件中这个 id 的模型服务商的 Key，不需要单独的 Key。 */
+  credentialFrom?: string;
   transcribe?: (config: SpeechConfig, audio: SpeechAudio, signal?: AbortSignal) => Promise<string>;
   stream?: (config: SpeechConfig, handlers: SpeechStreamHandlers) => Promise<SpeechStream>;
 }
@@ -529,3 +540,33 @@ export const siliconflowPlugin = definePlugin({
 ```
 
 实时服务的写法见插件仓库中的 `plugins/aliyun-bailian/src/realtime.ts`。
+
+如果语音服务和模型用的是同一个 Key（例如 DeepSeek），把 `credentialFrom` 设为插件自己 `providers` 中的某个键。宿主就不再显示 Key 输入框，而是把这个服务商的 Key 放进 `SpeechConfig.credential`；Key 还没填写时，语音输入页面会提示用户先到 AI 服务设置中填写。示例见 `plugins/deepseek/src/index.ts`。
+
+## OCR 服务商 [#ocr-providers]
+
+OCR 服务商负责识别手机自己读不出文字的文档，目前就是没有文字层的扫描版 PDF。插件在 `ocr` 中用 `OcrProviderDef` 描述每个服务。它总是使用插件自己某个模型服务商（`credentialFrom`）的地址和 Key，用户不需要额外设置。只有当用户附上这类文件、插件已开启、并且这个服务商已有 Key 时，宿主才会调用 `recognize`；否则文件仍像以前一样被拒绝。
+
+```ts
+interface OcrProviderDef {
+  name: string;
+  /** 使用哪个本插件模型服务商（`PluginDef.providers` 的键）的地址和 Key。 */
+  credentialFrom: string;
+  /** 按阅读顺序排列的识别结果，Markdown 格式，每页以 `## Page n` 标题开头。 */
+  recognize: (
+    config: { baseURL: string; credential: string; fetch: typeof fetch },
+    doc: OcrDocument,
+    signal?: AbortSignal,
+  ) => Promise<string>;
+}
+
+/** 要识别的文档：用户附上的本地文件（`file` 可以放进 FormData 上传）。 */
+interface OcrDocument {
+  file: Blob;
+  uri: string;
+  name: string;
+  mimeType: string;
+}
+```
+
+返回的 Markdown 要在每页前加 `## Page n` 标题，这样助手可以像读其他文档一样引用和翻页。`recognize` 抛出错误时，附件会失败并提示「`<name>` 未能识别这个扫描版 PDF：`<message>`」，所以错误消息要写得让用户能看懂。`name` 会原样显示给用户。完整示例见 `plugins/deepseek/src/tools.ts` 中 DeepSeek 插件的 `deepseekOcr`。

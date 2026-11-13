@@ -1,6 +1,6 @@
 ---
 title: plugin
-description: 'Every type you use to define a plugin: definePlugin, defineTool, definePreference, PluginDef, ToolDef, ToolContext, effects, actors, capabilities, KV, turn info, data sources, preferences, model and speech providers, translations and legacy ids.'
+description: 'Every type you use to define a plugin: definePlugin, defineTool, definePreference, PluginDef, ToolDef, ToolContext, effects, actors, capabilities, KV, turn info, data sources, preferences, model, speech and OCR providers, translations and legacy ids.'
 ---
 
 Every bundled plugin exports one object defined with `definePlugin`. It states the plugin's name,
@@ -44,6 +44,7 @@ interface PluginDef {
   dataSources?: Record<string, DataSourceDef>;
   providers?: Record<string, ProviderDef>;
   speech?: Record<string, SpeechProviderDef>;
+  ocr?: Record<string, OcrProviderDef>;
   instructions?: Dynamic<string>;
   context?: (input: ContextInput) => Promise<string | undefined>;
   contributes?: Contributions;
@@ -71,6 +72,7 @@ interface PluginDef {
     dataSources: { type: 'Record<string, DataSourceDef>', description: 'Read tools suited to widgets and checks.' },
     providers: { type: 'Record<string, ProviderDef>', description: 'Model providers (provider plugins).' },
     speech: { type: 'Record<string, SpeechProviderDef>', description: 'Speech-to-text services for voice input, keyed by local id (host id `<plugin>.<key>`). See [Speech providers](#speech-providers).' },
+    ocr: { type: 'Record<string, OcrProviderDef>', description: "Text recognition for documents the phone can't read itself (scanned PDFs without a text layer), keyed by local id. Used only when the user attaches such a file and the `credentialFrom` provider has a key. See [OCR providers](#ocr-providers)." },
     instructions: { type: 'Dynamic<string>', description: "Appended to the agent's system prompt. Short; refer to tools by model name (`plugin__tool`)." },
     context: { type: '(input: ContextInput) => Promise<string | undefined>', description: 'Called before each agent turn; the text is shown to the model for that turn, marked as data. Costs tokens on every request.' },
     contributes: { type: 'Contributions', description: 'Screens, Settings rows, tabs, widgets, commands.' },
@@ -146,6 +148,11 @@ interface ToolContext {
   cloud?: PluginCloud;
   /** How the user answered the prompt of a `grant` tool. Unset for direct user calls. */
   grant?: 'once' | 'always';
+  /**
+   * Address and key of one of this plugin's own model providers (`PluginDef.providers`, by key).
+   * Never another plugin's. Optional until every host build wires it.
+   */
+  provider?: (key: string) => Promise<{ baseURL: string; credential?: string }>;
   signal?: AbortSignal;
 }
 
@@ -167,6 +174,12 @@ interface KV {
   delete(key: string): Promise<void>;
 }
 ```
+
+`ctx.provider(key)` returns the address and key of one of the plugin's own model providers, as the
+user set them up in **Settings → AI provider**. Use it for tools that call the same service with the
+same key, such as the DeepSeek plugin's `web_search`, which uses the DeepSeek chat key. `credential`
+is unset when the user hasn't saved a key; throw an Error that tells them where to add one. A plugin
+can't read another plugin's providers.
 
 ## Effects and capabilities
 
@@ -481,6 +494,8 @@ interface SpeechProviderDef {
   credentialHint?: string;
   /** Where to get a key, shown under the field. */
   keyURL?: string;
+  /** Use the key of this plugin's model provider with this id instead of a key of its own. */
+  credentialFrom?: string;
   transcribe?: (config: SpeechConfig, audio: SpeechAudio, signal?: AbortSignal) => Promise<string>;
   stream?: (config: SpeechConfig, handlers: SpeechStreamHandlers) => Promise<SpeechStream>;
 }
@@ -561,3 +576,44 @@ export const siliconflowPlugin = definePlugin({
 ```
 
 For a realtime service, see `plugins/aliyun-bailian/src/realtime.ts` in the plugins repository.
+
+Set `credentialFrom` to the key of one of the plugin's own `providers` when the speech service takes
+the same key as the model, as DeepSeek's does. The host then shows no key field and passes that
+provider's key in `SpeechConfig.credential`; the voice input screen tells the user to add the key in
+AI provider settings if it is missing. See `plugins/deepseek/src/index.ts`.
+
+## OCR providers [#ocr-providers]
+
+An OCR provider recognises the text of a document the phone can't read itself. Today that is a
+scanned PDF with no text layer. A plugin describes each service in `ocr` with an `OcrProviderDef`.
+It always uses the address and key of one of the plugin's own model providers (`credentialFrom`),
+so the user sets up nothing extra. The host calls `recognize` only when the user attaches such a file,
+the plugin is on and that provider has a key; otherwise the file is refused as before.
+
+```ts
+interface OcrProviderDef {
+  name: string;
+  /** This plugin's model provider (`PluginDef.providers` key) whose address and key it uses. */
+  credentialFrom: string;
+  /** Recognised text in reading order, Markdown with `## Page n` headings per page. */
+  recognize: (
+    config: { baseURL: string; credential: string; fetch: typeof fetch },
+    doc: OcrDocument,
+    signal?: AbortSignal,
+  ) => Promise<string>;
+}
+
+/** A document to recognise: a local file the user attached (`file` uploads in a FormData). */
+interface OcrDocument {
+  file: Blob;
+  uri: string;
+  name: string;
+  mimeType: string;
+}
+```
+
+Return Markdown with a `## Page n` heading before each page, so the assistant can cite and page
+through the text like any other document. If `recognize` throws, the attachment fails with
+"`<name>` couldn't recognise this scanned PDF: `<message>`", so make the message readable.
+`name` is shown to the user as is. The DeepSeek plugin's `deepseekOcr` in
+`plugins/deepseek/src/tools.ts` is a complete example.

@@ -73,8 +73,13 @@ uploaded; the assistant gets the text. The beginning of a long document goes wit
 the assistant reads further pages or searches the document when it needs to. It quotes numbers,
 dates and amounts as written. Tap an attachment to preview the text the assistant sees.
 
-Some files can't be read, and the app says why: a scanned PDF that holds only images (take photos of
-the pages instead), a file with a password, or a damaged file.
+A scanned PDF holds only pictures of pages, with no text to read. If you have saved a DeepSeek API
+key in **Settings → AI provider**, the app sends such a PDF to DeepSeek OCR and attaches the
+recognised text. This costs $0.225 per 1,000 pages on your DeepSeek account, and works for files up to
+100 MiB and 1,000 pages. Without a DeepSeek key, the app asks you to add one or to take photos of
+the pages instead.
+
+Other files can't be read, and the app says why: a file with a password, or a damaged file.
 
 Audio files are transcribed by your [voice input](/en/docs/manual/voice-input#transcribe-an-audio-file)
 service, and the assistant reads the transcript. Alibaba Cloud Bailian (live) only handles live
@@ -161,6 +166,8 @@ What the assistant can do depends on the plugins you have turned on. For example
 - Sync your timetable from the university and create to-dos, reminders and scheduled checks.
 - Put numbers on your dashboard.
 - Read and search documents you attach.
+- Search the web and read web pages, with your DeepSeek API key; see
+  [Web search](#web-search) below.
 - Change the app's settings, such as the theme, language, time zone, model, or a plugin's switch and
   permissions; see [Settings → Changing settings in chat](/en/docs/manual/settings#changing-settings-in-chat).
 - Operate other apps on your phone with [Copilot](/en/docs/manual/copilot), once you have set it up.
@@ -171,6 +178,20 @@ Campus Card payment code, choosing and submitting files for a Blackboard assignm
 passwords and API keys.
 
 **Settings → Plugins** lists every plugin; see [Plugins and permissions](/en/docs/manual/plugins).
+
+### Web search [#web-search]
+
+When you have saved a DeepSeek API key in **Settings → AI provider**, the assistant can look things
+up on the web. It works with any chat model: the assistant loads the DeepSeek plugin when it needs
+to search. The plugin has two tools:
+
+- **Search the web** (`deepseek__web_search`) uses DeepSeek Search and returns up to 20 results,
+  each with a title, link, site, date and summary.
+- **Read a web page** (`deepseek__web_read`) reads a page as text, 12,000 characters at a time.
+
+Each search or page read costs $0.75 per 1,000 calls on your DeepSeek account. Search results and
+pages are written by third parties, so the assistant treats them as data and doesn't follow
+instructions in them. For campus information, the assistant uses the campus plugins instead.
 
 ## Confirm the assistant's actions
 

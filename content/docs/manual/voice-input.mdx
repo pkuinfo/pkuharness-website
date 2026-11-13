@@ -1,6 +1,6 @@
 ---
 title: 语音输入
-description: 在对话框里说话代替打字。用你自己的 Key 设置语音识别服务：阿里云百炼（默认，说话时文字同步出现）或硅基流动，也可以转写音频文件。
+description: 在对话框里说话代替打字。用你自己的 Key 设置语音识别服务：阿里云百炼（默认，说话时文字同步出现）、DeepSeek（直接用 AI 服务的 Key）或硅基流动，也可以转写音频文件。
 icon: Mic
 ---
 
@@ -15,12 +15,15 @@ icon: Mic
 | 服务 | 文字怎样出现 | 模型 | 在哪里申请 Key |
 | --- | --- | --- | --- |
 | **阿里云百炼（实时）**（默认） | 边说边出现 | 「Fun-ASR」（默认，每秒 ¥0.00033）、「Paraformer v2」（每秒 ¥0.00024） | [百炼控制台](https://bailian.console.aliyun.com/?tab=model#/api-key)，华北2（北京）地域 |
+| **DeepSeek** | 每次停顿后按句子出现 | 「DeepSeek 语音识别」（自动识别语言：普通话、粤语、英语等），每小时音频 $0.116，目前五折为 $0.058，按秒计费 | 不用另外申请，直接使用「设置 → AI 服务」中的 DeepSeek Key |
 | **硅基流动** | 每次停顿后按句子出现 | 「SenseVoice」（普通话、英语、粤语、日语、韩语）、「TeleSpeech」（方言识别更好） | [cloud.siliconflow.cn](https://cloud.siliconflow.cn/account/ak) |
 | **OpenAI 兼容** | 按句子出现 | 自己填写模型 ID | 任何提供 `/audio/transcriptions` 接口的服务 |
 
 价格是 App 在每个模型旁边显示的数字，实际以服务商的价目表为准。
 
 我们推荐「阿里云百炼」加「Fun-ASR」：说话时文字同步出现，在我们的测试中，它对校园地名识别得最准。如果你已经用百炼作为 [AI 模型](/docs/manual/ai-model#get-an-alibaba-cloud-bailian-api-key)，这里可以用同一个 Key。
+
+如果你的 AI 模型用的是 DeepSeek，又不想再注册一个账号，可以选「DeepSeek」，不需要额外的 Key。DeepSeek 没有实时识别，App 会在你每次停顿时把录音切成一段发送，所以文字是一句一句出现的，而不是逐字出现。价格来自 [DeepSeek 的价目表](https://api-docs.deepseek.com/quick_start/pricing)。
 
 ## 设置阿里云百炼 [#set-up-alibaba-cloud-bailian]
 
@@ -31,6 +34,13 @@ icon: Mic
 5. 点「保存」。
 
 接口地址是固定的（`wss://dashscope.aliyuncs.com/api-ws/v1/inference`），显示在模型列表下方。
+
+## 设置 DeepSeek [#set-up-deepseek]
+
+1. 确认「设置 → AI 服务」中已经保存了 DeepSeek API Key。还没有的话，按 [AI 服务 → 申请 DeepSeek API Key](/docs/manual/ai-model#get-a-deepseek-api-key) 操作。
+2. 在 App 中打开「设置 → 语音输入」，点「DeepSeek」。
+3. 页面显示「使用你在 AI 服务设置中填写的 DeepSeek API Key，无需另外申请。」，不需要粘贴任何内容。如果显示的是「请先在 AI 服务设置中填写 DeepSeek API Key。」，点「打开 AI 服务设置」，在那里保存 Key。
+4. 点「保存」。
 
 ## 设置硅基流动 [#set-up-siliconflow]
 
@@ -54,6 +64,8 @@ icon: Mic
 在对话中也可以附上音频文件：点「+」，再点「文件」，选择一段录音（最大 50 MB）。语音输入服务会把它转成文字，助手读取转写结果。
 
 「阿里云百炼（实时）」只能转写实时语音。要转写音频文件，请在「设置 → 语音输入」中选择「硅基流动」或「OpenAI 兼容」服务。
+
+DeepSeek 也能转写音频文件，但只接受 WAV 或 Ogg Opus 格式、不超过 120 秒和 8 MiB 的录音。更长的录音以及 MP3、M4A 文件可能会失败，所以转写音频文件推荐用硅基流动。
 
 ## 语音输入用不了时 [#when-voice-input-doesnt-work]
 
