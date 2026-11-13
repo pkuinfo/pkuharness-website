@@ -10,7 +10,7 @@ body:
     id: url
     attributes:
       label: Page URL
-      placeholder: https://harness.novadiffusion.com/...
+      placeholder: https://pkuharness.com/...
     validations:
       required: true
   - type: textarea

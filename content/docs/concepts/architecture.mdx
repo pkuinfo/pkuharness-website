@@ -135,7 +135,7 @@ export const helloPlugin = definePlugin({
 
 **插件文档**的链接每天最多重新拉取一次。如果新版本的声明没有变化，它会直接生效。如果新版本要求更宽的权限，要等你确认后才生效。插件文档的更新完全不经过 OTA。
 
-**空中更新**（over-the-air update，简称 OTA）从我们自己的更新服务器下发，下次启动 App 时生效。它基于 expo-updates，服务端是一个静态的、经过代码签名的服务器（`https://harness.novadiffusion.com/updates/`）。每次更新都由持续集成（CI）用只有维护者持有的密钥签名。App 内置了对应的证书，会拒绝其他来源的更新。
+**空中更新**（over-the-air update，简称 OTA）从我们自己的更新服务器下发，下次启动 App 时生效。它基于 expo-updates，服务端是一个静态的、经过代码签名的服务器（`https://pkuharness.com/updates/`）。每次更新都由持续集成（CI）用只有维护者持有的密钥签名。App 内置了对应的证书，会拒绝其他来源的更新。
 
 `runtimeVersion` 采用 fingerprint 策略。也就是说，只要原生代码有改动，运行时版本就会变化，旧的 APK 不会接收新的 OTA 更新，用户需要安装新的 APK。
 

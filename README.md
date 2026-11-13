@@ -13,10 +13,10 @@ University. Download page, developer documentation, and the plugin marketplace.
 [![License: MIT](https://img.shields.io/badge/license-MIT-8B0012.svg)](LICENSE)
 [![Discussions](https://img.shields.io/github/discussions/pkuinfo/pku-harness)](https://github.com/pkuinfo/pku-harness/discussions)
 
-**[harness.novadiffusion.com](https://harness.novadiffusion.com)** ·
-[Docs](https://harness.novadiffusion.com/docs) ·
-[Marketplace](https://harness.novadiffusion.com/marketplace) ·
-[Download](https://harness.novadiffusion.com/download)
+**[pkuharness.com](https://pkuharness.com)** ·
+[Docs](https://pkuharness.com/docs) ·
+[Marketplace](https://pkuharness.com/marketplace) ·
+[Download](https://pkuharness.com/download)
 
 </div>
 
@@ -32,13 +32,13 @@ University. Download page, developer documentation, and the plugin marketplace.
 
 Every docs page is also served as Markdown, so coding agents can read the docs directly:
 
-| URL                                                                                                                                                          | Content                                 |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
-| [`/llms.txt`](https://harness.novadiffusion.com/llms.txt)                                                                                                    | Index of all pages                      |
-| [`/llms-full.txt`](https://harness.novadiffusion.com/llms-full.txt), [`/llms-full.zh.txt`](https://harness.novadiffusion.com/llms-full.zh.txt)               | All docs in one file (English, Chinese) |
-| `/en/docs/<page>.md`, `/docs/<page>.md` (Chinese), or `Accept: text/markdown`                                                                                | One page                                |
-| [`/marketplace.json`](https://harness.novadiffusion.com/marketplace.json), [`/marketplace/llms.txt`](https://harness.novadiffusion.com/marketplace/llms.txt) | The marketplace index                   |
-| [`/schema/plugin-manifest.v1.json`](https://harness.novadiffusion.com/schema/plugin-manifest.v1.json)                                                        | JSON Schema for remote-plugin manifests |
+| URL                                                                                                                                    | Content                                 |
+| -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| [`/llms.txt`](https://pkuharness.com/llms.txt)                                                                                         | Index of all pages                      |
+| [`/llms-full.txt`](https://pkuharness.com/llms-full.txt), [`/llms-full.zh.txt`](https://pkuharness.com/llms-full.zh.txt)               | All docs in one file (English, Chinese) |
+| `/en/docs/<page>.md`, `/docs/<page>.md` (Chinese), or `Accept: text/markdown`                                                          | One page                                |
+| [`/marketplace.json`](https://pkuharness.com/marketplace.json), [`/marketplace/llms.txt`](https://pkuharness.com/marketplace/llms.txt) | The marketplace index                   |
+| [`/schema/plugin-manifest.v1.json`](https://pkuharness.com/schema/plugin-manifest.v1.json)                                             | JSON Schema for remote-plugin manifests |
 
 ## Tech stack
 
@@ -96,8 +96,8 @@ deploy/                Production: Docker Compose, Caddy, deploy script (see dep
 ## Listing a plugin
 
 You don't need to edit this repo. Open
-[harness.novadiffusion.com/marketplace/submit](https://harness.novadiffusion.com/marketplace/submit),
-paste your GitHub repo and follow the checks. See [Publishing](https://harness.novadiffusion.com/docs/marketplace/publishing).
+[pkuharness.com/marketplace/submit](https://pkuharness.com/marketplace/submit),
+paste your GitHub repo and follow the checks. See [Publishing](https://pkuharness.com/docs/marketplace/publishing).
 
 ## Deployment
 

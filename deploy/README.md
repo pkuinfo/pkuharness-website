@@ -1,6 +1,6 @@
 # Deployment
 
-Production runs at **https://harness.novadiffusion.com** on a small VPS (2 vCPU, 4 GB RAM, Hong Kong).
+Production runs at **https://pkuharness.com** on a small VPS (2 vCPU, 4 GB RAM, Hong Kong).
 
 ```
 Cloudflare (proxy) ──► Caddy :443 (TLS, compression)
@@ -28,18 +28,18 @@ backup.
 
 ## Files
 
-| File                  | Where it goes                            | What                                                                                                                                                |
-| --------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `compose.yml`         | `/opt/pkuharness-website/compose.yml`    | The service: `127.0.0.1:3100`, `restart: unless-stopped`, 1 GB memory limit, rotated logs                                                           |
-| `.env` (not in git)   | `/opt/pkuharness-website/.env`, mode 600 | `NEXT_PUBLIC_SITE_URL=https://harness.novadiffusion.com`, `GITHUB_WEBHOOK_SECRET` (release webhook), optional `GITHUB_TOKEN` (read-only, no scopes) |
-| `Caddyfile`           | site block in `/etc/caddy/Caddyfile`     | Reverse proxy. Production also imports the OTA snippet; see below                                                                                   |
-| `deploy.sh`           | run locally                              | Pull and restart over SSH                                                                                                                           |
-| `Dockerfile.prebuilt` |                                          | Fallback image from a local `bun run build` (see below)                                                                                             |
+| File                  | Where it goes                            | What                                                                                                                                     |
+| --------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `compose.yml`         | `/opt/pkuharness-website/compose.yml`    | The service: `127.0.0.1:3100`, `restart: unless-stopped`, 1 GB memory limit, rotated logs                                                |
+| `.env` (not in git)   | `/opt/pkuharness-website/.env`, mode 600 | `NEXT_PUBLIC_SITE_URL=https://pkuharness.com`, `GITHUB_WEBHOOK_SECRET` (release webhook), optional `GITHUB_TOKEN` (read-only, no scopes) |
+| `Caddyfile`           | site block in `/etc/caddy/Caddyfile`     | Reverse proxy. Production also imports the OTA snippet; see below                                                                        |
+| `deploy.sh`           | run locally                              | Pull and restart over SSH                                                                                                                |
+| `Dockerfile.prebuilt` |                                          | Fallback image from a local `bun run build` (see below)                                                                                  |
 
 The production site block, with OTA updates served by Caddy itself:
 
 ```caddyfile
-harness.novadiffusion.com {
+pkuharness.com {
 	encode zstd gzip
 	import /etc/caddy/pkuharness-updates.caddy
 	handle {
@@ -76,7 +76,7 @@ on the commit you want, then `./deploy/deploy.sh`.
 Build locally and stream the image over SSH:
 
 ```bash
-NEXT_PUBLIC_SITE_URL=https://harness.novadiffusion.com bun run build
+NEXT_PUBLIC_SITE_URL=https://pkuharness.com bun run build
 docker build -f deploy/Dockerfile.prebuilt -t ghcr.io/pkuinfo/pkuharness-website:latest .
 docker save ghcr.io/pkuinfo/pkuharness-website:latest | gzip -1 | ssh rainyun 'gunzip | docker load'
 ssh rainyun 'cd /opt/pkuharness-website && docker compose up -d --pull never'

@@ -1,6 +1,6 @@
 # Runtime-only image from a local `bun run build` (Next standalone output). Fallback when the CI
 # image can't be pulled; same runtime as the main Dockerfile's final stage.
-#   NEXT_PUBLIC_SITE_URL=https://harness.novadiffusion.com bun run build
+#   NEXT_PUBLIC_SITE_URL=https://pkuharness.com bun run build
 #   docker build -f deploy/Dockerfile.prebuilt -t ghcr.io/pkuinfo/pkuharness-website:latest .
 FROM node:24-alpine
 WORKDIR /app

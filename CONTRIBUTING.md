@@ -16,7 +16,7 @@ By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
   than a small fix, open an issue first.
 - **Translate.** Every docs page has a Chinese and an English file; a page that only exists in
   English, or reads like a translation, is a welcome fix.
-- **List a plugin.** Use the [submit page](https://harness.novadiffusion.com/marketplace/submit). You
+- **List a plugin.** Use the [submit page](https://pkuharness.com/marketplace/submit). You
   don't need a pull request here.
 
 Look for issues labelled
