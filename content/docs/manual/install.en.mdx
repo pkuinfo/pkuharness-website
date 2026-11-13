@@ -56,20 +56,25 @@ and it takes effect the next time you open the app. Each OTA update is signed by
 and the app rejects any update without a valid signature. You don't need to do anything.
 
 **A new APK** is needed for versions that change native code. When the app opens, it checks the
-latest release on GitHub, at most once every 12 hours. When there is a newer version, it shows
-"PKU harness X.Y.Z is available".
+latest release on GitHub, at most once every 12 hours.
 
-1. Tap **Update**. The app downloads the APK for your phone and shows the progress. You can tap
-   **Cancel** while it downloads.
-2. When the download finishes, the app opens Android's installer. The first time you update this
-   way, Android asks you to allow PKU harness to install apps. Turn that switch on and go back.
-3. Confirm the install in Android's installer.
+- **Download updates on Wi-Fi** (Settings → About; on by default): when there is a newer version,
+  the app downloads it in the background over Wi-Fi without asking. When it is done you get the
+  notification "PKU harness X.Y.Z is ready"; tap it to install.
+- With that switch off, the app shows what's new in the version. Tap **Update now**: the prompt
+  closes, the download runs in the background with its progress in the notification shade, and you
+  can keep using the app. You get the same "Tap to install" notification when it is done.
+
+Either way, installing waits for your tap: the app opens Android's installer. The first time you
+update this way, Android asks you to allow PKU harness to install apps; turn that switch on, go
+back, and confirm the install.
 
 The new version installs over the old one. Your sign-in, chats, settings and other data stay.
 
 If you tap **Later**, the app doesn't show the prompt for that version again for 3 days. In the
 meantime, once the app has found the new version, the top of the Settings tab shows "Version X.Y.Z
-is available"; tap it to update. You can also check by hand in **Settings → About → Check for updates**.
+is available" (with the progress while it downloads, and "is downloaded" when it is done); tap it to
+update or install. You can also check by hand in **Settings → About → Check for updates**.
 
 <Callout title="The update prompt in 1.0.6">
   In 1.0.6, the prompt’s button is **Download**, and it opens the download link in the browser instead of downloading in the
