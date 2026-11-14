@@ -267,14 +267,15 @@ The floating window shows the current step and a live preview. It has **Pause** 
   PKU harness there is no floating window: the chat already shows the task.
 - Drag the corner of the preview to resize it.
 
-**You only pay.** Copilot picks items, address, options and coupons and taps **Submit order** or
-**Pay now** itself (it says the amount and merchant first). When the payment sheet opens (choosing
-Alipay or WeChat Pay, the cashier, a password or fingerprint prompt), Copilot can't tap on it: it
-hands the app to you on your main screen with a note such as "Pay ¥23.5, then tap Done". Pay with
-your fingerprint, face or password, then tap **Done · continue** in the floating window. Copilot checks the result and finishes the task. It does
-the same for passwords and sign-in checks. You can also tap **Take over** on the Copilot screen at
-any time, and **Return control to Copilot** when you are done. If password-free payment is on,
-an order may be charged without a payment sheet; Copilot then checks the result and tells you.
+**You submit and pay.** Copilot picks items, address, options and coupons and fills in the order,
+then stops on the checkout page: it never taps **Submit order**, **Pay now** or **Buy now**, because
+payments fail on Copilot's own display (Meituan, for example, reports a parameter error). It hands
+the app to you on your main screen with a note naming the merchant and amount, such as "Meituan
+order ready: ¥23.5. Tap Submit order and pay, then tap Done". Check the order, submit it and pay
+with your fingerprint, face or password, then tap **Done · continue** in the floating window.
+PKU harness comes back to the front, and Copilot checks the result and finishes the task there. It does the same for passwords and sign-in
+checks. You can also tap **Take over** on the Copilot screen at any time, and **Return control to
+Copilot** when you are done.
 
 ## Leaving the app and the lock screen [#background]
 
