@@ -44,6 +44,23 @@
   --color-fd-primary: #8b0012;
   --color-fd-primary-foreground: #fff;
   --color-fd-ring: #c42236;
+  /* Opening animation at the site root (components/intro): always dark, whatever the theme. The
+     values repeat the dark-theme canvas, card, ink and lifted red above. */
+  --color-intro-canvas: #000000;
+  --color-intro-surface: hsl(0, 0%, 6.5%);
+  --color-intro-line: rgb(255 255 255 / 0.12);
+  --color-intro-ink: #f5f5f7;
+  --color-intro-ink-2: #86868b;
+  --color-intro-red: #ff5a6a;
+  --color-intro-ok: #4ade80;
+  /* Intro type and shape scale (fluid; shared with the launch video). */
+  --intro-type-display: clamp(2.25rem, 1.4rem + 3.6vmin, 4.25rem);
+  --intro-type-question: clamp(1.0625rem, 0.85rem + 1.1vmin, 1.5rem);
+  --intro-type-body: clamp(0.875rem, 0.8rem + 0.35vmin, 1.0625rem);
+  --intro-type-caption: clamp(0.875rem, 0.78rem + 0.4vmin, 1.0625rem);
+  --intro-type-label: clamp(0.6875rem, 0.64rem + 0.2vmin, 0.8125rem);
+  --intro-radius-card: 18px;
+  --intro-radius-pill: 980px;
 }
 
 .dark {

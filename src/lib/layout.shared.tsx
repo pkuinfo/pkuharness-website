@@ -5,7 +5,7 @@ import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
 import { Logo } from '@/components/brand/logo';
 import { i18n, type Lang, localePath } from './i18n';
 import { t } from './messages';
-import { appName, gitConfig } from './shared';
+import { appName, gitConfig, homePath } from './shared';
 
 /** Fumadocs UI strings: official zh-CN language pack (https://fumadocs.dev/docs/ui/translations). */
 export const translations = i18n
@@ -22,7 +22,7 @@ export function baseOptions(lang: Lang): BaseLayoutProps {
   const m = t(lang).nav;
   return {
     nav: {
-      url: localePath(lang, '/'),
+      url: localePath(lang, homePath),
       title: (
         <span className="inline-flex items-center gap-2 font-semibold tracking-tight">
           <Logo size={24} />

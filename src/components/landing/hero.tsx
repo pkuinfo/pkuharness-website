@@ -35,6 +35,16 @@ export function Hero({ lang, latest, media }: { lang: Lang; latest?: Release; me
           {facts.map((f) => (
             <li key={f}>{f}</li>
           ))}
+          <li>
+            {/* The site root is an interactive particle animation. */}
+            <Link
+              href={localePath(lang, '/')}
+              prefetch={false}
+              className="rounded-[4px] underline-offset-[3px] hover:text-fd-foreground hover:underline focus-visible:outline-2 focus-visible:outline-fd-ring"
+            >
+              {h.replay}
+            </Link>
+          </li>
         </ul>
       </div>
       {media && (

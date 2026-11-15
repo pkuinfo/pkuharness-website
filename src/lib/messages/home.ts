@@ -14,10 +14,47 @@ export const en = {
     released: (tag: string) => `Latest version ${tag}`,
     android: 'Android 7.0 or later',
     license: 'Free and open source (MIT)',
+    replay: 'Opening animation',
   },
   media: {
     play: 'Play recording',
     pause: 'Pause recording',
+  },
+  features: {
+    title: 'What the app does',
+    lead: 'An AI assistant connected to campus services and phone tools, so a conversation can turn into an action. You choose the model, the plugins, and what the assistant may do.',
+    items: [
+      {
+        id: 'chat' as const,
+        title: 'A chat that can act',
+        body: 'Streaming replies, visible tool activity, native forms and cards, attachments, several sessions and a model per session.',
+      },
+      {
+        id: 'today' as const,
+        title: 'Your day at a glance',
+        body: 'A dashboard you arrange, your timetable, to-dos, reminders and scheduled checks.',
+      },
+      {
+        id: 'copilot' as const,
+        title: 'Copilot on your phone',
+        body: 'Copilot works in apps you select, with a floating preview and controls. Pause or stop it at any time.',
+      },
+      {
+        id: 'plugins' as const,
+        title: 'An open plugin system',
+        body: 'Campus services, model providers and tools share one runtime. Community plugins use the same SDK as the built-in ones.',
+      },
+      {
+        id: 'permissions' as const,
+        title: 'Permissions you can read',
+        body: 'For each plugin, choose allow, ask first or block. Reading, changing, money and public actions are set separately.',
+      },
+      {
+        id: 'model' as const,
+        title: 'Your choice of model',
+        body: 'Use DeepSeek or an OpenAI-compatible service with your own API key. Model charges are separate from this free app.',
+      },
+    ],
   },
   tabs: {
     title: 'The four tabs',
@@ -120,10 +157,47 @@ export const zh: typeof en = {
     released: (tag: string) => `最新版本 ${tag}`,
     android: 'Android 7.0 及以上',
     license: '免费开源（MIT）',
+    replay: '开场动画',
   },
   media: {
     play: '播放录屏',
     pause: '暂停录屏',
+  },
+  features: {
+    title: '这个应用能做什么',
+    lead: 'AI 助手连接校园服务和手机工具，让对话变成实际操作。模型由你选择，插件由你开启，哪些操作可以交给助手，也由你决定。',
+    items: [
+      {
+        id: 'chat' as const,
+        title: '能办事的对话',
+        body: '流式回复，可以查看工具执行过程，结果显示为原生表单和卡片。支持附件、多个会话和会话级模型选择。',
+      },
+      {
+        id: 'today' as const,
+        title: '一眼看到今天',
+        body: '自己安排的看板、课表、待办、提醒和定时检查。',
+      },
+      {
+        id: 'copilot' as const,
+        title: '手机上的 Copilot',
+        body: 'Copilot 在你选定的应用中工作，通过悬浮窗口显示预览和控制按钮，可以随时暂停或停止。',
+      },
+      {
+        id: 'plugins' as const,
+        title: '开放的插件系统',
+        body: '校园服务、模型和工具共用一套运行时。社区插件使用与内置插件相同的 SDK。',
+      },
+      {
+        id: 'permissions' as const,
+        title: '看得懂的权限',
+        body: '每个插件都可以设为自动允许、每次询问或禁止。读取、修改、资金和公开发布分别设置。',
+      },
+      {
+        id: 'model' as const,
+        title: '自己选择模型',
+        body: '使用 DeepSeek 或 OpenAI 兼容服务，填写自己的 API Key。模型费用由对应服务商收取，App 本身免费。',
+      },
+    ],
   },
   tabs: {
     title: '四个标签页',

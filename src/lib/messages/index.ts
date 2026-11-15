@@ -2,6 +2,7 @@ import type { Lang } from '@/lib/i18n';
 import * as common from './common';
 import * as download from './download';
 import * as home from './home';
+import * as intro from './intro';
 import * as marketplace from './marketplace';
 
 /**
@@ -9,8 +10,8 @@ import * as marketplace from './marketplace';
  * area, each exporting `en` (defines the shape) and `zh: typeof en`.
  */
 const messages = {
-  en: { ...common.en, home: home.en, marketplace: marketplace.en, download: download.en },
-  zh: { ...common.zh, home: home.zh, marketplace: marketplace.zh, download: download.zh },
+  en: { ...common.en, home: home.en, intro: intro.en, marketplace: marketplace.en, download: download.en },
+  zh: { ...common.zh, home: home.zh, intro: intro.zh, marketplace: marketplace.zh, download: download.zh },
 } satisfies Record<Lang, unknown>;
 
 export type Messages = (typeof messages)['en'];

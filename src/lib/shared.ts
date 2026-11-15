@@ -2,6 +2,11 @@ export const appName = 'PKU harness';
 // Empty when unset in CI build args, so treat '' as missing too.
 export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 export const docsRoute = '/docs';
+/**
+ * The home page. The site root (`/`, `/en`) plays the opening animation and then moves here, so
+ * every "home" link (logo, nav, footer) points here instead of the root.
+ */
+export const homePath = '/home';
 export const docsImageRoute = '/og/docs';
 export const docsContentRoute = '/llms.mdx/docs';
 

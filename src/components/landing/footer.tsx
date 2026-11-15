@@ -3,7 +3,7 @@ import { Logo } from '@/components/brand/logo';
 import { TextHoverEffect } from '@/components/ui/text-hover-effect';
 import { type Lang, localePath } from '@/lib/i18n';
 import { t } from '@/lib/messages';
-import { github, repos } from '@/lib/shared';
+import { github, homePath, repos } from '@/lib/shared';
 
 function columns(lang: Lang): { title: string; links: { label: string; href: string }[] }[] {
   const m = t(lang);
@@ -52,7 +52,7 @@ export function SiteFooter({ lang }: { lang: Lang }) {
       <div className="mx-auto grid w-full max-w-[1200px] grid-cols-2 gap-x-6 gap-y-10 px-4 pt-16 pb-12 sm:grid-cols-3 md:grid-cols-[1.5fr_repeat(3,1fr)] md:px-8">
         <div className="col-span-2 sm:col-span-3 md:col-span-1">
           <Link
-            href={localePath(lang, '/')}
+            href={localePath(lang, homePath)}
             className="inline-flex items-center gap-2.5 rounded-[8px] font-semibold focus-visible:outline-2 focus-visible:outline-fd-ring"
           >
             <Logo size={28} />

@@ -2,19 +2,29 @@ import type { Metadata } from 'next';
 import { AppTabs, type TabId } from '@/components/landing/app-tabs';
 import { Developers } from '@/components/landing/developers';
 import { DownloadCta } from '@/components/landing/download-cta';
+import { Features } from '@/components/landing/features';
 import { Hero } from '@/components/landing/hero';
 import { HomeFaq } from '@/components/landing/home-faq';
 import { Privacy } from '@/components/landing/privacy';
 import { getLocalizedPlugins } from '@/components/landing/registry';
 import { Services } from '@/components/landing/services';
 import { getShowcase, pick } from '@/components/landing/showcase/media';
-import { toLang } from '@/lib/i18n';
+import { localePath, toLang } from '@/lib/i18n';
 import { t } from '@/lib/messages';
 import { getReleases, pickLatest } from '@/lib/releases';
+import { homePath } from '@/lib/shared';
 
 export async function generateMetadata({ params }: PageProps<'/[lang]'>): Promise<Metadata> {
-  const m = t(toLang((await params).lang)).home.meta;
-  return { title: { absolute: m.title }, description: m.description };
+  const lang = toLang((await params).lang);
+  const m = t(lang).home.meta;
+  return {
+    title: { absolute: m.title },
+    description: m.description,
+    alternates: {
+      canonical: localePath(lang, homePath),
+      languages: { 'zh-CN': localePath('zh', homePath), en: localePath('en', homePath) },
+    },
+  };
 }
 
 /** Which captures (manifest `feature`) illustrate each tab, best first. */
@@ -42,6 +52,7 @@ export default async function HomePage({ params }: PageProps<'/[lang]'>) {
   return (
     <div className="lp-home flex flex-col">
       <Hero lang={lang} latest={pickLatest(releases)} media={hero} />
+      <Features lang={lang} />
       <AppTabs lang={lang} media={tabs} />
       <Services lang={lang} plugins={plugins} />
       <Privacy lang={lang} />
