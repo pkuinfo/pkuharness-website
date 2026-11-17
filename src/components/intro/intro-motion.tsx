@@ -38,7 +38,7 @@ const stored = (): boolean => {
  * flowing and an invisible hand stirs them.
  *
  * Native scroll, no hijacking: the progress eases toward the scroll position. This component only
- * feeds the stage (stage-gl.ts, or stage-2d.ts without WebGL) and fades a few words.
+ * feeds the stage (stage-gl.ts, or stage-2d.ts without WebGL) and fades in the link at the end.
  */
 export function IntroMotion({
   m,
@@ -164,17 +164,8 @@ export function IntroMotion({
         }
       }
 
-      // The few words, and the link at the end.
+      // The link at the end.
       const u = clock.u;
-      for (let w = 0; w < 3; w++) {
-        const on = formWeight(u, w + 1);
-        write(`word${w}`, 'opacity', on.toFixed(3));
-        write(
-          `word${w}`,
-          'transform',
-          `translate3d(0,${((1 - on) * 40).toFixed(1)}px,0) scale(${(0.94 + 0.06 * on).toFixed(4)})`,
-        );
-      }
       const end = formWeight(u, FORMS.length - 1);
       write('end', 'opacity', end.toFixed(3));
       write('end', 'transform', `translate3d(-50%,${((1 - end) * 30).toFixed(1)}px,0)`);
@@ -253,17 +244,7 @@ export function IntroMotion({
       <div ref={ref('progress')} className="ih-progress" aria-hidden="true" />
       <canvas ref={canvas} className="ih-stage" />
 
-      {/* A few large words, as part of the picture. */}
-      <div className="ih-art" aria-hidden="true">
-        {m.words.map((word, i) => (
-          <p key={word} ref={ref(`word${i}`)} className="ih-word" data-side={i % 2 ? 'right' : 'left'}>
-            {word}
-          </p>
-        ))}
-      </div>
-
       <div ref={ref('end')} className="ih-end">
-        <p className="ih-tagline">{m.tagline}</p>
         <Link href={homeHref} className="ih-enter-link">
           {m.enter}
         </Link>
@@ -298,7 +279,6 @@ export function IntroMotion({
       <div className="ih-still">
         <Logo size={112} />
         <p className="ih-still-name">PKU harness</p>
-        <p className="ih-tagline">{m.tagline}</p>
         <Link href={homeHref} className="ih-enter-link">
           {m.enter}
         </Link>

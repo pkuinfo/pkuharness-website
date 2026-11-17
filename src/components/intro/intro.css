@@ -46,42 +46,7 @@ html:has(.ih-root) body {
   transform-origin: left;
 }
 
-/* ---- The few words ------------------------------------------------------------------------- */
-
-.ih-art {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-.ih-word {
-  position: absolute;
-  bottom: clamp(88px, 14vh, 150px);
-  margin: 0;
-  font-size: clamp(3rem, 2rem + 9vmin, 9.5rem);
-  font-weight: 700;
-  line-height: 0.95;
-  letter-spacing: -0.045em;
-  white-space: nowrap;
-  /* Outlined, so the particles show through. */
-  color: transparent;
-  -webkit-text-stroke: 1px color-mix(in oklab, var(--color-intro-ink) 55%, transparent);
-  opacity: 0;
-  will-change: transform, opacity;
-}
-:lang(zh) .ih-word {
-  letter-spacing: 0.02em;
-}
-.ih-word[data-side="left"] {
-  left: clamp(20px, 5vw, 96px);
-  transform-origin: 0 100%;
-}
-.ih-word[data-side="right"] {
-  right: clamp(20px, 5vw, 96px);
-  transform-origin: 100% 100%;
-}
-
-/* ---- The end: tagline and the link --------------------------------------------------------- */
+/* ---- The end: the link --------------------------------------------------------------------- */
 
 .ih-end {
   position: fixed;
@@ -100,13 +65,6 @@ html:has(.ih-root) body {
 }
 .ih-end[data-on="1"] {
   pointer-events: auto;
-}
-.ih-tagline {
-  margin: 0;
-  font-size: var(--intro-type-caption);
-  line-height: 1.55;
-  color: var(--color-intro-ink-2);
-  text-wrap: balance;
 }
 .ih-enter-link {
   display: inline-flex;
@@ -277,7 +235,7 @@ html:has(.ih-root) body {
   letter-spacing: -0.035em;
   line-height: 1;
 }
-.ih-root[data-mode="static"] :is(.ih-stage, .ih-art, .ih-end, .ih-hint, .ih-hud, .ih-track-scroll, .ih-progress) {
+.ih-root[data-mode="static"] :is(.ih-stage, .ih-end, .ih-hint, .ih-hud, .ih-track-scroll, .ih-progress) {
   display: none;
 }
 .ih-root[data-mode="static"] .ih-still {
@@ -291,9 +249,6 @@ html:has(.ih-root) body {
   .ih-kbd {
     display: none;
   }
-  .ih-word {
-    bottom: 96px;
-  }
   .ih-hud {
     font-size: 10px;
   }
@@ -302,10 +257,6 @@ html:has(.ih-root) body {
   }
 }
 @media (max-height: 520px) {
-  .ih-word {
-    bottom: 56px;
-    font-size: clamp(2.5rem, 16vh, 5rem);
-  }
   .ih-end {
     top: 66%;
     gap: 10px;

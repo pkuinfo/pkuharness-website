@@ -1,7 +1,6 @@
 /**
  * UI strings for the root page (`/`, `/en`): a WebGL particle piece with almost no text. English
- * defines the shape; Chinese must match it. The three large words are the three adjectives of the
- * product's one-line description.
+ * defines the shape; Chinese must match it.
  */
 export const en = {
   meta: {
@@ -17,13 +16,11 @@ export const en = {
   scroll: 'Scroll',
   hint: 'Move the pointer. Click for a shockwave.',
   hintTouch: 'Drag to move the particles. Tap for a shockwave.',
-  words: ['Pluggable', 'Keyless', 'Unified'],
   forms: ['Sphere', 'Galaxy', 'Wave', 'Boya Pagoda', 'Swallow', 'PKU harness'],
   particles: 'particles',
   motionOff: 'Turn off animation',
   motionOn: 'Turn on animation',
   slow: 'The animation is not running smoothly on this device.',
-  tagline: 'A pluggable, keyless, unified agent harness on your phone.',
 };
 
 export const zh: typeof en = {
@@ -39,11 +36,9 @@ export const zh: typeof en = {
   scroll: '向下滚动',
   hint: '移动指针试试，点击会产生冲击波。',
   hintTouch: '拖动可以拨开粒子，轻点会产生冲击波。',
-  words: ['可插拔', '免密钥', '一体化'],
   forms: ['球体', '星系', '波浪', '博雅塔', '燕子', 'PKU harness'],
   particles: '个粒子',
   motionOff: '关闭动效',
   motionOn: '开启动效',
   slow: '动画在这台设备上不够流畅。',
-  tagline: '装在手机上的可插拔、免密钥、一体化智能体。',
 };
